@@ -1,0 +1,12 @@
+{
+  "name": "@helio/api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "uvicorn app.main:app --reload --port 8000",
+    "lint": "ruff check app/",
+    "type-check": "mypy app/",
+    "test": "pytest",
+    "clean": "find . -type d -name __pycache__ -exec rm -rf {} +"
+  }
+}

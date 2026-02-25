@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Ovalens — Tax Planning Assistant",
+  "description": "UK tax planning companion for financial advisers",
+  "version": "0.0.1",
+  "permissions": ["storage", "activeTab", "tabs"],
+  "host_permissions": ["http://localhost:8000/*"],
+  "icons": {
+    "16": "public/icon-16.svg",
+    "48": "public/icon-48.svg",
+    "128": "public/icon-128.svg"
+  },
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "public/icon-16.svg",
+      "48": "public/icon-48.svg"
+    },
+    "default_title": "Ovalens"
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.ts"],
+      "run_at": "document_idle"
+    }
+  ]
+}

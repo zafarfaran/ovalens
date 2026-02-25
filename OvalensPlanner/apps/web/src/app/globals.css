@@ -1,0 +1,488 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #0a0a0b;
+    --muted: #64748b;
+    --muted-foreground: #94a3b8;
+    --border: #e2e8f0;
+    --border-subtle: #f1f5f9;
+    --accent: #5c7cfa;
+    --accent-hover: #4c6ef5;
+    --accent-light: #eef2ff;
+    --accent-glow: rgba(92, 124, 250, 0.15);
+    --surface: #f8fafc;
+    --surface-elevated: #ffffff;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --info: #3b82f6;
+    --card: #ffffff;
+    --card-border: rgba(226, 232, 240, 0.6);
+    --nav-bg: rgba(255, 255, 255, 0.8);
+
+    /* Chart tokens — light */
+    --chart-tooltip-bg: rgba(255, 255, 255, 0.92);
+    --chart-tooltip-border: rgba(200, 200, 220, 0.4);
+    --chart-grid: rgba(100, 116, 139, 0.1);
+    --chart-axis: #94a3b8;
+    --chart-cursor: rgba(92, 124, 250, 0.06);
+  }
+
+  .dark {
+    --background: #0a0a0f;
+    --foreground: #e8e8f0;
+    --muted: #6e6e82;
+    --muted-foreground: #4a4a5e;
+    --border: rgba(255, 255, 255, 0.06);
+    --border-subtle: rgba(255, 255, 255, 0.03);
+    --accent: #748ffc;
+    --accent-hover: #91a7ff;
+    --accent-light: rgba(92, 124, 250, 0.1);
+    --accent-glow: rgba(92, 124, 250, 0.25);
+    --surface: rgba(255, 255, 255, 0.02);
+    --surface-elevated: rgba(255, 255, 255, 0.04);
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --info: #3b82f6;
+    --card: rgba(255, 255, 255, 0.03);
+    --card-border: rgba(255, 255, 255, 0.07);
+    --nav-bg: rgba(10, 10, 15, 0.7);
+
+    /* Chart tokens — dark */
+    --chart-tooltip-bg: rgba(15, 15, 22, 0.92);
+    --chart-tooltip-border: rgba(255, 255, 255, 0.08);
+    --chart-grid: rgba(255, 255, 255, 0.04);
+    --chart-axis: #5a5a6e;
+    --chart-cursor: rgba(116, 143, 252, 0.06);
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/* ── Hero headline animations (GPU-composited) ── */
+
+@keyframes text-reveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0% 0 0); }
+}
+
+@keyframes sweep-bar {
+  0%   { left: 0%; opacity: 0; }
+  5%   { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { left: 105%; opacity: 0; }
+}
+
+.animate-text-reveal {
+  clip-path: inset(0 100% 0 0);
+  animation: text-reveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.75s forwards;
+}
+
+.animate-sweep-bar {
+  left: 0%;
+  opacity: 0;
+  animation: sweep-bar 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.75s forwards;
+}
+
+/* ── Animations ── */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes draw-line {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out both;
+  }
+}
+
+/* ── Background patterns ── */
+
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(226, 232, 240, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(226, 232, 240, 0.07) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+.dark .bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+}
+
+.bg-grid-dark {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+.bg-dots {
+  background-image: radial-gradient(rgba(148, 163, 184, 0.15) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.dark .bg-dots {
+  background-image: radial-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+}
+
+/* ── Hide scrollbar utility ── */
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Custom scrollbar ── */
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* ── Context pill scrollbar (thinner, more subtle) ── */
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(161, 161, 170, 0.15);
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(161, 161, 170, 0.3);
+}
+
+/* ── Card system (matches chat page) ── */
+
+.refined-card {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.4);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dark .refined-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.refined-card:hover {
+  border-color: rgba(226, 232, 240, 0.6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.dark .refined-card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.refined-sidebar {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-right: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.dark .refined-sidebar {
+  background: rgba(10, 10, 15, 0.6);
+  border-right-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Card hover depth ── */
+
+.card-hover {
+  transition: box-shadow 0.15s ease;
+}
+.card-hover:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.dark .card-hover:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Marquee ── */
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* ── Workflow pulse ── */
+
+@keyframes workflow-pulse {
+  0% { left: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+/* ── Waveform bars (GPU-composited, replaces 37 JS animation loops) ── */
+
+@keyframes wave-bar {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+.wave-bar {
+  will-change: transform;
+  transform-origin: bottom;
+  animation: wave-bar var(--wave-dur, 0.8s) ease-in-out var(--wave-del, 0s) infinite;
+}
+
+/* ── Mic pulse ring (GPU-composited) ── */
+
+@keyframes mic-pulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.mic-pulse-ring {
+  animation: mic-pulse 1.2s ease-out infinite;
+}
+
+/* ── Listening label pulse ── */
+
+@keyframes listen-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.listen-pulse {
+  animation: listen-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Dashboard generation overlay ── */
+
+@keyframes dash-scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(calc(100vh)); }
+}
+
+@keyframes dash-scan-line {
+  0% { top: -2px; opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes dash-row-reveal {
+  0% { transform: scaleX(0); opacity: 0; }
+  20% { opacity: 0.6; }
+  80% { opacity: 0.6; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+@keyframes dash-cell-pulse {
+  0%, 100% { opacity: 0; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+  70% { opacity: 0.6; transform: scale(1); }
+}
+
+@keyframes dash-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes dash-glow-pulse {
+  0%, 100% { opacity: 0.03; }
+  50% { opacity: 0.08; }
+}
+
+.dash-overlay-scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  animation: dash-scan-line 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.dash-overlay-scan-line::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -20px;
+  height: 40px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(92, 124, 250, 0.04) 40%,
+    rgba(92, 124, 250, 0.12) 50%,
+    rgba(92, 124, 250, 0.04) 60%,
+    transparent 100%
+  );
+}
+
+.dark .dash-overlay-scan-line::before {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(116, 143, 252, 0.03) 40%,
+    rgba(116, 143, 252, 0.1) 50%,
+    rgba(116, 143, 252, 0.03) 60%,
+    transparent 100%
+  );
+}
+
+.dash-overlay-scan-line::after {
+  content: '';
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(92, 124, 250, 0.5) 20%,
+    rgba(139, 92, 246, 0.6) 50%,
+    rgba(92, 124, 250, 0.5) 80%,
+    transparent
+  );
+  box-shadow: 0 0 8px 1px rgba(92, 124, 250, 0.3);
+}
+
+.dark .dash-overlay-scan-line::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(116, 143, 252, 0.4) 20%,
+    rgba(139, 92, 246, 0.5) 50%,
+    rgba(116, 143, 252, 0.4) 80%,
+    transparent
+  );
+  box-shadow: 0 0 8px 1px rgba(116, 143, 252, 0.25);
+}
+
+.dash-row-shimmer {
+  transform-origin: left;
+  animation: dash-row-reveal var(--row-dur, 2s) ease-in-out var(--row-del, 0s) infinite;
+}
+
+.dash-cell-dot {
+  animation: dash-cell-pulse var(--cell-dur, 1.8s) ease-in-out var(--cell-del, 0s) infinite;
+}
+
+.dash-shimmer-bar {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(92, 124, 250, 0.06) 25%,
+    rgba(139, 92, 246, 0.1) 50%,
+    rgba(92, 124, 250, 0.06) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: dash-shimmer 2s ease-in-out infinite;
+}
+
+.dark .dash-shimmer-bar {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(116, 143, 252, 0.04) 25%,
+    rgba(139, 92, 246, 0.08) 50%,
+    rgba(116, 143, 252, 0.04) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+}
+
+.dash-glow-bg {
+  animation: dash-glow-pulse 3s ease-in-out infinite;
+}
+
+/* ── Voice orb animations removed — whisper bar uses framer-motion ── */
+
+/* ── Mobile fullscreen panel override (overrides framer-motion inline width) ── */
+
+@media (max-width: 767px) {
+  .mobile-fullscreen-panel {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    z-index: 40 !important;
+  }
+  .mobile-fullscreen-panel > * {
+    width: 100% !important;
+  }
+}
+
+/* ── Theme transition ── */
+
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease,
+    box-shadow 0.3s ease !important;
+}
