@@ -37,7 +37,7 @@ def detect_observations(
 
     # PA taper zone
     if ani.pa_status == PAStatus.TAPERED:
-        excess = ani.adjusted_net_income - 100_000
+        excess = ani.adjusted_net_income - 100000
         pa_saving = ani.personal_allowance_lost * 0.40
         ni_saving = excess * 0.02 if excess > 0 else 0
         total_annual = pa_saving + ni_saving
@@ -80,8 +80,8 @@ def detect_observations(
 
     # PA fully lost
     if ani.pa_status == PAStatus.LOST:
-        excess_over_restore = ani.adjusted_net_income - 125_140
-        pa_saving = 12_570 * 0.40
+        excess_over_restore = ani.adjusted_net_income - 125140
+        pa_saving = 12570 * 0.40
         obs.append(ObservationItem(
             id="pa-lost",
             title="Personal Allowance Fully Lost",
@@ -194,7 +194,7 @@ def detect_observations(
         ))
 
     # Approaching AA limit
-    if pension_aa and pension_aa.remaining < 10_000 and pension_contributions > 0:
+    if pension_aa and pension_aa.remaining < 10000 and pension_contributions > 0:
         obs.append(ObservationItem(
             id="pension-aa-limit",
             title="Approaching Pension Annual Allowance Limit",
@@ -218,7 +218,7 @@ def detect_observations(
         ))
 
     # Marriage Allowance eligibility
-    if total_income > 0 and total_income <= 12_570:
+    if total_income > 0 and total_income <= 12570:
         obs.append(ObservationItem(
             id="marriage-allowance",
             title="Marriage Allowance Eligibility",
@@ -235,7 +235,7 @@ def detect_observations(
 
     # Savings Allowance tracking
     marginal = _estimate_marginal_rate(ani, income_tax)
-    psa_limit = 1_000 if marginal <= 0.20 else (500 if marginal <= 0.40 else 0)
+    psa_limit = 1000 if marginal <= 0.20 else (500 if marginal <= 0.40 else 0)
     savings_income = sum(
         b.income_in_band for b in income_tax.savings_bands
     ) if income_tax.savings_bands else 0
@@ -254,7 +254,7 @@ def detect_observations(
         ))
 
     # Dividend vs Salary flag for directors/self-employed
-    if is_director_or_self_employed and has_dividends and total_income > 50_000:
+    if is_director_or_self_employed and has_dividends and total_income > 50000:
         obs.append(ObservationItem(
             id="dividend-salary-split",
             title="Dividend vs Salary Optimisation",
@@ -286,7 +286,7 @@ def detect_observations(
 
     # CGT Annual Exemption reminder
     if cgt_gains > 0:
-        aea = 3_000
+        aea = 3000
         if cgt_gains > aea:
             obs.append(ObservationItem(
                 id="cgt-aea-exceeded",

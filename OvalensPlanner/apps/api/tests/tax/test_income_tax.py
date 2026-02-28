@@ -9,9 +9,9 @@ from app.tax.income_tax import calculate_income_tax
 
 def test_basic_rate_only():
     """£30k income, PA=12,570 → taxable 17,430 → all basic at 20%."""
-    r = calculate_income_tax(non_savings_income=30_000, personal_allowance=12_570)
-    assert r.taxable_income == 17_430
-    assert r.total_income_tax == 3_486  # 17430 * 0.20 = 3486.00
+    r = calculate_income_tax(non_savings_income=30000, personal_allowance=12570)
+    assert r.taxable_income == 17430
+    assert r.total_income_tax == 3486  # 17430 * 0.20 = 3486.00
 
 
 def test_higher_rate():
@@ -20,11 +20,11 @@ def test_higher_rate():
     Higher: 29,730 * 0.40 = 11,892
     Total: 19,432
     """
-    r = calculate_income_tax(non_savings_income=80_000, personal_allowance=12_570)
-    assert r.taxable_income == 67_430
-    assert r.non_savings_bands[0].tax == 7_540
-    assert r.non_savings_bands[1].tax == 11_892
-    assert r.total_income_tax == 19_432
+    r = calculate_income_tax(non_savings_income=80000, personal_allowance=12570)
+    assert r.taxable_income == 67430
+    assert r.non_savings_bands[0].tax == 7540
+    assert r.non_savings_bands[1].tax == 11892
+    assert r.total_income_tax == 19432
 
 
 def test_additional_rate():
@@ -34,12 +34,12 @@ def test_additional_rate():
     Additional: 87,430 * 0.45 = 39,343 (truncated from 39343.50)
     Total: 76,831
     """
-    r = calculate_income_tax(non_savings_income=200_000, personal_allowance=0)
-    assert r.taxable_income == 200_000
-    assert r.non_savings_bands[0].tax == 7_540
-    assert r.non_savings_bands[1].tax == 29_948
-    assert r.non_savings_bands[2].tax == 39_343
-    assert r.total_income_tax == 76_831
+    r = calculate_income_tax(non_savings_income=200000, personal_allowance=0)
+    assert r.taxable_income == 200000
+    assert r.non_savings_bands[0].tax == 7540
+    assert r.non_savings_bands[1].tax == 29948
+    assert r.non_savings_bands[2].tax == 39343
+    assert r.total_income_tax == 76831
 
 
 def test_scottish_basic():
@@ -50,14 +50,14 @@ def test_scottish_basic():
     Total: 3,497
     """
     r = calculate_income_tax(
-        non_savings_income=30_000, personal_allowance=12_570, is_scottish=True,
+        non_savings_income=30000, personal_allowance=12570, is_scottish=True,
     )
-    assert r.taxable_income == 17_430
+    assert r.taxable_income == 17430
     assert r.non_savings_bands[0].name == "Starter Rate"
     assert r.non_savings_bands[0].tax == 438
-    assert r.non_savings_bands[1].tax == 2_337
+    assert r.non_savings_bands[1].tax == 2337
     assert r.non_savings_bands[2].tax == 722
-    assert r.total_income_tax == 3_497
+    assert r.total_income_tax == 3497
 
 
 def test_scottish_higher():
@@ -70,9 +70,9 @@ def test_scottish_higher():
     Total: 21,777
     """
     r = calculate_income_tax(
-        non_savings_income=80_000, personal_allowance=12_570, is_scottish=True,
+        non_savings_income=80000, personal_allowance=12570, is_scottish=True,
     )
-    assert r.total_income_tax == 21_777
+    assert r.total_income_tax == 21777
 
 
 def test_dividends_stacking():
@@ -90,13 +90,13 @@ def test_dividends_stacking():
     Total: 7,486 + 6,581 = 14,067
     """
     r = calculate_income_tax(
-        non_savings_income=50_000,
-        dividend_income=20_000,
-        personal_allowance=12_570,
+        non_savings_income=50000,
+        dividend_income=20000,
+        personal_allowance=12570,
     )
-    assert r.non_savings_tax == 7_486
-    assert r.dividend_tax == 6_581
-    assert r.total_income_tax == 14_067
+    assert r.non_savings_tax == 7486
+    assert r.dividend_tax == 6581
+    assert r.total_income_tax == 14067
 
 
 def test_dividends_basic_rate_only():
@@ -106,8 +106,8 @@ def test_dividends_basic_rate_only():
     All in basic band at 8.75% = 606 (truncated from 606.375)
     """
     r = calculate_income_tax(
-        dividend_income=20_000,
-        personal_allowance=12_570,
+        dividend_income=20000,
+        personal_allowance=12570,
     )
     assert r.dividend_allowance_used == 500
     assert r.dividend_tax == 606
@@ -127,13 +127,13 @@ def test_savings_with_psa():
     Total: 3,486 + 800 = 4,286
     """
     r = calculate_income_tax(
-        non_savings_income=30_000,
-        savings_income=5_000,
-        personal_allowance=12_570,
+        non_savings_income=30000,
+        savings_income=5000,
+        personal_allowance=12570,
     )
-    assert r.personal_savings_allowance == 1_000
+    assert r.personal_savings_allowance == 1000
     assert r.savings_tax == 800
-    assert r.total_income_tax == 4_286
+    assert r.total_income_tax == 4286
 
 
 def test_gift_aid_band_extension():
@@ -147,15 +147,15 @@ def test_gift_aid_band_extension():
     With gift aid saves £346.
     """
     r = calculate_income_tax(
-        non_savings_income=52_000,
-        personal_allowance=12_570,
-        gift_aid=2_000,
+        non_savings_income=52000,
+        personal_allowance=12570,
+        gift_aid=2000,
     )
-    assert r.total_income_tax == 7_886
+    assert r.total_income_tax == 7886
 
 
 def test_zero_income():
     """Zero income → zero tax."""
-    r = calculate_income_tax(personal_allowance=12_570)
+    r = calculate_income_tax(personal_allowance=12570)
     assert r.total_income_tax == 0
     assert r.taxable_income == 0

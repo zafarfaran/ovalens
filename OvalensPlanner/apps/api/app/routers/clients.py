@@ -708,14 +708,14 @@ async def compute_client_tax_profile(
         ],
         pension_data={
             "contributions": body.pension_contributions,
-            "aa_remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else 60_000 - body.pension_contributions,
-            "annual_allowance": pos.pension_aa_result.annual_allowance if pos.pension_aa_result else 60_000,
+            "aa_remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else 60000 - body.pension_contributions,
+            "annual_allowance": pos.pension_aa_result.annual_allowance if pos.pension_aa_result else 60000,
         },
         allowances=[
             {
                 "type": "personal_allowance",
                 "label": "Personal Allowance",
-                "annual_limit": 12_570,
+                "annual_limit": 12570,
                 "used": min(pos.total_income, pos.personal_allowance),
                 "remaining": max(0, pos.personal_allowance - pos.total_income),
                 "status": "fully_used" if pos.total_income >= pos.personal_allowance else "available",
@@ -723,9 +723,9 @@ async def compute_client_tax_profile(
             {
                 "type": "pension_aa",
                 "label": "Pension Annual Allowance",
-                "annual_limit": 60_000,
+                "annual_limit": 60000,
                 "used": body.pension_contributions,
-                "remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else 60_000 - body.pension_contributions,
+                "remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else 60000 - body.pension_contributions,
             },
             {
                 "type": "dividend",
@@ -737,16 +737,16 @@ async def compute_client_tax_profile(
             {
                 "type": "isa",
                 "label": "ISA Allowance",
-                "annual_limit": 20_000,
+                "annual_limit": 20000,
                 "used": body.isa_contributions,
-                "remaining": 20_000 - body.isa_contributions,
+                "remaining": 20000 - body.isa_contributions,
             },
             {
                 "type": "cgt_aea",
                 "label": "CGT Annual Exemption",
-                "annual_limit": 3_000,
+                "annual_limit": 3000,
                 "used": body.cgt_gains,
-                "remaining": max(0, 3_000 - body.cgt_gains),
+                "remaining": max(0, 3000 - body.cgt_gains),
             },
         ],
         hicbc={

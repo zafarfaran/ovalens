@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends
 from structlog.stdlib import BoundLogger
 
+from app.config import get_settings
 from app.dependencies import get_request_logger
 
 router = APIRouter(tags=["health"])
@@ -14,4 +15,6 @@ async def health(
 ) -> dict[str, str]:
     """Service health check."""
     logger.debug("Health check")
-    return {"status": "ok", "service": "helio-api", "version": "0.0.1", "database": "sqlite"}
+    settings = get_settings()
+    database = "postgresql" if settings.is_postgres else "sqlite"
+    return {"status": "ok", "service": "ovalens-api", "version": "0.0.1", "database": database}

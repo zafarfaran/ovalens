@@ -3,6 +3,18 @@
 from datetime import date
 
 
+def get_default_tax_year() -> str:
+    """Default tax year for calculations: from DEFAULT_TAX_YEAR config or current date."""
+    try:
+        from app.config import get_settings
+        settings = get_settings()
+        if settings.default_tax_year:
+            return settings.default_tax_year
+    except Exception:
+        pass
+    return get_current_tax_year()
+
+
 def get_current_tax_year() -> str:
     """Get the current UK tax year label (e.g., '2025/26')."""
     today = date.today()

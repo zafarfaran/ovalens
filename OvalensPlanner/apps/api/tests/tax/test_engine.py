@@ -8,17 +8,17 @@ def test_sarah_mitchell():
     """Full scenario: £195,500 income, £18k pension, 2 children, HICBC."""
     r = compute_full_tax_position(
         income_sources=[
-            IncomeSource(IncomeType.EMPLOYMENT, 145_000, "Employment"),
-            IncomeSource(IncomeType.DIVIDENDS, 32_500, "Dividends"),
-            IncomeSource(IncomeType.RENTAL, 18_000, "Rental"),
+            IncomeSource(IncomeType.EMPLOYMENT, 145000, "Employment"),
+            IncomeSource(IncomeType.DIVIDENDS, 32500, "Dividends"),
+            IncomeSource(IncomeType.RENTAL, 18000, "Rental"),
         ],
-        pension_contributions=18_000,
+        pension_contributions=18000,
         region="england",
         number_of_children=2,
         claims_child_benefit=True,
     )
-    assert r.total_income == 195_500
-    assert r.adjusted_net_income == 177_500  # 195500 - 18000
+    assert r.total_income == 195500
+    assert r.adjusted_net_income == 177500  # 195500 - 18000
     assert r.personal_allowance == 0
     assert r.pa_status == "lost"
     assert r.hicbc_applies is True
@@ -34,28 +34,28 @@ def test_basic_employee():
     """£35k employee, no complications."""
     r = compute_full_tax_position(
         income_sources=[
-            IncomeSource(IncomeType.EMPLOYMENT, 35_000, "Salary"),
+            IncomeSource(IncomeType.EMPLOYMENT, 35000, "Salary"),
         ],
         region="england",
     )
-    assert r.personal_allowance == 12_570
+    assert r.personal_allowance == 12570
     assert r.pa_status == "full"
     assert r.hicbc_applies is False
     assert r.in_pa_taper_zone is False
     # Tax: (35000-12570) * 0.20 = 4,486
-    assert r.income_tax == 4_486
+    assert r.income_tax == 4486
     # NI: (35000-12570) * 0.08 = 1,794.40
-    assert r.national_insurance == 1_794.40
+    assert r.national_insurance == 1794.40
 
 
 def test_scottish_taxpayer():
     """Scottish rates applied to non-savings only."""
     r_eng = compute_full_tax_position(
-        income_sources=[IncomeSource(IncomeType.EMPLOYMENT, 50_000)],
+        income_sources=[IncomeSource(IncomeType.EMPLOYMENT, 50000)],
         region="england",
     )
     r_sco = compute_full_tax_position(
-        income_sources=[IncomeSource(IncomeType.EMPLOYMENT, 50_000)],
+        income_sources=[IncomeSource(IncomeType.EMPLOYMENT, 50000)],
         region="scotland",
     )
     # Scottish and English should differ for same income
@@ -68,11 +68,11 @@ def test_determinism():
     """Same inputs → identical outputs."""
     kwargs = dict(
         income_sources=[
-            IncomeSource(IncomeType.EMPLOYMENT, 145_000),
-            IncomeSource(IncomeType.DIVIDENDS, 32_500),
-            IncomeSource(IncomeType.RENTAL, 18_000),
+            IncomeSource(IncomeType.EMPLOYMENT, 145000),
+            IncomeSource(IncomeType.DIVIDENDS, 32500),
+            IncomeSource(IncomeType.RENTAL, 18000),
         ],
-        pension_contributions=18_000,
+        pension_contributions=18000,
         region="england",
         number_of_children=2,
         claims_child_benefit=True,
@@ -89,7 +89,7 @@ def test_self_employed():
     """Self-employed gets Class 2 + Class 4 NI, no Class 1."""
     r = compute_full_tax_position(
         income_sources=[
-            IncomeSource(IncomeType.SELF_EMPLOYMENT, 50_000, "Freelancing"),
+            IncomeSource(IncomeType.SELF_EMPLOYMENT, 50000, "Freelancing"),
         ],
         region="england",
     )

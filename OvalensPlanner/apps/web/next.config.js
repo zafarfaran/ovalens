@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@helio/shared", "@helio/logger"],
@@ -6,7 +8,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:8000/api/:path*",
+        destination: `${apiUrl.replace(/\/$/, "")}/api/:path*`,
       },
     ];
   },

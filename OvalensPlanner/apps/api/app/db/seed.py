@@ -26,18 +26,18 @@ def _compute_sarah_position():
     """Run the deterministic engine for Sarah Mitchell's demo data."""
     return compute_full_tax_position(
         income_sources=[
-            IncomeSource(IncomeType.EMPLOYMENT, 145_000, "Employment"),
-            IncomeSource(IncomeType.DIVIDENDS, 32_500, "Dividends"),
-            IncomeSource(IncomeType.RENTAL, 18_000, "Rental"),
+            IncomeSource(IncomeType.EMPLOYMENT, 145000, "Employment"),
+            IncomeSource(IncomeType.DIVIDENDS, 32500, "Dividends"),
+            IncomeSource(IncomeType.RENTAL, 18000, "Rental"),
         ],
-        pension_contributions=18_000,
+        pension_contributions=18000,
         region="england",
         number_of_children=2,
         claims_child_benefit=True,
         pension_contributions_by_year={
-            "2022/23": 18_000,   # 12k personal + 6k employer
-            "2023/24": 22_500,   # 15k personal + 7.5k employer
-            "2024/25": 26_000,   # 18k personal + 8k employer
+            "2022/23": 18000,   # 12k personal + 6k employer
+            "2023/24": 22500,   # 15k personal + 7.5k employer
+            "2024/25": 26000,   # 18k personal + 8k employer
         },
     )
 
@@ -162,37 +162,37 @@ async def seed_if_empty(session: AsyncSession) -> None:
             for s in pos.income_sources
         ],
         pension_data={
-            "contributions": 18_000,
-            "aa_remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else 42_000,
-            "annual_allowance": pos.pension_aa_result.annual_allowance if pos.pension_aa_result else 60_000,
+            "contributions": 18000,
+            "aa_remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else 42000,
+            "annual_allowance": pos.pension_aa_result.annual_allowance if pos.pension_aa_result else 60000,
             "contributions_history": {
-                "2022/23": {"personal": 12_000, "employer": 6_000},
-                "2023/24": {"personal": 15_000, "employer": 7_500},
-                "2024/25": {"personal": 18_000, "employer": 8_000},
+                "2022/23": {"personal": 12000, "employer": 6000},
+                "2023/24": {"personal": 15000, "employer": 7500},
+                "2024/25": {"personal": 18000, "employer": 8000},
             },
         },
         allowances=[
             {
                 "type": "personal_allowance",
                 "label": "Personal Allowance",
-                "annual_limit": 12_570,
-                "used": 12_570 - pos.personal_allowance,
+                "annual_limit": 12570,
+                "used": 12570 - pos.personal_allowance,
                 "remaining": pos.personal_allowance,
                 "status": "fully_used" if pos.personal_allowance == 0 else "available",
             },
             {
                 "type": "pension_aa",
                 "label": "Pension Annual Allowance",
-                "annual_limit": 60_000,
-                "used": 18_000,
-                "remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else 42_000,
+                "annual_limit": 60000,
+                "used": 18000,
+                "remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else 42000,
             },
             {
                 "type": "isa",
                 "label": "ISA Allowance",
-                "annual_limit": 20_000,
+                "annual_limit": 20000,
                 "used": 0,
-                "remaining": 20_000,
+                "remaining": 20000,
             },
             {
                 "type": "dividend",
@@ -204,9 +204,9 @@ async def seed_if_empty(session: AsyncSession) -> None:
             {
                 "type": "cgt_aea",
                 "label": "CGT Annual Exemption",
-                "annual_limit": 3_000,
+                "annual_limit": 3000,
                 "used": 0,
-                "remaining": 3_000,
+                "remaining": 3000,
             },
         ],
         hicbc={

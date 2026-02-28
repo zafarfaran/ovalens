@@ -1,0 +1,102 @@
+# UK tax constants 2025/26
+# Source: HMRC / Budget; update when new figures are announced.
+# See docs/TAX_YEAR_UPDATE_PROCESS.md for adding new tax years.
+
+income_tax:
+  personal_allowance: 12570
+  basic_rate_limit: 37700   # band width, not ceiling
+  basic_rate_ceiling: 50270
+  higher_rate_ceiling: 125140
+  bands:
+    - { name: Basic Rate, width: 37700, rate: 0.20 }
+    - { name: Higher Rate, width: 74870, rate: 0.40 }
+    - { name: Additional Rate, width: null, rate: 0.45 }
+  scottish_bands:
+    - { name: Starter Rate, width: 2306, rate: 0.19 }
+    - { name: Basic Rate, width: 11685, rate: 0.20 }
+    - { name: Intermediate Rate, width: 17101, rate: 0.21 }
+    - { name: Higher Rate, width: 31338, rate: 0.42 }
+    - { name: Advanced Rate, width: 50140, rate: 0.45 }
+    - { name: Top Rate, width: null, rate: 0.48 }
+
+pa_taper:
+  threshold: 100000
+  rate: 0.5
+
+ni:
+  class_1:
+    primary_threshold: 12570
+    upper_earnings_limit: 50270
+    employee_main_rate: 0.08
+    employee_upper_rate: 0.02
+    employer_secondary_threshold: 5000
+    employer_rate: 0.15
+  class_2:
+    weekly_rate: 3.45
+    profit_threshold: 12570
+    weeks: 52
+  class_4:
+    lower_profit_limit: 12570
+    upper_profit_limit: 50270
+    main_rate: 0.06
+    upper_rate: 0.02
+
+dividends:
+  allowance: 500
+  basic_rate: 0.0875
+  higher_rate: 0.3375
+  additional_rate: 0.3935
+
+savings:
+  psa_basic: 1000
+  psa_higher: 500
+  psa_additional: 0
+  starting_rate_band: 5000
+  starting_rate: 0.0
+
+hicbc:
+  start_threshold: 60000
+  full_clawback_threshold: 80000
+  child_benefit_weekly_first: 26.05
+  child_benefit_weekly_additional: 17.25
+
+pension:
+  annual_allowance: 60000
+  min_tapered_aa: 10000
+  money_purchase_aa: 10000
+  taper_threshold_income: 200000
+  taper_adjusted_income: 260000
+  lump_sum_allowance: 268275
+  lump_sum_death_benefit_allowance: 1073100
+  aa_history:
+    "2024/25": 60000
+    "2023/24": 60000
+    "2022/23": 40000
+
+allowances:
+  isa: 20000
+  lisa: 4000
+  junior_isa: 9000
+  marriage_allowance_transfer: 1260
+  trading: 1000
+  property: 1000
+  blind_persons: 3070
+  rent_a_room: 7500
+  iht_annual_gift_exemption: 3000
+
+cgt:
+  annual_exempt_amount: 3000
+  basic_rate: 0.18
+  higher_rate: 0.24
+  residential_basic_rate: 0.18
+  residential_higher_rate: 0.24
+  badr_rate: 0.10
+  badr_lifetime_limit: 1000000
+  investors_relief_rate: 0.10
+  investors_relief_limit: 10000000
+
+iht:
+  nil_rate_band: 325000
+  residence_nil_rate_band: 175000
+  rate: 0.40
+  max_tax_free_couple: 1000000

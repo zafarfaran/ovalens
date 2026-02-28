@@ -11,7 +11,9 @@ This plan is designed to make Ovalens production-ready for external beta testers
 
 ### Non-Goals
 - No product rewrite.
-- No major architecture migration before beta (for example, full DB migration to Postgres can be deferred if risk is managed).
+
+### Beta requirement: Migrate to PostgreSQL (Supabase)
+- **Database migration to Postgres using Supabase is a requirement for beta.** The app currently defaults to SQLite; for beta (and production) it must run against Supabase-hosted PostgreSQL so that auth, scaling, and backups are production-ready.
 
 ## 2) Delivery Model
 
@@ -277,19 +279,72 @@ This plan is designed to make Ovalens production-ready for external beta testers
 
 ---
 
+## 4.5 Migrate to PostgreSQL using Supabase (P1, Beta requirement) — **Done**
+
+Database migration to **PostgreSQL via Supabase** is a beta requirement so that auth, backups, and scaling use a single production-ready stack.
+
+### Task DB1: Migrate to PostgreSQL using Supabase — **Done**
+- **Priority:** P1 (required for beta)
+- **Effort:** M
+- **Owner:** Backend + DevOps
+- **Status:** Implemented. Config supports `DATABASE_URL` and async driver; engine and FTS are dialect-aware; Alembic env + initial migration and `apps/api/.env.example` added.
+
+### Steps (put in doc / runbook)
+
+1. **Create Supabase project**
+   - New project at [supabase.com](https://supabase.com); note project ref and region.
+   - In **Settings → Database**: copy the **Connection string** (URI). Use "Session mode" for the API (or "Transaction" if you use connection pooling).
+   - For the app use the **direct** connection string (not the pooler) unless you add a pooler-compatible driver. Format: `postgresql://postgres.[ref]:[YOUR-PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres` (pooler) or `postgresql://postgres:[YOUR-PASSWORD]@db.[ref].supabase.co:5432/postgres` (direct).
+
+2. **Configure the API for Postgres**
+   - Set `DATABASE_URL` in the API environment to the Supabase PostgreSQL URL.
+   - If the URL is `postgresql://...`, the app must use the **async** driver (`postgresql+asyncpg://...`). Ensure config converts or uses the correct driver so the API connects with asyncpg.
+
+3. **Schema and migrations**
+   - Use **Alembic** (or equivalent) for schema versions. Create an `alembic` directory under the API with `env.py` and `versions/`.
+   - **Initial migration:** create all tables (users, households, clients, tax_profiles, documents, context_snippets, conversations, messages, observations, meeting_notes). Add any PostgreSQL-specific objects (e.g. full-text search column/index for `meeting_notes`).
+   - Run migrations against the Supabase DB: `alembic upgrade head` (or equivalent), with `DATABASE_URL` set to the Supabase Postgres URL (sync URL for Alembic if using sync migrations, e.g. `postgresql://...` with psycopg2).
+
+4. **Full-text search (meeting notes)**
+   - On **SQLite** the app uses FTS5. On **PostgreSQL** use native full-text search: add a `tsvector` column (e.g. generated from `subject`, `summary`, `action_items`) and a GIN index on it. Update the meeting-notes search tool to use `to_tsquery` / `ts_rank` / `headline()` when connected to Postgres.
+
+5. **Seeding and backups**
+   - Seed demo data only when appropriate (e.g. dev/staging); do not seed production.
+   - Use Supabase backups (point-in-time recovery) and document restore procedure in the runbook.
+
+6. **Health and readiness**
+   - Health/readiness endpoint should report database type (e.g. `postgresql`) when using Supabase, and should verify DB connectivity in readiness (e.g. `SELECT 1` or a lightweight query).
+
+7. **Security**
+   - Restrict DB access with Supabase credentials; use env vars (or a secrets manager) for `DATABASE_URL`. Never commit the URL or password.
+   - Align Supabase Auth (JWT) with API auth so the same Supabase project backs both DB and identity.
+
+### Acceptance criteria
+- [x] API runs against Supabase PostgreSQL with `DATABASE_URL` set.
+- [x] All tables and indexes (including FTS for meeting notes) created via migrations or app init.
+- [x] Health/readiness reflects Postgres and passes when DB is reachable.
+- [ ] Backup/restore and rollback steps documented (runbook to be added).
+
+### Implementation (completed)
+- `apps/api/app/config.py` – `DATABASE_URL`, `database_url_async`, `is_postgres`.
+- `apps/api/app/db/engine.py` – async engine; `init_fts` splits into Postgres (tsvector) and SQLite (FTS5).
+- `apps/api/app/services/tools/meeting_notes.py` – `_search_postgres` (tsvector/headline) and `_search_sqlite` (FTS5 + LIKE fallback).
+- `apps/api/app/routers/health.py` – returns `database: "postgresql"` when `DATABASE_URL` is Postgres.
+- `apps/api/alembic/env.py` – reads `DATABASE_URL`, sync URL for migrations.
+- `apps/api/alembic/versions/001_initial_schema_and_meeting_notes_fts.py` – creates all tables and adds `meeting_notes.search_vector` + GIN index on Postgres.
+- `apps/api/.env.example` – documents `DATABASE_URL` and Supabase.
+- **Run:** Set `DATABASE_URL` to Supabase URI, then `alembic upgrade head` (from `apps/api`; requires `psycopg2-binary` for sync migrations). Or start the app once and use `init_db` + `init_fts`.
+
+---
+
 ## 5) Phase 3 (Week 5-6+): Scale and Maturity
 
-### Task M1: DB migration readiness (SQLite -> Postgres path)
+### Task M1: Post-migration hardening (optional after DB1)
 - Priority: P2
-- Effort: L
+- Effort: S
 - Owner: Backend + DevOps
-- Files:
-  - proper Alembic migration directory
-  - DB config and deployment docs
-- Implementation notes:
-  - Keep SQLite for beta if stable; prepare migration scripts and rollback.
-- Acceptance criteria:
-  - Migration rehearsal completed in staging.
+- Notes:
+  - After Supabase is live: connection pooling, read replicas, or migration rollback drill if needed.
 
 ### Task M2: Async work queue for heavy operations
 - Priority: P2
@@ -359,6 +414,7 @@ This plan is designed to make Ovalens production-ready for external beta testers
 
 ## 8) Release Gates (Go/No-Go Checklist)
 
+- **Database running on Supabase PostgreSQL** (migration completed, migrations and FTS documented).
 - Auth and authorization enforced end-to-end.
 - Observability stack active (logs, metrics, tracing, error monitoring).
 - Rate limiting and LLM resilience controls active.
@@ -371,11 +427,12 @@ This plan is designed to make Ovalens production-ready for external beta testers
 
 ## 9) Suggested Task Execution Order
 
-1. Auth enforcement + stream auth propagation
-2. Error monitoring + metrics + logging redaction
-3. LLM timeout/retry/fallback + rate limiting
-4. API integration tests + CI quality gates
-5. Readiness checks + deployment reproducibility
-6. AI eval harness and beta operations runbooks
+1. ~~**Migrate to PostgreSQL using Supabase** (DB1)~~ **Done**
+2. Auth enforcement + stream auth propagation
+3. Error monitoring + metrics + logging redaction
+4. LLM timeout/retry/fallback + rate limiting
+5. API integration tests + CI quality gates
+6. Readiness checks + deployment reproducibility
+7. AI eval harness and beta operations runbooks
 
 This order minimizes beta risk fastest while preserving current feature behavior.

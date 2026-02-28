@@ -261,16 +261,16 @@ def _position_to_dashboard(pos: TaxPosition) -> dict:
     allowances = [
         {
             "name": "Personal Allowance",
-            "annualLimit": 12_570,
-            "used": 12_570 - pos.personal_allowance,
+            "annualLimit": 12570,
+            "used": 12570 - pos.personal_allowance,
             "remaining": pos.personal_allowance,
-            "status": _allowance_status(pos.personal_allowance, 12_570),
+            "status": _allowance_status(pos.personal_allowance, 12570),
         },
         {
             "name": "ISA Allowance",
-            "annualLimit": 20_000,
+            "annualLimit": 20000,
             "used": 0,
-            "remaining": 20_000,
+            "remaining": 20000,
             "status": "GREEN",
         },
     ]
@@ -313,9 +313,9 @@ def _position_to_dashboard(pos: TaxPosition) -> dict:
     # CGT allowance
     allowances.append({
         "name": "CGT Annual Exempt Amount",
-        "annualLimit": 3_000,
+        "annualLimit": 3000,
         "used": 0,
-        "remaining": 3_000,
+        "remaining": 3000,
         "status": "GREEN",
     })
 

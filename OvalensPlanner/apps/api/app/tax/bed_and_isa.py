@@ -10,7 +10,7 @@ def analyse_bed_and_isa(
     acquisition_cost: float,
     *,
     annual_yield: float = 0,
-    remaining_isa_allowance: float = 20_000,
+    remaining_isa_allowance: float = 20000,
 ) -> dict[str, float]:
     """Analyse bed and ISA benefit (placeholder)."""
     raise NotImplementedError

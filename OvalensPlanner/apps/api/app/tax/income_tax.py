@@ -228,7 +228,7 @@ def calculate_income_tax(
     savings_income: float = 0,
     dividend_income: float = 0,
     *,
-    personal_allowance: float = 12_570,
+    personal_allowance: float = 12570,
     is_scottish: bool = False,
     gift_aid: float = 0,
     pension_contributions: float = 0,

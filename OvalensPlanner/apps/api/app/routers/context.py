@@ -19,7 +19,7 @@ from app.dependencies import get_request_logger
 logger = get_logger(__name__)
 router = APIRouter(tags=["context"])
 
-MAX_RAW_CONTENT_LENGTH = 50_000
+MAX_RAW_CONTENT_LENGTH = 50000
 
 # Boilerplate phrases to strip (case-insensitive, matched as whole lines)
 BOILERPLATE_PHRASES = frozenset([

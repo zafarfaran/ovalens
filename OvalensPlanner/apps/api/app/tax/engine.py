@@ -231,7 +231,7 @@ def _compute_marginal_rate(
             ni_marginal = ni_result.class_4.upper_rate
 
     # 60% trap: 40% tax + 20% effective PA loss + NI
-    if 100_000 < ani < 125_140:
+    if 100000 < ani < 125140:
         return round_currency((0.60 + ni_marginal) * 100)
 
     # Otherwise: highest income tax band rate + NI rate
