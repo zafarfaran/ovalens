@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import get_settings
+from app.config import DEFAULT_CORS_ORIGINS, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.middleware import RequestContextMiddleware
@@ -48,11 +48,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# CORS — never use empty list so production always has allowed origins
 settings = get_settings()
+cors_origins = settings.cors_origins or DEFAULT_CORS_ORIGINS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -59,6 +59,15 @@ class Settings(BaseSettings):
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str] | None) -> list[str]:
+        def merge_with_defaults(origins: list[str]) -> list[str]:
+            """Always include default origins so production never drops due to env typo."""
+            combined = list(DEFAULT_CORS_ORIGINS)
+            for o in origins:
+                o = str(o).strip()
+                if o and o not in combined:
+                    combined.append(o)
+            return combined
+
         if isinstance(v, str):
             s = v.strip()
             if not s:
@@ -72,11 +81,11 @@ class Settings(BaseSettings):
                     return list(DEFAULT_CORS_ORIGINS)
                 if not isinstance(parsed, list) or len(parsed) == 0:
                     return list(DEFAULT_CORS_ORIGINS)
-                return [str(o).strip() for o in parsed if str(o).strip()]
+                return merge_with_defaults([str(o).strip() for o in parsed if str(o).strip()])
             origins = [o.strip() for o in v.split(",") if o.strip()]
-            return origins if origins else list(DEFAULT_CORS_ORIGINS)
+            return merge_with_defaults(origins) if origins else list(DEFAULT_CORS_ORIGINS)
         if isinstance(v, list):
-            return list(v) if v else list(DEFAULT_CORS_ORIGINS)
+            return merge_with_defaults(list(v)) if v else list(DEFAULT_CORS_ORIGINS)
         return list(DEFAULT_CORS_ORIGINS)
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

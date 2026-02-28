@@ -85,6 +85,13 @@ jobs:
     needs: [api, web]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
+      - name: Check deploy secrets
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "::error::VERCEL_TOKEN is not set. Add it in GitHub: Repository → Settings → Secrets and variables → Actions → New repository secret (name: VERCEL_TOKEN, value: token from https://vercel.com/account/tokens)"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - name: Install Vercel CLI
@@ -103,6 +110,13 @@ jobs:
     needs: [api, web]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
+      - name: Check deploy secrets
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "::error::VERCEL_TOKEN is not set. Add it in GitHub: Repository → Settings → Secrets and variables → Actions → New repository secret (name: VERCEL_TOKEN, value: token from https://vercel.com/account/tokens)"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - name: Install Vercel CLI
