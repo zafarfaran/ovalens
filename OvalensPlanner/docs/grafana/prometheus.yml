@@ -9,13 +9,13 @@ scrape_configs:
       # Local API on host (Docker Desktop: host.docker.internal; Linux: use host IP or host network)
       - targets: ['host.docker.internal:8000']
     scheme: http
-    # If your API uses METRICS_TOKEN, add auth (e.g. relabel_configs for a custom header)
-    # or run a sidecar that adds X-Metrics-Token.
+    # If your API uses METRICS_TOKEN, configure auth here (e.g. via basic_auth/authorization).
+    # If you require a custom X-Metrics-Token header, run a reverse proxy/sidecar that injects it.
 
   # Optional: scrape production API as well (uncomment and set your URL)
   # - job_name: 'ovalens-api-prod'
   #   scrape_interval: 15s
   #   metrics_path: /metrics
   #   static_configs:
-  #     - targets: ['https://your-api.vercel.app']
+  #     - targets: ['your-api.vercel.app']
   #   scheme: https

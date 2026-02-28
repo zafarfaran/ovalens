@@ -30,7 +30,7 @@ This starts:
 
 Your API must be running on **port 8000** on the host (e.g. `uvicorn` for the Ovalens API). On Linux, if `host.docker.internal` doesn’t work, use `network_mode: host` or set the scrape target to your host IP.
 
-To scrape a **remote** API (e.g. production) instead of localhost, edit `prometheus.yml`: set `targets` to e.g. `['https://your-api.vercel.app']` and `scheme: https`.
+To scrape a **remote** API (e.g. production) instead of localhost, edit `prometheus.yml`: set `targets` to e.g. `['your-api.vercel.app']` and `scheme: https`.
 
 ### Option B: Install Grafana on your machine
 
