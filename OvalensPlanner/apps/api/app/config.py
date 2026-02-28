@@ -37,9 +37,13 @@ class Settings(BaseSettings):
     # App
     environment: str = "development"
     log_level: str = "DEBUG"
+<<<<<<< HEAD
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003"]
     # Default tax year for calculations (e.g. "2025/26"). If unset, derived from current date.
     default_tax_year: str | None = None
+=======
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "https://ovalens-web.vercel.app"]
+>>>>>>> 709924f6a90e412d3d94e176991640b7556f99c9
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
