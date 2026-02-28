@@ -1,8 +1,6 @@
 # -----------------------------------------------------------------------------
 # Secrets and environment (never commit)
 # -----------------------------------------------------------------------------
-bash.exe.stackdump
-.cursor
 .env
 .env.*
 !.env.example
@@ -36,6 +34,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!OvalensPlanner/apps/web/src/lib/
 lib64/
 parts/
 sdist/
@@ -131,3 +130,4 @@ apps/extension/dist/
 *.bak
 *.tmp
 .env.backup
+
