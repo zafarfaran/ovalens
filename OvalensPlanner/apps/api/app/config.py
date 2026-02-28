@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # App
     environment: str = "development"
     log_level: str = "DEBUG"
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "https://ovalens-web.vercel.app"]
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
