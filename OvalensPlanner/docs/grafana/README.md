@@ -1,6 +1,7 @@
 # Grafana dashboards for Ovalens API
 
-For **where metrics are stored** and **how to configure production** (Prometheus scrape, Grafana data source, env vars), see **[METRICS-PRODUCTION.md](../METRICS-PRODUCTION.md)** in the docs root.
+- **Setup:** **[SETUP.md](./SETUP.md)** — step-by-step: run Grafana, add Prometheus data source, import dashboard (including Docker Compose for local Prometheus + Grafana).
+- **Production:** **[METRICS-PRODUCTION.md](../METRICS-PRODUCTION.md)** — where metrics are stored, scrape config, env vars.
 
 ## Baseline dashboard
 

@@ -1,0 +1,21 @@
+# Prometheus config for scraping Ovalens API /metrics
+# Used by docker-compose in this folder. For production, see METRICS-PRODUCTION.md.
+
+scrape_configs:
+  - job_name: 'ovalens-api'
+    scrape_interval: 15s
+    metrics_path: /metrics
+    static_configs:
+      # Local API on host (Docker Desktop: host.docker.internal; Linux: use host IP or host network)
+      - targets: ['host.docker.internal:8000']
+    scheme: http
+    # If your API uses METRICS_TOKEN, add auth (e.g. relabel_configs for a custom header)
+    # or run a sidecar that adds X-Metrics-Token.
+
+  # Optional: scrape production API as well (uncomment and set your URL)
+  # - job_name: 'ovalens-api-prod'
+  #   scrape_interval: 15s
+  #   metrics_path: /metrics
+  #   static_configs:
+  #     - targets: ['https://your-api.vercel.app']
+  #   scheme: https

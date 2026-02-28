@@ -2,6 +2,13 @@
 
 Use this checklist so Google sign-in works in production.
 
+## Local development
+
+To sign in on **localhost** without being redirected to production:
+
+- **Supabase → Authentication → URL Configuration → Redirect URLs:** add `http://localhost:3000` and `http://localhost:3000/**` (and the same for any other port you use, e.g. `http://localhost:3001/**`).
+- The app uses the **current browser origin** for the OAuth redirect when you’re on `localhost` or `127.0.0.1`, so you don’t need to set `NEXT_PUBLIC_APP_URL` to localhost in `.env`; it will redirect back to localhost even if that variable is set to the production URL.
+
 ## 1. Supabase Dashboard
 
 1. Go to [Supabase](https://supabase.com/dashboard) → your project.
@@ -10,6 +17,7 @@ Use this checklist so Google sign-in works in production.
    - **Redirect URLs:** Add (one per line):
      - `https://www.ovalens.com`
      - `https://www.ovalens.com/**`
+     - For local dev: `http://localhost:3000` and `http://localhost:3000/**`
      - If you also use the non-www domain: `https://ovalens.com` and `https://ovalens.com/**`
 3. **Authentication → Providers → Google**  
    Ensure Google is enabled and your OAuth client IDs are set.
