@@ -2,7 +2,7 @@
  * Sentry edge runtime init. Loaded via instrumentation.ts when NEXT_RUNTIME === "edge".
  */
 import * as Sentry from "@sentry/nextjs";
-import { applyWebEventScrubbing } from "./shared";
+import { applyWebEventScrubbing, type SentryEventLike } from "./shared";
 
 const dsn = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
 const environment =
@@ -19,7 +19,7 @@ function beforeSend(
   event: Sentry.Event,
   _hint: Sentry.EventHint
 ): Sentry.Event | null {
-  applyWebEventScrubbing(event, environment);
+  applyWebEventScrubbing(event as SentryEventLike, environment);
   return event;
 }
 
@@ -28,9 +28,8 @@ if (dsn) {
     dsn,
     environment,
     release,
-    beforeSend,
+    beforeSend: beforeSend as (event: Sentry.ErrorEvent, hint: Sentry.EventHint) => Sentry.ErrorEvent | null,
     sendDefaultPii: false,
-    enableLogs: true,
     tracesSampleRate: process.env.NODE_ENV === "development" ? 1.0 : 0.1,
   });
 }

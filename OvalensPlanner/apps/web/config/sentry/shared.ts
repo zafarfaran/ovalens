@@ -25,10 +25,10 @@ export function scrubObj(obj: unknown): unknown {
   return obj;
 }
 
-/** Event-like shape used by beforeSend in client, server, and edge. */
+/** Event-like shape used by beforeSend (Sentry Event/ErrorEvent use Primitive for tags). */
 export interface SentryEventLike {
   request?: { headers?: Record<string, unknown>; data?: unknown };
-  tags?: Record<string, string>;
+  tags?: Record<string, unknown>;
   extra?: Record<string, unknown>;
   contexts?: Record<string, unknown>;
 }
@@ -37,7 +37,12 @@ export interface SentryEventLike {
  * Apply web service tags (service, environment, request_id) and scrub PII on request/extra/contexts.
  */
 export function applyWebEventScrubbing(event: SentryEventLike, environment: string): void {
-  const tags: Record<string, string> = { ...event.tags, service: "web", environment };
+  const tags: Record<string, string> = { service: "web", environment };
+  if (event.tags && typeof event.tags === "object") {
+    for (const [k, v] of Object.entries(event.tags)) {
+      if (typeof v === "string") tags[k] = v;
+    }
+  }
   if (event.request?.headers && typeof event.request.headers === "object") {
     const reqId = event.request.headers["X-Request-ID"] ?? event.request.headers["x-request-id"];
     if (reqId != null) tags["request_id"] = String(reqId);

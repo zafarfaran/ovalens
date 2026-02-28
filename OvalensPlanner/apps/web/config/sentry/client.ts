@@ -2,7 +2,7 @@
  * Sentry client-side init (browser). Loaded via sentry.client.config.ts or instrumentation-client.ts.
  */
 import * as Sentry from "@sentry/nextjs";
-import { applyWebEventScrubbing } from "./shared";
+import { applyWebEventScrubbing, type SentryEventLike } from "./shared";
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 const environment =
@@ -19,7 +19,7 @@ function beforeSend(
   event: Sentry.ErrorEvent,
   _hint: Sentry.EventHint
 ): Sentry.ErrorEvent | null {
-  applyWebEventScrubbing(event, environment);
+  applyWebEventScrubbing(event as SentryEventLike, environment);
   return event;
 }
 
@@ -30,10 +30,6 @@ if (dsn) {
     release,
     beforeSend,
     sendDefaultPii: false,
-    enableLogs: true,
     tracesSampleRate: process.env.NODE_ENV === "development" ? 1.0 : 0.1,
-    integrations: [
-      Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
-    ],
   });
 }

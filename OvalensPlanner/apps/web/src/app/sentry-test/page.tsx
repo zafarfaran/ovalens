@@ -3,6 +3,12 @@
 import * as Sentry from "@sentry/nextjs";
 import { useState } from "react";
 
+/** Optional Sentry logger (available in SDK 9.41+ with enableLogs). */
+const sentryLogger =
+  "logger" in Sentry && typeof (Sentry as { logger?: { info: (a: string, b?: object) => void; error: (a: string, b?: object) => void; trace: (a: string, b?: object) => void; debug: (a: unknown) => void; warn: (a: string, b?: object) => void; fmt: (t: TemplateStringsArray, ...v: unknown[]) => string } }).logger === "object"
+    ? (Sentry as { logger: { info: (a: string, b?: object) => void; error: (a: string, b?: object) => void; trace: (a: string, b?: object) => void; debug: (a: unknown) => void; warn: (a: string, b?: object) => void; fmt: (t: TemplateStringsArray, ...v: unknown[]) => string } }).logger
+    : null;
+
 /**
  * Sentry verification page: exception capture, tracing (spans), and logs.
  * Visit /sentry-test. Remove or protect in production if desired.
@@ -19,7 +25,7 @@ export default function SentryTestPage() {
       (span) => {
         span.setAttribute("button", "throw-test");
         span.setAttribute("page", "sentry-test");
-        Sentry.logger.info("Sentry test button clicked", { action: "throw" });
+        sentryLogger?.info("Sentry test button clicked", { action: "throw" });
         throw new Error(
           "Sentry web test — synthetic exception for error monitoring verification"
         );
@@ -44,25 +50,27 @@ export default function SentryTestPage() {
         }
       );
       setFetchStatus(`ok: ${(data as { status?: string }).status ?? "unknown"}`);
-      Sentry.logger.info("Health check completed", {
+      sentryLogger?.info("Health check completed", {
         status: (data as { status?: string }).status,
         endpoint: "/api/health",
       });
     } catch (err) {
       setFetchStatus("error");
-      Sentry.logger.error("Health check failed", { endpoint: "/api/health" });
+      sentryLogger?.error("Health check failed", { endpoint: "/api/health" });
       Sentry.captureException(err);
     }
   };
 
   const handleLogExamples = () => {
-    Sentry.logger.trace("Trace: starting sentry test flow", { screen: "sentry-test" });
-    Sentry.logger.debug(
-      Sentry.logger.fmt`Debug: user on test page at ${new Date().toISOString()}`
-    );
-    Sentry.logger.info("Info: log examples triggered", { count: 1 });
-    Sentry.logger.warn("Warn: this is a sample warning", { isSample: true });
-    setFetchStatus("Logs sent (check Sentry)");
+    if (sentryLogger) {
+      sentryLogger.trace("Trace: starting sentry test flow", { screen: "sentry-test" });
+      sentryLogger.debug(`Debug: user on test page at ${new Date().toISOString()}`);
+      sentryLogger.info("Info: log examples triggered", { count: 1 });
+      sentryLogger.warn("Warn: this is a sample warning", { isSample: true });
+    } else {
+      console.info("Log examples (Sentry.logger not in this SDK version; use console)");
+    }
+    setFetchStatus("Logs sent (check Sentry or console)");
   };
 
   return (
