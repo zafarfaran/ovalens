@@ -45,6 +45,20 @@ Add these only if you use Sentry for error monitoring. Leave unset to disable.
 
 **Getting the DSN:** Sentry → Your project → Settings → Client Keys (DSN). Use the same project for API and web or create separate projects and use two DSNs.
 
+## Troubleshooting: API returns 500 for `/api/clients` or `/api/chat/conversations`
+
+The web app proxies these to the **Ovalens API** (Next.js rewrites). If you see **HTTP 500** or **"Failed to load clients"** / **"Unexpected token 'A'"** (non-JSON response), the API is failing.
+
+1. **API running?**  
+   For local dev the API must be running (e.g. `uvicorn` in `apps/api`). The web app uses `NEXT_PUBLIC_API_URL` or `API_URL` (in `next.config.js`) to proxy; that must point at the running API (e.g. `http://localhost:8000`).
+
+2. **API env (apps/api/.env):**  
+   - **DATABASE_URL** — required if you use Postgres/Supabase. Wrong URL or unreachable DB causes 500.  
+   - **SUPABASE_JWT_SECRET** — required for validating the frontend’s Bearer token (Supabase → Project Settings → API → JWT Secret). If missing, auth can fail with 501; wrong value can cause 401 or downstream errors.
+
+3. **See the real error:**  
+   Run the API in a terminal and watch the logs. Unhandled errors are logged with `unhandled_exception` and the full traceback. The API now returns **JSON** on 500 (`{"error":{"code":"INTERNAL_ERROR","message":"..."}}`) so the frontend won’t break with "invalid JSON"; the underlying cause will still appear in the **API** logs.
+
 ## Secrets hygiene
 
 - `.gitignore` excludes `.env` and `.env.*` except `.env.example`. Only `.env.example` (with placeholders) may be committed.

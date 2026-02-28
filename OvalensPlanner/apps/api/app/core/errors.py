@@ -113,3 +113,21 @@ def register_exception_handlers(app: FastAPI) -> None:
                 }
             },
         )
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
+        """Catch-all so every 500 returns JSON; frontend can parse and show a message."""
+        logger.exception(
+            "unhandled_exception",
+            error=str(exc),
+            exc_info=True,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "A server error occurred. Check API logs for details.",
+                }
+            },
+        )
