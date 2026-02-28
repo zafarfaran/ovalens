@@ -1,5 +1,6 @@
 """Chat service — orchestration layer for conversations and LLM streaming."""
 
+import time
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
@@ -8,6 +9,12 @@ from sqlalchemy import desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
+from app.core.metrics import (
+    record_chat_stream_completion,
+    record_chat_stream_error,
+    record_chat_stream_start,
+    record_chat_time_to_first_token,
+)
 from app.db.models import (
     Client,
     Conversation,
@@ -59,9 +66,8 @@ class ChatService:
         await self.session.commit()
         await self.session.refresh(conversation)
         logger.info(
-            "Conversation created",
+            "conversation_created",
             conversation_id=conversation.id,
-            user_id=user_id,
             client_id=client_id,
         )
         return conversation
@@ -86,8 +92,7 @@ class ChatService:
         result = await self.session.execute(stmt)
         conversations = list(result.scalars().all())
         logger.debug(
-            "Conversations listed",
-            user_id=user_id,
+            "conversations_listed",
             client_id=client_id,
             count=len(conversations),
         )
@@ -100,7 +105,10 @@ class ChatService:
         )
         conversation = result.scalar_one_or_none()
         if conversation is None:
-            logger.warning("Conversation not found", conversation_id=conversation_id)
+            logger.warning(
+                "conversation_not_found",
+                conversation_id=conversation_id,
+            )
         return conversation
 
     async def delete_conversation(self, conversation_id: str) -> None:
@@ -111,7 +119,10 @@ class ChatService:
             .values(status="deleted", updated_at=datetime.now(UTC))
         )
         await self.session.commit()
-        logger.info("Conversation soft-deleted", conversation_id=conversation_id)
+        logger.info(
+            "conversation_deleted",
+            conversation_id=conversation_id,
+        )
 
     async def update_conversation(self, conversation_id: str, **kwargs) -> None:
         """Update arbitrary fields on a conversation."""
@@ -121,7 +132,7 @@ class ChatService:
         )
         await self.session.commit()
         logger.debug(
-            "Conversation updated",
+            "conversation_updated",
             conversation_id=conversation_id,
             fields=list(kwargs.keys()),
         )
@@ -147,7 +158,7 @@ class ChatService:
         result = await self.session.execute(stmt)
         messages = list(result.scalars().all())
         logger.debug(
-            "Messages loaded",
+            "messages_loaded",
             conversation_id=conversation_id,
             count=len(messages),
         )
@@ -181,13 +192,20 @@ class ChatService:
         10. Update conversation cache
         11. Yield DoneEvent
         """
+        stream_start = time.perf_counter()
+        record_chat_stream_start()
+        first_token_time: float | None = None
+
         # 1. Auto-create conversation if needed
         if not conversation_id:
             conversation = await self.create_conversation(user_id, client_id)
             conversation_id = conversation.id
-            logger.info("Auto-created conversation", conversation_id=conversation_id)
+            logger.info(
+                "conversation_auto_created",
+                conversation_id=conversation_id,
+            )
 
-        # 2. Save user message
+        # 2. Save user message (do not log raw content)
         user_message = Message(
             id=str(uuid.uuid4()),
             conversation_id=conversation_id,
@@ -197,9 +215,10 @@ class ChatService:
         self.session.add(user_message)
         await self.session.commit()
         logger.info(
-            "User message saved",
+            "user_message_saved",
             conversation_id=conversation_id,
             message_id=user_message.id,
+            content_length=len(content),
         )
 
         # 3. Load conversation history (last 50 messages)
@@ -230,7 +249,7 @@ class ChatService:
 
         # 8. Iterate the async generator
         logger.info(
-            "Starting LLM stream",
+            "llm_stream_started",
             conversation_id=conversation_id,
             history_length=len(llm_messages),
             has_client_context=client_context is not None,
@@ -266,16 +285,19 @@ class ChatService:
             llm_messages, system_prompt, tools=tools, tool_context=tool_context
         ):
             if isinstance(event, TokenEvent):
+                if first_token_time is None:
+                    first_token_time = time.perf_counter() - stream_start
+                    record_chat_time_to_first_token(first_token_time)
                 full_response += event.content
             elif isinstance(event, ToolResultEvent) and event.tool == "generate_dashboard":
                 result = event.result
                 if result.get("success"):
                     dashboard_data = result.get("dashboardData")
             elif isinstance(event, ErrorEvent):
+                record_chat_stream_error()
                 logger.error(
-                    "LLM stream error",
+                    "llm_stream_error",
                     conversation_id=conversation_id,
-                    error=event.error,
                     code=event.code,
                 )
             yield event
@@ -290,7 +312,7 @@ class ChatService:
         )
         self.session.add(assistant_message)
         logger.info(
-            "Assistant message saved",
+            "assistant_message_saved",
             conversation_id=conversation_id,
             message_id=assistant_message_id,
             response_length=len(full_response),
@@ -317,10 +339,14 @@ class ChatService:
             update(Conversation).where(Conversation.id == conversation_id).values(**update_values)
         )
         await self.session.commit()
+        duration_ms = round((time.perf_counter() - stream_start) * 1000, 2)
         logger.info(
-            "Conversation cache updated",
+            "conversation_cache_updated",
             conversation_id=conversation_id,
+            duration_ms=duration_ms,
         )
+
+        record_chat_stream_completion()
 
         # 11. Yield DoneEvent with conversation_id and message_id
         yield DoneEvent(
@@ -343,7 +369,7 @@ class ChatService:
         result = await self.session.execute(stmt)
         messages = list(result.scalars().all())
         logger.debug(
-            "History loaded",
+            "history_loaded",
             conversation_id=conversation_id,
             count=len(messages),
         )
@@ -359,15 +385,16 @@ class ChatService:
         result = await self.session.execute(select(Client).where(Client.id == client_id))
         client = result.scalar_one_or_none()
         if client is None:
-            logger.warning("Client not found for context", client_id=client_id)
+            logger.warning(
+                "client_not_found",
+                client_id=client_id,
+            )
             return None, None
 
         logger.info(
-            "Client loaded for context",
+            "client_context_loading",
             client_id=client_id,
-            client_name=f"{client.first_name} {client.last_name}",
             household_id=client.household_id,
-            spouse_id=client.spouse_id,
         )
 
         # Load latest tax profile (most recent by created_at)
@@ -400,7 +427,7 @@ class ChatService:
         household_members = []
         if client.household_id:
             logger.info(
-                "Loading household members",
+                "household_members_loading",
                 household_id=client.household_id,
                 client_id=client_id,
             )
@@ -411,11 +438,9 @@ class ChatService:
             )
             other_members = list(result.scalars().all())
             logger.info(
-                "Household members found",
+                "household_members_loaded",
                 household_id=client.household_id,
                 member_count=len(other_members),
-                member_ids=[m.id for m in other_members],
-                member_names=[f"{m.first_name} {m.last_name}" for m in other_members],
             )
 
             for member in other_members:
@@ -508,14 +533,12 @@ class ChatService:
             ]
 
         logger.info(
-            "Client context loaded",
+            "client_context_loaded",
             client_id=client_id,
             has_tax_profile=tax_profile is not None,
             observation_count=len(observations),
             meeting_note_count=len(meeting_notes),
             household_member_count=len(household_members),
-            has_household_members="household_members" in context,
-            has_notes=bool(client.notes),
         )
         return context, tax_profile
 
@@ -548,5 +571,8 @@ class ChatService:
             lines.append(s.cleaned_markdown)
             lines.append("")
 
-        logger.info("Context snippets injected", count=len(snippets), ids=snippet_ids)
+        logger.info(
+            "context_snippets_injected",
+            count=len(snippets),
+        )
         return "\n".join(lines)

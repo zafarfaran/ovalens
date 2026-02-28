@@ -56,6 +56,18 @@ class Settings(BaseSettings):
     # Auth: Supabase JWT secret (Project Settings → API → JWT Secret) for token verification
     supabase_jwt_secret: str | None = None
 
+    # Observability: Sentry DSN (leave unset to disable error reporting)
+    sentry_dsn: str | None = None
+    sentry_release: str | None = None  # e.g. "ovalens-api@0.0.1"; default used if unset
+    # Metrics: enable exposition and optionally protect scrape endpoint with a token
+    metrics_enabled: bool = False
+    metrics_token: str | None = None
+
+    @property
+    def should_expose_metrics(self) -> bool:
+        """Expose /metrics in beta/production by default, or via explicit flag."""
+        return self.environment in {"beta", "production"} or self.metrics_enabled
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str] | None) -> list[str]:

@@ -3,7 +3,13 @@
 Every log line includes:
 - request_id: UUID that ties all logs from the same HTTP request together.
 - section: which application domain produced the log (e.g. "chat", "tax", "documents").
+- service: service name (e.g. "api").
+- env: environment (e.g. "development", "production").
+- event: standardized event name for filtering (e.g. "conversation_created").
+- duration_ms: duration in milliseconds where relevant (e.g. request, stream).
 - module: the Python module name (e.g. "app.routers.chat").
+
+Sensitive fields (PII, secrets, raw user content) are redacted before output.
 
 Sections are coarse-grained groupings:
     router   → which API area (chat, clients, documents, health)
@@ -14,19 +20,33 @@ Sections are coarse-grained groupings:
 Usage in any module:
     from app.core.logging import get_logger
     logger = get_logger(__name__)          # section is inferred from module path
-    logger.info("analysing client", client_id="abc")
+    logger.info("conversation_created", conversation_id=id)
 
-The request_id is injected automatically by RequestContextMiddleware via
+The request_id, service, and env are injected by RequestContextMiddleware via
 structlog contextvars — no manual threading required.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 import sys
 from enum import StrEnum
 
 import structlog
+
+# Keys (case-insensitive) whose values are redacted to avoid PII/secrets in logs.
+_SENSITIVE_KEYS: frozenset[str] = frozenset({
+    "password", "secret", "api_key", "token", "authorization", "cookie",
+    "content", "raw", "tool_input", "first_name", "last_name", "client_name",
+    "member_names", "email", "notes", "description", "input", "system",
+    "messages", "system_prompt", "error",
+})
+_SENSITIVE_PATTERN = re.compile(
+    r"^(.*)(password|secret|key|token|auth|cookie)(.*)$",
+    re.IGNORECASE,
+)
+_REDACTED = "[REDACTED]"
 
 # ---------------------------------------------------------------------------
 # Sections
@@ -84,6 +104,38 @@ def _inject_section(
     return event_dict
 
 
+def _redact_sensitive(
+    logger: logging.Logger,
+    method_name: str,
+    event_dict: structlog.types.EventDict,
+) -> structlog.types.EventDict:
+    """Redact sensitive field values to avoid PII and secrets in logs."""
+    for key in list(event_dict.keys()):
+        if key.startswith("_"):
+            continue
+        key_lower = key.lower()
+        if key_lower in _SENSITIVE_KEYS or _SENSITIVE_PATTERN.search(key_lower):
+            event_dict[key] = _REDACTED
+    return event_dict
+
+
+def _inject_service_env(
+    logger: logging.Logger,
+    method_name: str,
+    event_dict: structlog.types.EventDict,
+) -> structlog.types.EventDict:
+    """Ensure every log has service and env (from context or defaults)."""
+    if "service" not in event_dict:
+        event_dict["service"] = "api"
+    if "env" not in event_dict:
+        try:
+            from app.config import get_settings
+            event_dict["env"] = get_settings().environment
+        except Exception:
+            event_dict["env"] = "unknown"
+    return event_dict
+
+
 # ---------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------
@@ -100,6 +152,8 @@ def setup_logging(log_level: str = "DEBUG", environment: str = "development") ->
     shared_processors: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
         _inject_section,
+        _inject_service_env,
+        _redact_sensitive,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso"),

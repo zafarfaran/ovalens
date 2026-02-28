@@ -10,7 +10,8 @@ from app.config import DEFAULT_CORS_ORIGINS, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.middleware import RequestContextMiddleware
-from app.routers import chat, clients, context, documents, exports, health
+from app.core.observability import init_sentry
+from app.routers import chat, clients, context, documents, exports, health, metrics_router
 
 
 @asynccontextmanager
@@ -21,6 +22,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger = get_logger(__name__)
     settings = get_settings()
     setup_logging(settings.log_level, settings.environment)
+
+    # Sentry (error monitoring); no-op if SENTRY_DSN unset
+    init_sentry(
+        dsn=settings.sentry_dsn,
+        environment=settings.environment,
+        release=settings.sentry_release or "ovalens-api@0.0.1",
+    )
 
     try:
         from app.db.engine import get_session_factory, init_db, init_fts
@@ -67,6 +75,8 @@ register_exception_handlers(app)
 
 # Routers
 app.include_router(health.router)
+if settings.should_expose_metrics:
+    app.include_router(metrics_router.router)
 app.include_router(chat.router, prefix="/api")
 app.include_router(clients.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")

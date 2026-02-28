@@ -1,7 +1,8 @@
 ================================================================================
 OVALENS — ENVIRONMENT VARIABLES CHECKLIST
 Copy the keys below into GitHub Secrets, Vercel (API), or Vercel (Web) as needed.
-Fill in the values; never commit real secrets to the repo.
+Do NOT put real secret values in this file. Use GitHub Secrets, Vercel env, or
+local .env (gitignored). See docs/ENV-SETUP.md and .env.example files.
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -13,9 +14,8 @@ Fill in the values; never commit real secrets to the repo.
    Delete this file after copying. Rotate VERCEL_TOKEN if this was ever committed.
 --------------------------------------------------------------------------------
 
-VERCEL_TOKEN=vcp_11vIAFZareFLEvsnB2Heda7GtOZDZcUIwNnANquOCamAbB3cGH1DxWNH
-
-VERCEL_ORG_ID=team_Iesh4VqxfBCBVAPzrWqmhjLB
+VERCEL_TOKEN=
+VERCEL_ORG_ID=
 VERCEL_PROJECT_ID_API=
 VERCEL_PROJECT_ID_WEB=
 
@@ -33,8 +33,8 @@ Where to find these:
     3. cd OvalensPlanner && npx vercel link  (pick existing ovalens-web).
     4. Open OvalensPlanner/.vercel/project.json → "projectId" = VERCEL_PROJECT_ID_WEB (orgId is same).
 
-NEXT_PUBLIC_SUPABASE_URL=https://lfwfbhscvrgmfaopsbtc.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_3gl7O6_LyFIbqQcd2Z1znw_4cmYbi7A
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 
 
 --------------------------------------------------------------------------------
@@ -51,6 +51,10 @@ ENVIRONMENT=production
 LOG_LEVEL=INFO
 SUPABASE_JWT_SECRET=
 CORS_ORIGINS=["https://www.ovalens.com","https://ovalens.com","https://ovalens-web.vercel.app"]
+
+# Optional — metrics (see docs/METRICS-PRODUCTION.md)
+# METRICS_ENABLED=true
+# METRICS_TOKEN=
 
 
 --------------------------------------------------------------------------------
@@ -98,4 +102,6 @@ NOTES
   (Project Settings → Database → Connection string URI).
 - SUPABASE_JWT_SECRET: Supabase Project Settings → API → JWT Secret.
 - NEXT_PUBLIC_* are exposed to the browser; do not put server-only secrets there.
+- Metrics: /metrics is exposed when ENVIRONMENT is beta or production (or METRICS_ENABLED=true).
+  Optional METRICS_TOKEN protects the endpoint; see docs/METRICS-PRODUCTION.md for dashboards.
 ================================================================================

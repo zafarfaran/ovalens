@@ -1,12 +1,18 @@
 """Anthropic Claude LLM adapter with tool-calling support."""
 
 import json
+import time
 from collections.abc import AsyncGenerator
 
 import anthropic
 
 from app.config import get_settings
 from app.core.logging import get_logger
+from app.core.metrics import (
+    record_llm_failure,
+    record_llm_request,
+    record_llm_tokens,
+)
 from app.services.llm.types import (
     DashboardUpdateEvent,
     ErrorEvent,
@@ -313,7 +319,10 @@ class ClaudeProvider:
             raise ValueError("ANTHROPIC_API_KEY is required")
         self.client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
         self.model = settings.ai_model
-        logger.info("Claude provider initialized", model=self.model)
+        logger.info(
+            "llm_provider_initialized",
+            model=self.model,
+        )
 
     async def stream_chat(
         self,
@@ -322,8 +331,9 @@ class ClaudeProvider:
         tools: list[dict] | None = None,
         tool_context: dict | None = None,
     ) -> AsyncGenerator[StreamEvent, None]:
+        stream_start = time.perf_counter()
         logger.info(
-            "Starting Claude stream",
+            "llm_stream_started",
             message_count=len(messages),
             model=self.model,
         )
@@ -406,17 +416,15 @@ class ClaudeProvider:
                                     tool_input = json.loads(raw_json) if raw_json else {}
                                 except json.JSONDecodeError:
                                     logger.error(
-                                        "Failed to parse tool input JSON",
+                                        "llm_tool_parse_error",
                                         tool=current_tool_name,
-                                        raw=raw_json[:500],
                                     )
                                     tool_input = {}
 
                                 logger.info(
-                                    "Tool call detected",
+                                    "llm_tool_call",
                                     tool=current_tool_name,
                                     tool_id=current_tool_id,
-                                    tool_input=tool_input,
                                 )
 
                                 yield ToolCallEvent(
@@ -521,7 +529,7 @@ class ClaudeProvider:
                     # while the next API call is being prepared
                     yield StatusEvent(phase=StatusPhase.UNDERSTANDING)
                     logger.info(
-                        "Continuing after tool call",
+                        "llm_continuation_after_tool",
                         round=_round + 1,
                     )
                 else:
@@ -531,24 +539,32 @@ class ClaudeProvider:
                 # Exhausted all rounds while tools were still being called
                 if tool_called:
                     logger.warning(
-                        "Max tool rounds exhausted — final response may be incomplete",
+                        "llm_max_tool_rounds_exhausted",
                         max_rounds=max_rounds,
                     )
 
+            duration_seconds = time.perf_counter() - stream_start
+            duration_ms = round(duration_seconds * 1000, 2)
+            record_llm_request(self.model, duration_seconds)
+            record_llm_tokens(self.model, input_tokens, output_tokens)
             logger.info(
-                "Claude stream completed",
+                "llm_stream_completed",
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
+                duration_ms=duration_ms,
             )
             yield StatusEvent(phase=StatusPhase.COMPLETE)
 
         except anthropic.APIError as e:
+            record_llm_failure(self.model)
             logger.error(
-                "Claude API error",
-                error=str(e),
+                "llm_claude_api_error",
                 status_code=getattr(e, "status_code", None),
             )
             yield ErrorEvent(error=str(e), code="CLAUDE_API_ERROR")
         except Exception as e:
-            logger.exception("Unexpected error during Claude stream")
+            record_llm_failure(self.model)
+            logger.exception(
+                "llm_stream_error",
+            )
             yield ErrorEvent(error=str(e), code="LLM_STREAM_ERROR")
