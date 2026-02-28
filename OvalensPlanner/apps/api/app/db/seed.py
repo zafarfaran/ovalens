@@ -1,6 +1,6 @@
 """Seed the database with demo data if it is empty."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,9 +35,9 @@ def _compute_sarah_position():
         number_of_children=2,
         claims_child_benefit=True,
         pension_contributions_by_year={
-            "2022/23": 18000,   # 12k personal + 6k employer
-            "2023/24": 22500,   # 15k personal + 7.5k employer
-            "2024/25": 26000,   # 18k personal + 8k employer
+            "2022/23": 18000,  # 12k personal + 6k employer
+            "2023/24": 22500,  # 15k personal + 7.5k employer
+            "2024/25": 26000,  # 18k personal + 8k employer
         },
     )
 
@@ -99,7 +99,10 @@ async def seed_if_empty(session: AsyncSession) -> None:
         # Professional
         employer_name="Meridian Capital Partners",
         # Notes
-        notes="Two children (ages 8 and 11). Sarah is a senior portfolio manager. James runs a freelance consultancy. They own two buy-to-let flats in South London.",
+        notes=(
+            "Two children (ages 8 and 11). Sarah is a senior portfolio manager. "
+            "James runs a freelance consultancy. They own two buy-to-let flats in South London."
+        ),
     )
     session.add(client)
 
@@ -130,7 +133,10 @@ async def seed_if_empty(session: AsyncSession) -> None:
         # Professional
         company_name="Mitchell Consulting Ltd",
         # Notes
-        notes="Self-employed IT consultant. Annual income ~£45,000. Unused pension allowance available for carry-forward planning.",
+        notes=(
+            "Self-employed IT consultant. Annual income ~£45,000. "
+            "Unused pension allowance available for carry-forward planning."
+        ),
     )
     session.add(spouse)
 
@@ -164,7 +170,9 @@ async def seed_if_empty(session: AsyncSession) -> None:
         pension_data={
             "contributions": 18000,
             "aa_remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else 42000,
-            "annual_allowance": pos.pension_aa_result.annual_allowance if pos.pension_aa_result else 60000,
+            "annual_allowance": pos.pension_aa_result.annual_allowance
+            if pos.pension_aa_result
+            else 60000,
             "contributions_history": {
                 "2022/23": {"personal": 12000, "employer": 6000},
                 "2023/24": {"personal": 15000, "employer": 7500},
@@ -212,7 +220,9 @@ async def seed_if_empty(session: AsyncSession) -> None:
         hicbc={
             "number_of_children": 2,
             "claims_child_benefit": True,
-            "child_benefit_amount": pos.hicbc_result.child_benefit_annual if pos.hicbc_result else 0,
+            "child_benefit_amount": pos.hicbc_result.child_benefit_annual
+            if pos.hicbc_result
+            else 0,
             "clawback_percentage": pos.hicbc_result.clawback_percentage if pos.hicbc_result else 0,
             "hicbc_charge": pos.hicbc_result.hicbc_charge if pos.hicbc_result else 0,
         },
@@ -227,7 +237,9 @@ async def seed_if_empty(session: AsyncSession) -> None:
         ],
         ni_breakdown={
             "class1": {
-                "total_employee_ni": pos.ni_result.class_1.total_employee_ni if pos.ni_result.class_1 else 0,
+                "total_employee_ni": pos.ni_result.class_1.total_employee_ni
+                if pos.ni_result.class_1
+                else 0,
             },
         },
         status="computed",
@@ -238,17 +250,19 @@ async def seed_if_empty(session: AsyncSession) -> None:
     # ── Observations — engine-derived ──────────────────────────────────
     observations = []
     for i, obs in enumerate(pos.observations, start=1):
-        observations.append(Observation(
-            id=f"obs-{i}",
-            client_id="client-sarah",
-            tax_year="2025/26",
-            title=obs.title,
-            description=obs.description,
-            severity=obs.severity,
-            priority="high" if obs.severity in ("warning", "critical") else "medium",
-            category=obs.category,
-            potential_saving=obs.potential_saving,
-        ))
+        observations.append(
+            Observation(
+                id=f"obs-{i}",
+                client_id="client-sarah",
+                tax_year="2025/26",
+                title=obs.title,
+                description=obs.description,
+                severity=obs.severity,
+                priority="high" if obs.severity in ("warning", "critical") else "medium",
+                category=obs.category,
+                potential_saving=obs.potential_saving,
+            )
+        )
     session.add_all(observations)
 
     # ── Meeting Notes ──────────────────────────────────────────────────
@@ -257,7 +271,7 @@ async def seed_if_empty(session: AsyncSession) -> None:
             id="mn-1",
             client_id="client-sarah",
             author_id="demo-user",
-            meeting_date=datetime(2025, 11, 14, 10, 0, tzinfo=timezone.utc),
+            meeting_date=datetime(2025, 11, 14, 10, 0, tzinfo=UTC),
             subject="Annual review — 2025/26 tax planning",
             attendees="Sarah Mitchell, James Mitchell (spouse)",
             summary=(
@@ -285,7 +299,7 @@ async def seed_if_empty(session: AsyncSession) -> None:
             id="mn-2",
             client_id="client-sarah",
             author_id="demo-user",
-            meeting_date=datetime(2025, 7, 3, 14, 30, tzinfo=timezone.utc),
+            meeting_date=datetime(2025, 7, 3, 14, 30, tzinfo=UTC),
             subject="Rental property — remortgage and tax implications",
             attendees="Sarah Mitchell",
             summary=(
@@ -300,7 +314,10 @@ async def seed_if_empty(session: AsyncSession) -> None:
                 "lived in Flat B so PPR would not apply."
             ),
             action_items=[
-                "Calculate CGT exposure on potential sale of Flat B (estimated current value £320k, purchase price £245k)",
+                (
+                    "Calculate CGT exposure on potential sale of Flat B "
+                    "(estimated current value £320k, purchase price £245k)"
+                ),
                 "Check if CGT annual exemption can be used against other gains",
                 "Review mortgage interest relief position under Section 24 restrictions",
             ],
@@ -310,7 +327,7 @@ async def seed_if_empty(session: AsyncSession) -> None:
             id="mn-3",
             client_id="client-sarah",
             author_id="demo-user",
-            meeting_date=datetime(2025, 3, 20, 9, 0, tzinfo=timezone.utc),
+            meeting_date=datetime(2025, 3, 20, 9, 0, tzinfo=UTC),
             subject="Pre year-end planning — 2024/25 wrap-up",
             attendees="Sarah Mitchell, James Mitchell",
             summary=(
@@ -335,7 +352,7 @@ async def seed_if_empty(session: AsyncSession) -> None:
     session.add_all(meeting_notes)
 
     # ── Conversation + Messages ─────────────────────────────────────────
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     conversation = Conversation(
         id="conv-1",
@@ -370,8 +387,7 @@ async def seed_if_empty(session: AsyncSession) -> None:
             conversation_id="conv-1",
             role="user",
             content=(
-                "What's her current tax liability and are there any obvious "
-                "planning opportunities?"
+                "What's her current tax liability and are there any obvious planning opportunities?"
             ),
         ),
         Message(

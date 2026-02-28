@@ -6,8 +6,8 @@ from app.services.tools.meeting_notes import execute_search_meeting_notes
 from app.services.tools.observations import execute_save_observation
 from app.services.tools.tax_engine import (
     execute_compute_tax_position,
-    execute_model_salary_sacrifice,
     execute_model_personal_pension,
+    execute_model_salary_sacrifice,
 )
 
 logger = get_logger(__name__)
@@ -22,9 +22,7 @@ TOOL_EXECUTORS: dict = {
 }
 
 
-async def execute_tool(
-    name: str, tool_input: dict, context: dict | None = None
-) -> dict:
+async def execute_tool(name: str, tool_input: dict, context: dict | None = None) -> dict:
     """Look up and run a tool executor by name."""
     executor = TOOL_EXECUTORS.get(name)
     if not executor:

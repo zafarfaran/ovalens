@@ -17,7 +17,5 @@ def get_llm_provider() -> ClaudeProvider:
             _provider = ClaudeProvider()
             logger.info("LLM provider: Claude", model=settings.ai_model)
         else:
-            raise RuntimeError(
-                "No LLM provider configured — set ANTHROPIC_API_KEY"
-            )
+            raise RuntimeError("No LLM provider configured — set ANTHROPIC_API_KEY")
     return _provider

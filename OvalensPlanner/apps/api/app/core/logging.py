@@ -28,10 +28,10 @@ from enum import StrEnum
 
 import structlog
 
-
 # ---------------------------------------------------------------------------
 # Sections
 # ---------------------------------------------------------------------------
+
 
 class Section(StrEnum):
     """Coarse application sections for log grouping."""
@@ -71,6 +71,7 @@ def _resolve_section(module_name: str) -> Section:
 # Structlog processor — injects section if not already bound
 # ---------------------------------------------------------------------------
 
+
 def _inject_section(
     logger: logging.Logger,
     method_name: str,
@@ -86,6 +87,7 @@ def _inject_section(
 # ---------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------
+
 
 def setup_logging(log_level: str = "DEBUG", environment: str = "development") -> None:
     """Configure structlog for the application.
@@ -139,6 +141,7 @@ def setup_logging(log_level: str = "DEBUG", environment: str = "development") ->
 # ---------------------------------------------------------------------------
 # Logger factory
 # ---------------------------------------------------------------------------
+
 
 def get_logger(
     name: str,

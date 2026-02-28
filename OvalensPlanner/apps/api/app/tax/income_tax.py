@@ -17,6 +17,7 @@ logger = structlog.get_logger(__name__)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _tax_through_bands(
     income: float,
     bands: list[dict],
@@ -39,7 +40,7 @@ def _tax_through_bands(
         if width is not None:
             # How much of this band is available given the cursor?
             band_start = sum(
-                b["width"] for b in bands[:bands.index(band)] if b["width"] is not None
+                b["width"] for b in bands[: bands.index(band)] if b["width"] is not None
             )
             band_end = band_start + width
             available = max(0.0, band_end - cursor)
@@ -50,12 +51,14 @@ def _tax_through_bands(
         if taxed > 0:
             raw_tax = taxed * band["rate"]
             tax = truncate_tax(raw_tax)
-            results.append(TaxBandResult(
-                name=band["name"],
-                income_in_band=taxed,
-                rate=band["rate"],
-                tax=tax,
-            ))
+            results.append(
+                TaxBandResult(
+                    name=band["name"],
+                    income_in_band=taxed,
+                    rate=band["rate"],
+                    tax=tax,
+                )
+            )
             total_tax += tax
             cursor += taxed
             remaining -= taxed
@@ -125,7 +128,7 @@ def _tax_savings_through_bands(
         width = band["width"]
         if width is not None:
             band_start = sum(
-                b["width"] for b in bands[:bands.index(band)] if b["width"] is not None
+                b["width"] for b in bands[: bands.index(band)] if b["width"] is not None
             )
             band_end = band_start + width
             available = max(0.0, band_end - cursor)
@@ -141,12 +144,14 @@ def _tax_savings_through_bands(
 
             raw_tax = taxable_in_band * band["rate"]
             tax = truncate_tax(raw_tax)
-            results.append(TaxBandResult(
-                name=band["name"],
-                income_in_band=taxed,
-                rate=band["rate"],
-                tax=tax,
-            ))
+            results.append(
+                TaxBandResult(
+                    name=band["name"],
+                    income_in_band=taxed,
+                    rate=band["rate"],
+                    tax=tax,
+                )
+            )
             total_tax += tax
             cursor += taxed
             remaining -= taxed
@@ -190,7 +195,7 @@ def _tax_dividends_through_bands(
         width = band["width"]
         if width is not None:
             band_start = sum(
-                b["width"] for b in uk_bands[:uk_bands.index(band)] if b["width"] is not None
+                b["width"] for b in uk_bands[: uk_bands.index(band)] if b["width"] is not None
             )
             band_end = band_start + width
             available = max(0.0, band_end - cursor)
@@ -208,12 +213,14 @@ def _tax_dividends_through_bands(
             div_rate = rate_map.get(band["name"], dividend_rates["additional_rate"])
             raw_tax = taxable_in_band * div_rate
             tax = truncate_tax(raw_tax)
-            results.append(TaxBandResult(
-                name=band["name"],
-                income_in_band=taxed,
-                rate=div_rate,
-                tax=tax,
-            ))
+            results.append(
+                TaxBandResult(
+                    name=band["name"],
+                    income_in_band=taxed,
+                    rate=div_rate,
+                    tax=tax,
+                )
+            )
             total_tax += tax
             cursor += taxed
             remaining -= taxed
@@ -222,6 +229,7 @@ def _tax_dividends_through_bands(
 
 
 # ── Main function ────────────────────────────────────────────────────────────
+
 
 def calculate_income_tax(
     non_savings_income: float = 0,
@@ -284,12 +292,19 @@ def calculate_income_tax(
 
     # ── Savings through UK bands ─────────────────────────────────────────
     sav_results, sav_tax, uk_cursor = _tax_savings_through_bands(
-        sav_after_pa, uk_bands, uk_cursor, psa,
+        sav_after_pa,
+        uk_bands,
+        uk_cursor,
+        psa,
     )
 
     # ── Dividends through UK bands ───────────────────────────────────────
     div_results, div_tax, uk_cursor, da_used = _tax_dividends_through_bands(
-        div_after_pa, uk_bands, uk_cursor, c["dividends"]["allowance"], c["dividends"],
+        div_after_pa,
+        uk_bands,
+        uk_cursor,
+        c["dividends"]["allowance"],
+        c["dividends"],
     )
 
     total_tax = ns_tax + sav_tax + div_tax

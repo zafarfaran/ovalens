@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models — 9-table prototype schema for Ovalens MVP."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -27,7 +27,7 @@ def _uuid() -> str:
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Base(DeclarativeBase):
@@ -122,7 +122,9 @@ class Client(Base):
     documents = relationship("Document", back_populates="client")
     conversations = relationship("Conversation", back_populates="client")
     observations = relationship("Observation", back_populates="client")
-    meeting_notes = relationship("MeetingNote", back_populates="client", order_by="MeetingNote.meeting_date.desc()")
+    meeting_notes = relationship(
+        "MeetingNote", back_populates="client", order_by="MeetingNote.meeting_date.desc()"
+    )
     spouse = relationship(
         "Client",
         foreign_keys=[spouse_id],

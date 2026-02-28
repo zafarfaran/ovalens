@@ -9,7 +9,6 @@ from app.config import get_settings
 from app.core.logging import get_logger
 from app.services.llm.types import (
     DashboardUpdateEvent,
-    DoneEvent,
     ErrorEvent,
     StatusEvent,
     StatusPhase,
@@ -73,8 +72,13 @@ ENGINE_TOOLS = [
                             "source_type": {
                                 "type": "string",
                                 "enum": [
-                                    "employment", "self_employment", "rental",
-                                    "pension_income", "savings", "dividends", "other",
+                                    "employment",
+                                    "self_employment",
+                                    "rental",
+                                    "pension_income",
+                                    "savings",
+                                    "dividends",
+                                    "other",
                                 ],
                             },
                             "gross_amount": {"type": "number"},
@@ -177,8 +181,13 @@ ENGINE_TOOLS = [
                             "source_type": {
                                 "type": "string",
                                 "enum": [
-                                    "employment", "self_employment", "rental",
-                                    "pension_income", "savings", "dividends", "other",
+                                    "employment",
+                                    "self_employment",
+                                    "rental",
+                                    "pension_income",
+                                    "savings",
+                                    "dividends",
+                                    "other",
                                 ],
                             },
                             "gross_amount": {"type": "number"},
@@ -195,9 +204,7 @@ ENGINE_TOOLS = [
                 },
                 "current_contribution": {
                     "type": "number",
-                    "description": (
-                        "Existing annual personal pension contribution (default 0)"
-                    ),
+                    "description": ("Existing annual personal pension contribution (default 0)"),
                 },
                 "employer_contributions": {
                     "type": "number",
@@ -234,24 +241,37 @@ OBSERVATION_TOOLS = [
             "properties": {
                 "title": {
                     "type": "string",
-                    "description": "Short title for the observation (e.g. 'Marriage Allowance Transfer Opportunity')",
+                    "description": (
+                        "Short title for the observation "
+                        "(e.g. 'Marriage Allowance Transfer Opportunity')"
+                    ),
                 },
                 "description": {
                     "type": "string",
-                    "description": "Detailed description with specific numbers and context from the conversation",
+                    "description": (
+                        "Detailed description with specific numbers and "
+                        "context from the conversation"
+                    ),
                 },
                 "severity": {
                     "type": "string",
                     "enum": ["info", "warning", "opportunity"],
-                    "description": "info = FYI, warning = needs attention, opportunity = potential saving",
+                    "description": (
+                        "info = FYI, warning = needs attention, opportunity = potential saving"
+                    ),
                 },
                 "category": {
                     "type": "string",
-                    "description": "Tax area: income_tax, pension, savings, capital_gains, child_benefit, planning, iht",
+                    "description": (
+                        "Tax area: income_tax, pension, savings, capital_gains, "
+                        "child_benefit, planning, iht"
+                    ),
                 },
                 "potential_saving": {
                     "type": "number",
-                    "description": "Estimated annual tax saving in £ (optional, only if quantifiable)",
+                    "description": (
+                        "Estimated annual tax saving in £ (optional, only if quantifiable)"
+                    ),
                 },
             },
             "required": ["title", "description", "severity", "category"],
@@ -338,7 +358,9 @@ class ClaudeProvider:
                 tool_result_contents: list[dict] = []
                 current_text_block: str = ""
 
-                async with self.client.messages.stream(**{**api_kwargs, "messages": messages}) as stream:
+                async with self.client.messages.stream(
+                    **{**api_kwargs, "messages": messages}
+                ) as stream:
                     async for event in stream:
                         if event.type == "content_block_start":
                             if event.content_block.type == "tool_use":
@@ -355,7 +377,9 @@ class ClaudeProvider:
                                     "save_observation": StatusPhase.SAVING_OBSERVATION,
                                 }
                                 yield StatusEvent(
-                                    phase=tool_status.get(current_tool_name, StatusPhase.CALCULATING),
+                                    phase=tool_status.get(
+                                        current_tool_name, StatusPhase.CALCULATING
+                                    ),
                                 )
                             elif event.content_block.type == "text":
                                 current_text_block = ""
@@ -416,7 +440,8 @@ class ClaudeProvider:
                                 if (
                                     tool_result.get("success")
                                     and "dashboardData" in tool_result
-                                    and current_tool_name in (
+                                    and current_tool_name
+                                    in (
                                         "generate_dashboard",
                                         "compute_tax_position",
                                     )
@@ -427,12 +452,14 @@ class ClaudeProvider:
                                     )
 
                                 # Record the tool_use block for the continuation message
-                                assistant_content_blocks.append({
-                                    "type": "tool_use",
-                                    "id": current_tool_id,
-                                    "name": current_tool_name,
-                                    "input": tool_input,
-                                })
+                                assistant_content_blocks.append(
+                                    {
+                                        "type": "tool_use",
+                                        "id": current_tool_id,
+                                        "name": current_tool_name,
+                                        "input": tool_input,
+                                    }
+                                )
 
                                 # Append the tool result to messages for the next round
                                 # First, add the assistant message with all content blocks so far
@@ -440,11 +467,13 @@ class ClaudeProvider:
                                 tool_called = True
 
                                 # Collect tool_result for continuation
-                                tool_result_contents.append({
-                                    "type": "tool_result",
-                                    "tool_use_id": current_tool_id,
-                                    "content": json.dumps(tool_result),
-                                })
+                                tool_result_contents.append(
+                                    {
+                                        "type": "tool_result",
+                                        "tool_use_id": current_tool_id,
+                                        "content": json.dumps(tool_result),
+                                    }
+                                )
 
                                 # Reset
                                 current_tool_id = None
@@ -453,10 +482,12 @@ class ClaudeProvider:
                             else:
                                 # Text block completed
                                 if current_text_block:
-                                    assistant_content_blocks.append({
-                                        "type": "text",
-                                        "text": current_text_block,
-                                    })
+                                    assistant_content_blocks.append(
+                                        {
+                                            "type": "text",
+                                            "text": current_text_block,
+                                        }
+                                    )
                                     current_text_block = ""
 
                         elif event.type == "message_start":
@@ -470,15 +501,19 @@ class ClaudeProvider:
                 if tool_called:
                     # Continue the conversation with the tool result
                     # Append assistant message with all content blocks
-                    messages.append({
-                        "role": "assistant",
-                        "content": assistant_content_blocks,
-                    })
+                    messages.append(
+                        {
+                            "role": "assistant",
+                            "content": assistant_content_blocks,
+                        }
+                    )
                     # Append all tool results as a user message
-                    messages.append({
-                        "role": "user",
-                        "content": tool_result_contents,
-                    })
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": tool_result_contents,
+                        }
+                    )
                     # Reset for next round
                     first_token = True
                     # Emit transitional status so the frontend indicator

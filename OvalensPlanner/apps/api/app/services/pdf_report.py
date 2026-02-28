@@ -7,11 +7,11 @@ platypus layout engine.  The main entry point is ``generate_tax_report()``.
 from __future__ import annotations
 
 import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm, mm
@@ -46,6 +46,7 @@ MARGIN = 2 * cm
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _fmt(value: float | int | str | None, prefix: str = "\u00a3", decimals: int = 2) -> str:
     """Format a monetary value with thousands separator."""
@@ -186,23 +187,29 @@ def _styles() -> dict[str, ParagraphStyle]:
 # Section header as a coloured bar
 # ---------------------------------------------------------------------------
 
+
 def _section_header(title: str, styles: dict[str, ParagraphStyle]) -> Table:
     """Return a section header rendered as a coloured bar with white text."""
     para = Paragraph(title, styles["section_header"])
     tbl = Table([[para]], colWidths=[PAGE_W - 2 * MARGIN])
-    tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), BRAND_PRIMARY),
-        ("ROUNDEDCORNERS", [4, 4, 4, 4]),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-    ]))
+    tbl.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), BRAND_PRIMARY),
+                ("ROUNDEDCORNERS", [4, 4, 4, 4]),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ]
+        )
+    )
     return tbl
 
 
 # ---------------------------------------------------------------------------
 # Generic key-value table with alternating rows
 # ---------------------------------------------------------------------------
+
 
 def _kv_table(
     rows: list[tuple[str, str]],
@@ -243,6 +250,7 @@ def _kv_table(
 # ---------------------------------------------------------------------------
 # Multi-column data table
 # ---------------------------------------------------------------------------
+
 
 def _data_table(
     header: list[str],
@@ -300,6 +308,7 @@ def _data_table(
 # Observation card
 # ---------------------------------------------------------------------------
 
+
 def _observation_card(
     obs: dict,
     styles: dict[str, ParagraphStyle],
@@ -338,30 +347,39 @@ def _observation_card(
         [[title_para], [body_para]],
         colWidths=[available - 12],
     )
-    inner.setStyle(TableStyle([
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-    ]))
+    inner.setStyle(
+        TableStyle(
+            [
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
 
     # Wrap with left accent border
     card = Table([[inner]], colWidths=[available])
-    card.setStyle(TableStyle([
-        ("LINEBEFOREDECOR", (0, 0), (0, -1), 4, accent),
-        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8F9FA")),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("ROUNDEDCORNERS", [4, 4, 4, 4]),
-    ]))
+    card.setStyle(
+        TableStyle(
+            [
+                ("LINEBEFOREDECOR", (0, 0), (0, -1), 4, accent),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8F9FA")),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("ROUNDEDCORNERS", [4, 4, 4, 4]),
+            ]
+        )
+    )
     return card
 
 
 # ---------------------------------------------------------------------------
 # Page footers / headers
 # ---------------------------------------------------------------------------
+
 
 def _footer(canvas: Any, doc: Any, generated_date: str) -> None:
     """Draw the page footer on body pages."""
@@ -376,6 +394,7 @@ def _footer(canvas: Any, doc: Any, generated_date: str) -> None:
 # ---------------------------------------------------------------------------
 # Main public API
 # ---------------------------------------------------------------------------
+
 
 def generate_tax_report(
     *,
@@ -409,20 +428,31 @@ def generate_tax_report(
     """
     buf = io.BytesIO()
     st = _styles()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     generated_date = now.strftime("%d %B %Y, %H:%M UTC")
-    tax_year = tax_position.get("tax_year", tax_position.get("taxYear", dashboard_data.get("tax_year", "2024/25")))
-    client_name = f"{client.get('first_name', '')} {client.get('last_name', '')}".strip() or client.get("name", "Client")
+    tax_year = tax_position.get(
+        "tax_year", tax_position.get("taxYear", dashboard_data.get("tax_year", "2024/25"))
+    )
+    client_name = (
+        f"{client.get('first_name', '')} {client.get('last_name', '')}".strip()
+        or client.get("name", "Client")
+    )
 
     # ------------------------------------------------------------------
     # Document setup
     # ------------------------------------------------------------------
     body_frame = Frame(
-        MARGIN, MARGIN, PAGE_W - 2 * MARGIN, PAGE_H - 2 * MARGIN,
+        MARGIN,
+        MARGIN,
+        PAGE_W - 2 * MARGIN,
+        PAGE_H - 2 * MARGIN,
         id="body",
     )
     cover_frame = Frame(
-        MARGIN, MARGIN, PAGE_W - 2 * MARGIN, PAGE_H - 2 * MARGIN,
+        MARGIN,
+        MARGIN,
+        PAGE_W - 2 * MARGIN,
+        PAGE_H - 2 * MARGIN,
         id="cover",
     )
 
@@ -502,9 +532,10 @@ def generate_tax_report(
         story.append(Spacer(1, 4 * mm))
 
         income_rows = [(s.get("label", ""), _fmt(s.get("amount", 0))) for s in sources]
-        total_gross = income_summary.get("totalIncome", income_summary.get("totalGrossIncome", sum(
-            s.get("amount", 0) for s in sources
-        )))
+        total_gross = income_summary.get(
+            "totalIncome",
+            income_summary.get("totalGrossIncome", sum(s.get("amount", 0) for s in sources)),
+        )
         income_rows.append(("Total Gross Income", _fmt(total_gross)))
         story.append(_kv_table(income_rows, st, bold_last=True))
         story.append(Spacer(1, 8 * mm))
@@ -514,7 +545,9 @@ def generate_tax_report(
     # ------------------------------------------------------------------
     tax_calc = dashboard_data.get("taxCalculation", {})
     bands = tax_calc.get("incomeTaxByBand", [])
-    non_zero_bands = [b for b in bands if b.get("tax", 0) != 0 or b.get("amount", b.get("income", 0)) != 0]
+    non_zero_bands = [
+        b for b in bands if b.get("tax", 0) != 0 or b.get("amount", b.get("income", 0)) != 0
+    ]
 
     if non_zero_bands:
         story.append(_section_header("Income Tax Breakdown", st))
@@ -523,33 +556,40 @@ def generate_tax_report(
         available = PAGE_W - 2 * MARGIN
         band_rows = []
         for b in non_zero_bands:
-            band_rows.append([
-                b.get("band", ""),
-                _fmt(b.get("amount", b.get("income", 0))),
-                _pct(b.get("rate", 0)),
-                _fmt(b.get("tax", 0)),
-            ])
+            band_rows.append(
+                [
+                    b.get("band", ""),
+                    _fmt(b.get("amount", b.get("income", 0))),
+                    _pct(b.get("rate", 0)),
+                    _fmt(b.get("tax", 0)),
+                ]
+            )
 
-        total_income_tax = tax_calc.get("totalIncomeTax", sum(
-            b.get("tax", 0) for b in non_zero_bands
-        ))
+        total_income_tax = tax_calc.get(
+            "totalIncomeTax", sum(b.get("tax", 0) for b in non_zero_bands)
+        )
         band_rows.append(["Total Income Tax", "", "", _fmt(total_income_tax)])
 
-        story.append(_data_table(
-            ["Band", "Income", "Rate", "Tax"],
-            band_rows,
-            st,
-            col_widths=[available * 0.30, available * 0.25, available * 0.15, available * 0.30],
-            bold_last=True,
-        ))
+        story.append(
+            _data_table(
+                ["Band", "Income", "Rate", "Tax"],
+                band_rows,
+                st,
+                col_widths=[available * 0.30, available * 0.25, available * 0.15, available * 0.30],
+                bold_last=True,
+            )
+        )
 
         # Dividend tax
         dividend_tax = tax_calc.get("dividendTax", 0)
         if dividend_tax and float(dividend_tax) > 0:
             story.append(Spacer(1, 3 * mm))
-            story.append(Paragraph(
-                f"Dividend Tax: {_fmt(dividend_tax)}", st["body_bold"],
-            ))
+            story.append(
+                Paragraph(
+                    f"Dividend Tax: {_fmt(dividend_tax)}",
+                    st["body_bold"],
+                )
+            )
 
         story.append(Spacer(1, 8 * mm))
 
@@ -655,9 +695,7 @@ def generate_tax_report(
     hicbc_for_summary = tax_position.get("hicbc_charge", hicbc_charge)
     total_tax = tax_position.get(
         "total_tax",
-        (float(income_tax_total or 0)
-         + float(ni_for_summary or 0)
-         + float(hicbc_for_summary or 0)),
+        (float(income_tax_total or 0) + float(ni_for_summary or 0) + float(hicbc_for_summary or 0)),
     )
     effective_rate = tax_position.get(
         "effective_rate",
@@ -693,15 +731,19 @@ def generate_tax_report(
 
         rate_para = Paragraph(rate_text, st["body"])
         rate_box = Table([[rate_para]], colWidths=[PAGE_W - 2 * MARGIN])
-        rate_box.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EDF2FF")),
-            ("ROUNDEDCORNERS", [4, 4, 4, 4]),
-            ("TOPPADDING", (0, 0), (-1, -1), 8),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-            ("LEFTPADDING", (0, 0), (-1, -1), 12),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 12),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ]))
+        rate_box.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EDF2FF")),
+                    ("ROUNDEDCORNERS", [4, 4, 4, 4]),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ]
+            )
+        )
         story.append(rate_box)
 
     story.append(Spacer(1, 8 * mm))
@@ -723,26 +765,30 @@ def generate_tax_report(
             used = a.get("used", 0)
             remaining = a.get("remaining", limit - used if limit else 0)
             status = a.get("status", "")
-            allow_rows.append([
-                name,
-                _fmt(limit, decimals=0),
-                _fmt(used, decimals=0),
-                _fmt(remaining, decimals=0),
-                status.capitalize() if status else "",
-            ])
+            allow_rows.append(
+                [
+                    name,
+                    _fmt(limit, decimals=0),
+                    _fmt(used, decimals=0),
+                    _fmt(remaining, decimals=0),
+                    status.capitalize() if status else "",
+                ]
+            )
 
-        story.append(_data_table(
-            ["Allowance", "Annual Limit", "Used", "Remaining", "Status"],
-            allow_rows,
-            st,
-            col_widths=[
-                available * 0.28,
-                available * 0.18,
-                available * 0.18,
-                available * 0.18,
-                available * 0.18,
-            ],
-        ))
+        story.append(
+            _data_table(
+                ["Allowance", "Annual Limit", "Used", "Remaining", "Status"],
+                allow_rows,
+                st,
+                col_widths=[
+                    available * 0.28,
+                    available * 0.18,
+                    available * 0.18,
+                    available * 0.18,
+                    available * 0.18,
+                ],
+            )
+        )
         story.append(Spacer(1, 8 * mm))
 
     # ------------------------------------------------------------------
@@ -785,6 +831,7 @@ def generate_tax_report(
             if date_str:
                 try:
                     from datetime import datetime as _dt
+
                     dt = _dt.fromisoformat(date_str.replace("Z", "+00:00"))
                     date_str = dt.strftime("%d %B %Y")
                 except (ValueError, TypeError):
@@ -819,23 +866,31 @@ def generate_tax_report(
                 [[title_para], [body_para]],
                 colWidths=[available - 12],
             )
-            inner.setStyle(TableStyle([
-                ("TOPPADDING", (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-            ]))
+            inner.setStyle(
+                TableStyle(
+                    [
+                        ("TOPPADDING", (0, 0), (-1, -1), 4),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ]
+                )
+            )
 
             card = Table([[inner]], colWidths=[available])
-            card.setStyle(TableStyle([
-                ("LINEBEFOREDECOR", (0, 0), (0, -1), 4, BRAND_PRIMARY),
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8F9FA")),
-                ("TOPPADDING", (0, 0), (-1, -1), 2),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ("ROUNDEDCORNERS", [4, 4, 4, 4]),
-            ]))
+            card.setStyle(
+                TableStyle(
+                    [
+                        ("LINEBEFOREDECOR", (0, 0), (0, -1), 4, BRAND_PRIMARY),
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8F9FA")),
+                        ("TOPPADDING", (0, 0), (-1, -1), 2),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                        ("ROUNDEDCORNERS", [4, 4, 4, 4]),
+                    ]
+                )
+            )
             story.append(card)
             story.append(Spacer(1, 3 * mm))
 
@@ -894,27 +949,31 @@ def generate_tax_report(
                 else:
                     sav_str = ""
 
-                comp_rows.append([
-                    label,
-                    _fmt(cur_num),
-                    _fmt(prop_num),
-                    sav_str,
-                ])
+                comp_rows.append(
+                    [
+                        label,
+                        _fmt(cur_num),
+                        _fmt(prop_num),
+                        sav_str,
+                    ]
+                )
 
             if comp_rows:
-                story.append(_data_table(
-                    ["", "Current", "Proposed", "Saving"],
-                    comp_rows,
-                    st,
-                    col_widths=[
-                        available * 0.28,
-                        available * 0.24,
-                        available * 0.24,
-                        available * 0.24,
-                    ],
-                    green_col=3,
-                    bold_last=True,
-                ))
+                story.append(
+                    _data_table(
+                        ["", "Current", "Proposed", "Saving"],
+                        comp_rows,
+                        st,
+                        col_widths=[
+                            available * 0.28,
+                            available * 0.24,
+                            available * 0.24,
+                            available * 0.24,
+                        ],
+                        green_col=3,
+                        bold_last=True,
+                    )
+                )
 
             # Total savings highlight box
             total_saving = float(savings.get("total", 0))
@@ -932,56 +991,60 @@ def generate_tax_report(
                     ),
                 )
                 saving_box = Table([[saving_para]], colWidths=[available])
-                saving_box.setStyle(TableStyle([
-                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EBFBEE")),
-                    ("ROUNDEDCORNERS", [4, 4, 4, 4]),
-                    ("TOPPADDING", (0, 0), (-1, -1), 10),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ]))
+                saving_box.setStyle(
+                    TableStyle(
+                        [
+                            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EBFBEE")),
+                            ("ROUNDEDCORNERS", [4, 4, 4, 4]),
+                            ("TOPPADDING", (0, 0), (-1, -1), 10),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ]
+                    )
+                )
                 story.append(saving_box)
 
             # Savings breakdown (individual components)
             saving_details: list[str] = []
             if float(savings.get("income_tax", 0)) > 0:
-                saving_details.append(
-                    f"Income Tax: {_fmt(savings['income_tax'])}"
-                )
+                saving_details.append(f"Income Tax: {_fmt(savings['income_tax'])}")
             if float(savings.get("national_insurance", 0)) > 0:
-                saving_details.append(
-                    f"National Insurance: {_fmt(savings['national_insurance'])}"
-                )
+                saving_details.append(f"National Insurance: {_fmt(savings['national_insurance'])}")
             if float(savings.get("hicbc_avoided", 0)) > 0:
-                saving_details.append(
-                    f"HICBC Avoided: {_fmt(savings['hicbc_avoided'])}"
-                )
+                saving_details.append(f"HICBC Avoided: {_fmt(savings['hicbc_avoided'])}")
             if saving_details:
                 story.append(Spacer(1, 2 * mm))
-                story.append(Paragraph(
-                    "Savings breakdown: " + " &nbsp;|&nbsp; ".join(saving_details),
-                    st["card_body"],
-                ))
+                story.append(
+                    Paragraph(
+                        "Savings breakdown: " + " &nbsp;|&nbsp; ".join(saving_details),
+                        st["card_body"],
+                    )
+                )
 
             # Personal allowance change
             pa_change = sc.get("pa_change", {})
             pa_restored = float(pa_change.get("restored", 0))
             if pa_restored > 0:
                 story.append(Spacer(1, 2 * mm))
-                story.append(Paragraph(
-                    f"Personal allowance restored: {_fmt(pa_restored, decimals=0)} "
-                    f"({_fmt(pa_change.get('current', 0), decimals=0)} "
-                    f"\u2192 {_fmt(pa_change.get('proposed', 0), decimals=0)})",
-                    st["body"],
-                ))
+                story.append(
+                    Paragraph(
+                        f"Personal allowance restored: {_fmt(pa_restored, decimals=0)} "
+                        f"({_fmt(pa_change.get('current', 0), decimals=0)} "
+                        f"\u2192 {_fmt(pa_change.get('proposed', 0), decimals=0)})",
+                        st["body"],
+                    )
+                )
 
             # Extra into pension
             extra_pension = sc.get("extra_into_pension", 0)
             if extra_pension and float(extra_pension) > 0:
                 story.append(Spacer(1, 2 * mm))
-                story.append(Paragraph(
-                    f"Extra directed into pension: <b>{_fmt(extra_pension)}</b>",
-                    st["body"],
-                ))
+                story.append(
+                    Paragraph(
+                        f"Extra directed into pension: <b>{_fmt(extra_pension)}</b>",
+                        st["body"],
+                    )
+                )
 
             story.append(Spacer(1, 8 * mm))
 

@@ -1,0 +1,101 @@
+================================================================================
+OVALENS — ENVIRONMENT VARIABLES CHECKLIST
+Copy the keys below into GitHub Secrets, Vercel (API), or Vercel (Web) as needed.
+Fill in the values; never commit real secrets to the repo.
+================================================================================
+
+--------------------------------------------------------------------------------
+1. GITHUB ACTIONS — use SECRETS (not Variables)
+   GitHub: Repo → Settings → Secrets and variables → Actions → Secrets tab.
+   Click "New repository secret" for each; Name = key below, Value = value below.
+   These are used by the workflow to deploy to BOTH Vercel projects (ovalens-api
+   and ovalens-web). You do NOT add these inside Vercel; they live only in GitHub.
+   Delete this file after copying. Rotate VERCEL_TOKEN if this was ever committed.
+--------------------------------------------------------------------------------
+
+VERCEL_TOKEN=vcp_11vIAFZareFLEvsnB2Heda7GtOZDZcUIwNnANquOCamAbB3cGH1DxWNH
+
+VERCEL_ORG_ID=team_Iesh4VqxfBCBVAPzrWqmhjLB
+VERCEL_PROJECT_ID_API=
+VERCEL_PROJECT_ID_WEB=
+
+Where to find these:
+  Option A — From Vercel dashboard:
+    1. Go to https://vercel.com and open your API project (ovalens-api).
+    2. Settings → General: "Project ID" is VERCEL_PROJECT_ID_API.
+    3. Same page, under "Team" or at top: org/team slug or ID is VERCEL_ORG_ID (often team_xxxx).
+    4. Open your Web project (ovalens-web): Settings → General → "Project ID" is VERCEL_PROJECT_ID_WEB.
+    Org ID is the same for both projects.
+
+  Option B — From CLI (creates .vercel/project.json):
+    1. In repo: cd OvalensPlanner/apps/api && npx vercel link  (pick existing ovalens-api).
+    2. Open OvalensPlanner/apps/api/.vercel/project.json → "orgId" = VERCEL_ORG_ID, "projectId" = VERCEL_PROJECT_ID_API.
+    3. cd OvalensPlanner && npx vercel link  (pick existing ovalens-web).
+    4. Open OvalensPlanner/.vercel/project.json → "projectId" = VERCEL_PROJECT_ID_WEB (orgId is same).
+
+NEXT_PUBLIC_SUPABASE_URL=https://lfwfbhscvrgmfaopsbtc.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_3gl7O6_LyFIbqQcd2Z1znw_4cmYbi7A
+
+
+--------------------------------------------------------------------------------
+2. VERCEL — API PROJECT (ovalens-api) — Variables in Vercel
+   In Vercel dashboard: open project "ovalens-api" → Settings → Environment Variables.
+   Add these there (Production / Preview / Development as needed).
+--------------------------------------------------------------------------------
+
+DATABASE_URL=
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+AI_MODEL=claude-sonnet-4-20250514
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+SUPABASE_JWT_SECRET=
+CORS_ORIGINS=["https://www.ovalens.com","https://ovalens.com","https://ovalens-web.vercel.app"]
+
+
+--------------------------------------------------------------------------------
+3. VERCEL — WEB PROJECT (ovalens-web / www.ovalens.com) — Variables in Vercel
+   In Vercel dashboard: open project "ovalens-web" → Settings → Environment Variables.
+   Add these there (Production / Preview / Development as needed).
+--------------------------------------------------------------------------------
+
+NEXT_PUBLIC_APP_URL=https://www.ovalens.com
+NEXT_PUBLIC_API_URL=https://ovalens-api.vercel.app
+BACKEND_URL=https://ovalens-api.vercel.app
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+
+
+--------------------------------------------------------------------------------
+4. LOCAL DEVELOPMENT — API (OvalensPlanner/apps/api/.env)
+--------------------------------------------------------------------------------
+
+DATABASE_URL=sqlite+aiosqlite:///./helio.db
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+AI_MODEL=claude-sonnet-4-20250514
+ENVIRONMENT=development
+LOG_LEVEL=DEBUG
+SUPABASE_JWT_SECRET=
+
+
+--------------------------------------------------------------------------------
+5. LOCAL DEVELOPMENT — WEB (OvalensPlanner/apps/web/.env)
+--------------------------------------------------------------------------------
+
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:8000
+BACKEND_URL=http://localhost:8000
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+
+
+================================================================================
+NOTES
+- Get VERCEL_ORG_ID / VERCEL_PROJECT_ID_* from .vercel/project.json after running
+  "vercel link" in the API or Web project directory.
+- DATABASE_URL for production API: use Supabase Postgres connection string
+  (Project Settings → Database → Connection string URI).
+- SUPABASE_JWT_SECRET: Supabase Project Settings → API → JWT Secret.
+- NEXT_PUBLIC_* are exposed to the browser; do not put server-only secrets there.
+================================================================================

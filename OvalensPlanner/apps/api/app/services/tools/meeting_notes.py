@@ -9,9 +9,7 @@ from app.db.engine import async_session_factory
 logger = get_logger(__name__)
 
 
-async def execute_search_meeting_notes(
-    tool_input: dict, *, context: dict | None = None
-) -> dict:
+async def execute_search_meeting_notes(tool_input: dict, *, context: dict | None = None) -> dict:
     """Search meeting notes by full-text, scoped to client_id from context."""
     query = tool_input.get("query", "").strip()
     client_id = (context or {}).get("client_id")
@@ -30,15 +28,17 @@ async def execute_search_meeting_notes(
 
     results: list = []
     for row in rows:
-        results.append({
-            "note_id": row.note_id,
-            "subject": row.subject,
-            "excerpt": row.excerpt,
-            "meeting_date": str(row.meeting_date),
-            "attendees": row.attendees,
-            "summary": row.summary,
-            "action_items": row.action_items,
-        })
+        results.append(
+            {
+                "note_id": row.note_id,
+                "subject": row.subject,
+                "excerpt": row.excerpt,
+                "meeting_date": str(row.meeting_date),
+                "attendees": row.attendees,
+                "summary": row.summary,
+                "action_items": row.action_items,
+            }
+        )
 
     logger.info(
         "Meeting notes search completed",

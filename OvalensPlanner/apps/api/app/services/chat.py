@@ -2,16 +2,22 @@
 
 import uuid
 from collections.abc import AsyncGenerator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
-from app.db.models import Client, Conversation, Household, MeetingNote, Message, Observation, TaxProfile
+from app.db.models import (
+    Client,
+    Conversation,
+    MeetingNote,
+    Message,
+    Observation,
+    TaxProfile,
+)
 from app.services.llm.factory import get_llm_provider
 from app.services.llm.types import (
-    DashboardUpdateEvent,
     DoneEvent,
     ErrorEvent,
     StreamEvent,
@@ -102,18 +108,16 @@ class ChatService:
         await self.session.execute(
             update(Conversation)
             .where(Conversation.id == conversation_id)
-            .values(status="deleted", updated_at=datetime.now(timezone.utc))
+            .values(status="deleted", updated_at=datetime.now(UTC))
         )
         await self.session.commit()
         logger.info("Conversation soft-deleted", conversation_id=conversation_id)
 
     async def update_conversation(self, conversation_id: str, **kwargs) -> None:
         """Update arbitrary fields on a conversation."""
-        kwargs["updated_at"] = datetime.now(timezone.utc)
+        kwargs["updated_at"] = datetime.now(UTC)
         await self.session.execute(
-            update(Conversation)
-            .where(Conversation.id == conversation_id)
-            .values(**kwargs)
+            update(Conversation).where(Conversation.id == conversation_id).values(**kwargs)
         )
         await self.session.commit()
         logger.debug(
@@ -233,7 +237,12 @@ class ChatService:
         )
         # Always provide all tools — engine tools must always be available
         # so Claude never attempts to calculate tax numbers itself
-        from app.services.llm.claude import BASE_TOOLS, DASHBOARD_TOOLS, ENGINE_TOOLS, OBSERVATION_TOOLS
+        from app.services.llm.claude import (
+            BASE_TOOLS,
+            DASHBOARD_TOOLS,
+            ENGINE_TOOLS,
+            OBSERVATION_TOOLS,
+        )
 
         tools = list(BASE_TOOLS)
         tools.extend(ENGINE_TOOLS)
@@ -288,7 +297,7 @@ class ChatService:
         )
 
         # 10. Update conversation cache
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         preview = full_response[:200] if full_response else ""
 
         # Load the conversation to check title
@@ -305,9 +314,7 @@ class ChatService:
             update_values["title"] = content[:80]
 
         await self.session.execute(
-            update(Conversation)
-            .where(Conversation.id == conversation_id)
-            .values(**update_values)
+            update(Conversation).where(Conversation.id == conversation_id).values(**update_values)
         )
         await self.session.commit()
         logger.info(
@@ -349,9 +356,7 @@ class ChatService:
         and the raw TaxProfile object (for pension contribution history).
         """
         # Load client
-        result = await self.session.execute(
-            select(Client).where(Client.id == client_id)
-        )
+        result = await self.session.execute(select(Client).where(Client.id == client_id))
         client = result.scalar_one_or_none()
         if client is None:
             logger.warning("Client not found for context", client_id=client_id)

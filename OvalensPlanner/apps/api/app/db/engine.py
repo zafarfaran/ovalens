@@ -51,8 +51,16 @@ async def init_db() -> None:
     from app.db.models import Base  # noqa: F811 — deferred to avoid circular imports
 
     # Mask password in logs
-    url_for_log = settings.database_url_async.split("@")[-1] if "@" in settings.database_url_async else settings.database_url_async
-    logger.info("Initialising database", url=url_for_log, dialect="postgresql" if settings.is_postgres else "sqlite")
+    url_for_log = (
+        settings.database_url_async.split("@")[-1]
+        if "@" in settings.database_url_async
+        else settings.database_url_async
+    )
+    logger.info(
+        "Initialising database",
+        url=url_for_log,
+        dialect="postgresql" if settings.is_postgres else "sqlite",
+    )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables created")
@@ -71,7 +79,8 @@ async def _init_fts_postgres() -> None:
     logger.info("Initialising PostgreSQL full-text search for meeting notes")
     async with engine.begin() as conn:
         # Add generated tsvector column if not present (idempotent)
-        await conn.execute(text("""
+        await conn.execute(
+            text("""
             ALTER TABLE meeting_notes
             ADD COLUMN IF NOT EXISTS search_vector tsvector
             GENERATED ALWAYS AS (
@@ -79,11 +88,14 @@ async def _init_fts_postgres() -> None:
                 setweight(to_tsvector('english', coalesce(summary, '')), 'B') ||
                 setweight(to_tsvector('english', coalesce(action_items::text, '')), 'C')
             ) STORED
-        """))
-        await conn.execute(text("""
+        """)
+        )
+        await conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS ix_meeting_notes_search_vector
             ON meeting_notes USING GIN (search_vector)
-        """))
+        """)
+        )
     logger.info("PostgreSQL full-text search index created")
 
 
@@ -91,7 +103,8 @@ async def _init_fts_sqlite() -> None:
     """SQLite: create and populate FTS5 virtual table for meeting notes."""
     logger.info("Initialising FTS5 index for meeting notes")
     async with engine.begin() as conn:
-        await conn.execute(text("""
+        await conn.execute(
+            text("""
             CREATE VIRTUAL TABLE IF NOT EXISTS meeting_notes_fts USING fts5(
                 note_id UNINDEXED,
                 client_id UNINDEXED,
@@ -100,13 +113,18 @@ async def _init_fts_sqlite() -> None:
                 action_items_text,
                 tags_text
             )
-        """))
+        """)
+        )
         await conn.execute(text("DELETE FROM meeting_notes_fts"))
-        await conn.execute(text("""
-            INSERT INTO meeting_notes_fts (note_id, client_id, subject, summary, action_items_text, tags_text)
+        await conn.execute(
+            text("""
+            INSERT INTO meeting_notes_fts (
+                note_id, client_id, subject, summary, action_items_text, tags_text
+            )
             SELECT id, client_id, subject, summary,
                    COALESCE(action_items, '[]'),
                    COALESCE(tags, '[]')
             FROM meeting_notes
-        """))
+        """)
+        )
     logger.info("FTS5 index created and populated")

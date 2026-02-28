@@ -2,16 +2,14 @@
 
 from app.core.logging import get_logger
 from app.tax.engine import compute_full_tax_position
-from app.tax.salary_sacrifice import analyse_salary_sacrifice
 from app.tax.personal_pension import analyse_personal_pension
+from app.tax.salary_sacrifice import analyse_salary_sacrifice
 from app.tax.types import IncomeSource, IncomeType, TaxPosition
 
 logger = get_logger(__name__)
 
 
-async def execute_compute_tax_position(
-    tool_input: dict, *, context: dict | None = None
-) -> dict:
+async def execute_compute_tax_position(tool_input: dict, *, context: dict | None = None) -> dict:
     """Execute compute_tax_position tool — runs the deterministic engine."""
     try:
         logger.info(
@@ -78,9 +76,7 @@ async def execute_compute_tax_position(
         return {"success": False, "error": str(e)}
 
 
-async def execute_model_salary_sacrifice(
-    tool_input: dict, *, context: dict | None = None
-) -> dict:
+async def execute_model_salary_sacrifice(tool_input: dict, *, context: dict | None = None) -> dict:
     """Execute model_salary_sacrifice tool."""
     try:
         # Parse other income sources if provided
@@ -126,9 +122,7 @@ async def execute_model_salary_sacrifice(
         return {"success": False, "error": str(e)}
 
 
-async def execute_model_personal_pension(
-    tool_input: dict, *, context: dict | None = None
-) -> dict:
+async def execute_model_personal_pension(tool_input: dict, *, context: dict | None = None) -> dict:
     """Execute model_personal_pension tool."""
     try:
         raw_sources = tool_input.get("income_sources", [])
@@ -220,20 +214,24 @@ def _position_to_dashboard(pos: TaxPosition) -> dict:
     ]
     # Add savings bands
     for b in it.savings_bands:
-        income_tax_by_band.append({
-            "band": f"Savings - {b.name}",
-            "amount": b.income_in_band,
-            "rate": b.rate,
-            "tax": b.tax,
-        })
+        income_tax_by_band.append(
+            {
+                "band": f"Savings - {b.name}",
+                "amount": b.income_in_band,
+                "rate": b.rate,
+                "tax": b.tax,
+            }
+        )
     # Add dividend bands
     for b in it.dividend_bands:
-        income_tax_by_band.append({
-            "band": f"Dividends - {b.name}",
-            "amount": b.income_in_band,
-            "rate": b.rate,
-            "tax": b.tax,
-        })
+        income_tax_by_band.append(
+            {
+                "band": f"Dividends - {b.name}",
+                "amount": b.income_in_band,
+                "rate": b.rate,
+                "tax": b.tax,
+            }
+        )
 
     tax_calculation = {
         "totalIncomeTax": it.total_income_tax,
@@ -302,22 +300,26 @@ def _position_to_dashboard(pos: TaxPosition) -> dict:
         allowances.append(pension_entry)
 
     # Dividend allowance
-    allowances.append({
-        "name": "Dividend Allowance",
-        "annualLimit": 500,
-        "used": it.dividend_allowance_used,
-        "remaining": 500 - it.dividend_allowance_used,
-        "status": _allowance_status(500 - it.dividend_allowance_used, 500),
-    })
+    allowances.append(
+        {
+            "name": "Dividend Allowance",
+            "annualLimit": 500,
+            "used": it.dividend_allowance_used,
+            "remaining": 500 - it.dividend_allowance_used,
+            "status": _allowance_status(500 - it.dividend_allowance_used, 500),
+        }
+    )
 
     # CGT allowance
-    allowances.append({
-        "name": "CGT Annual Exempt Amount",
-        "annualLimit": 3000,
-        "used": 0,
-        "remaining": 3000,
-        "status": "GREEN",
-    })
+    allowances.append(
+        {
+            "name": "CGT Annual Exempt Amount",
+            "annualLimit": 3000,
+            "used": 0,
+            "remaining": 3000,
+            "status": "GREEN",
+        }
+    )
 
     allowances_tracker = {"allowances": allowances}
 
@@ -337,8 +339,13 @@ def _position_to_dashboard(pos: TaxPosition) -> dict:
             sb = o.savings_breakdown
             obs_dict["savingsBreakdown"] = {
                 "currentState": [{"label": i.label, "value": i.value} for i in sb.current_state],
-                "recommendedAction": [{"label": i.label, "value": i.value} for i in sb.recommended_action],
-                "taxImpact": [{"label": i.label, "annual": i.annual, "monthly": i.monthly} for i in sb.tax_impact],
+                "recommendedAction": [
+                    {"label": i.label, "value": i.value} for i in sb.recommended_action
+                ],
+                "taxImpact": [
+                    {"label": i.label, "annual": i.annual, "monthly": i.monthly}
+                    for i in sb.tax_impact
+                ],
                 "totalAnnual": sb.total_annual,
                 "totalMonthly": sb.total_monthly,
                 "costNote": sb.cost_note,

@@ -57,7 +57,9 @@ async def get_current_user(
     if not user:
         email = (payload.get("email") or "").strip() or f"{user_id}@placeholder"
         metadata = payload.get("user_metadata") or {}
-        full_name = (metadata.get("full_name") or metadata.get("name") or payload.get("email") or user_id)[:255]
+        full_name = (
+            metadata.get("full_name") or metadata.get("name") or payload.get("email") or user_id
+        )[:255]
         user = User(id=user_id, email=email, full_name=full_name, role="adviser")
         session.add(user)
         await session.commit()

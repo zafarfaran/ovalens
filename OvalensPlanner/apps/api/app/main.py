@@ -31,7 +31,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await seed_if_empty(session)
         await init_fts()
     except Exception as e:  # noqa: BLE001
-        logger.exception("startup_failed", error=str(e), msg="DB or seed failed; API may return 500 for data routes")
+        logger.exception(
+            "startup_failed",
+            error=str(e),
+            msg="DB or seed failed; API may return 500 for data routes",
+        )
         # Continue so the app can still respond (e.g. CORS preflight, health)
 
     yield

@@ -45,10 +45,7 @@ def calculate_pension_aa(
         )
 
     # Taper check
-    is_tapered = (
-        threshold_income > taper_threshold
-        and adjusted_income > taper_adjusted
-    )
+    is_tapered = threshold_income > taper_threshold and adjusted_income > taper_adjusted
 
     if is_tapered:
         excess = adjusted_income - taper_adjusted
@@ -65,12 +62,14 @@ def calculate_pension_aa(
         for year, year_aa in aa_history.items():
             contribs = contributions_by_year.get(year, 0.0)
             unused = max(0.0, year_aa - contribs)
-            carry_forward.append(CarryForwardYear(
-                tax_year=year,
-                annual_allowance=year_aa,
-                contributions=contribs,
-                unused=unused,
-            ))
+            carry_forward.append(
+                CarryForwardYear(
+                    tax_year=year,
+                    annual_allowance=year_aa,
+                    contributions=contribs,
+                    unused=unused,
+                )
+            )
 
     total_carry_forward = sum(cf.unused for cf in carry_forward)
     total_available = aa + total_carry_forward

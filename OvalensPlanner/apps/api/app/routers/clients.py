@@ -1,7 +1,7 @@
 """Client endpoints — list clients with tax summaries and detail views."""
 
 import re
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
@@ -13,7 +13,8 @@ from app.db.engine import get_db_session
 from app.db.models import Client, Household, MeetingNote, Observation, TaxProfile
 from app.dependencies import get_current_user, get_request_logger
 from app.tax.engine import compute_full_tax_position
-from app.tax.types import IncomeSource as TaxIncomeSource, IncomeType
+from app.tax.types import IncomeSource as TaxIncomeSource
+from app.tax.types import IncomeType
 
 router = APIRouter(tags=["clients"])
 
@@ -26,7 +27,9 @@ class CreateClientRequest(BaseModel):
     ni_number: str
     utr: str
     region: Literal["england", "wales", "scotland", "northern_ireland"] = "england"
-    employment_status: Literal["employed", "self-employed", "director", "retired", "other"] = "employed"
+    employment_status: Literal["employed", "self-employed", "director", "retired", "other"] = (
+        "employed"
+    )
     # Contact
     phone: str | None = None
     address_line_1: str | None = None
@@ -69,7 +72,9 @@ class CreateClientRequest(BaseModel):
 
 
 class IncomeSourceInput(BaseModel):
-    type: Literal["employment", "self_employment", "rental", "pension_income", "savings", "dividends", "other"]
+    type: Literal[
+        "employment", "self_employment", "rental", "pension_income", "savings", "dividends", "other"
+    ]
     gross_amount: float
     label: str = ""
 
@@ -100,9 +105,7 @@ async def list_clients(
     """List all clients with their latest tax profile summary."""
     logger.info("Listing clients", user_id=user_id)
 
-    result = await session.execute(
-        select(Client).where(Client.user_id == user_id)
-    )
+    result = await session.execute(select(Client).where(Client.user_id == user_id))
     clients = list(result.scalars().all())
 
     clients_out = []
@@ -116,19 +119,21 @@ async def list_clients(
         )
         tax_profile = tp_result.scalar_one_or_none()
 
-        clients_out.append({
-            "id": client.id,
-            "first_name": client.first_name,
-            "last_name": client.last_name,
-            "email": client.email,
-            "region": client.region,
-            "employment_status": client.employment_status,
-            "tax_year": tax_profile.tax_year if tax_profile else None,
-            "total_income": tax_profile.total_income if tax_profile else None,
-            "total_tax": tax_profile.total_tax if tax_profile else None,
-            "effective_rate": tax_profile.effective_rate if tax_profile else None,
-            "marginal_rate": tax_profile.marginal_rate if tax_profile else None,
-        })
+        clients_out.append(
+            {
+                "id": client.id,
+                "first_name": client.first_name,
+                "last_name": client.last_name,
+                "email": client.email,
+                "region": client.region,
+                "employment_status": client.employment_status,
+                "tax_year": tax_profile.tax_year if tax_profile else None,
+                "total_income": tax_profile.total_income if tax_profile else None,
+                "total_tax": tax_profile.total_tax if tax_profile else None,
+                "effective_rate": tax_profile.effective_rate if tax_profile else None,
+                "marginal_rate": tax_profile.marginal_rate if tax_profile else None,
+            }
+        )
 
     logger.info("Clients listed", count=len(clients_out))
 
@@ -148,16 +153,12 @@ async def list_households(
     """
     logger.info("Listing households", user_id=user_id)
 
-    result = await session.execute(
-        select(Household).where(Household.user_id == user_id)
-    )
+    result = await session.execute(select(Household).where(Household.user_id == user_id))
     households = list(result.scalars().all())
 
     households_out = []
     for hh in households:
-        clients_result = await session.execute(
-            select(Client).where(Client.household_id == hh.id)
-        )
+        clients_result = await session.execute(select(Client).where(Client.household_id == hh.id))
         clients = list(clients_result.scalars().all())
 
         members = []
@@ -179,16 +180,18 @@ async def list_households(
             tax = tp.total_tax if tp else None
             eff_rate = tp.effective_rate if tp else None
 
-            members.append({
-                "id": client.id,
-                "first_name": client.first_name,
-                "last_name": client.last_name,
-                "email": client.email,
-                "employment_status": client.employment_status,
-                "total_income": income,
-                "total_tax": tax,
-                "effective_rate": eff_rate,
-            })
+            members.append(
+                {
+                    "id": client.id,
+                    "first_name": client.first_name,
+                    "last_name": client.last_name,
+                    "email": client.email,
+                    "employment_status": client.employment_status,
+                    "total_income": income,
+                    "total_tax": tax,
+                    "effective_rate": eff_rate,
+                }
+            )
 
             if income is not None:
                 total_income += income
@@ -198,16 +201,18 @@ async def list_households(
                 rate_sum += eff_rate
                 rate_count += 1
 
-        households_out.append({
-            "id": hh.id,
-            "name": hh.name,
-            "notes": hh.notes,
-            "member_count": len(members),
-            "members": members,
-            "total_income": total_income,
-            "total_tax": total_tax,
-            "avg_effective_rate": round(rate_sum / rate_count, 1) if rate_count > 0 else None,
-        })
+        households_out.append(
+            {
+                "id": hh.id,
+                "name": hh.name,
+                "notes": hh.notes,
+                "member_count": len(members),
+                "members": members,
+                "total_income": total_income,
+                "total_tax": total_tax,
+                "avg_effective_rate": round(rate_sum / rate_count, 1) if rate_count > 0 else None,
+            }
+        )
 
     logger.info("Households listed", count=len(households_out))
 
@@ -220,7 +225,10 @@ async def _get_client_detail(
     logger: BoundLogger,
     user_id: str,
 ):
-    """Load client detail with tax profile and observations. Returns 404 if not found or not owned by user."""
+    """Load client detail with tax profile and observations.
+
+    Returns 404 if not found or not owned by user.
+    """
     result = await session.execute(
         select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
     )
@@ -232,9 +240,7 @@ async def _get_client_detail(
     # Load spouse (if linked)
     spouse_out = None
     if client.spouse_id:
-        sp_result = await session.execute(
-            select(Client).where(Client.id == client.spouse_id)
-        )
+        sp_result = await session.execute(select(Client).where(Client.id == client.spouse_id))
         sp = sp_result.scalar_one_or_none()
         if sp:
             spouse_out = {
@@ -395,7 +401,9 @@ async def create_client(
         )
         existing_spouse = sp_result.scalar_one_or_none()
         if existing_spouse is None:
-            raise HTTPException(status_code=400, detail="spouse_id references a non-existent client")
+            raise HTTPException(
+                status_code=400, detail="spouse_id references a non-existent client"
+            )
         household_id = existing_spouse.household_id
 
     if not household_id:
@@ -458,27 +466,29 @@ async def create_client(
 
 
 class UpdateClientRequest(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    email: Optional[str] = None
-    date_of_birth: Optional[str] = None
-    ni_number: Optional[str] = None
-    utr: Optional[str] = None
-    region: Optional[Literal["england", "wales", "scotland", "northern_ireland"]] = None
-    employment_status: Optional[Literal["employed", "self-employed", "director", "retired", "other"]] = None
-    phone: Optional[str] = None
-    address_line_1: Optional[str] = None
-    address_line_2: Optional[str] = None
-    city: Optional[str] = None
-    postcode: Optional[str] = None
-    marital_status: Optional[str] = None
-    number_of_children: Optional[int] = None
-    claims_child_benefit: Optional[bool] = None
-    employer_name: Optional[str] = None
-    company_name: Optional[str] = None
-    company_number: Optional[str] = None
-    notes: Optional[str] = None
-    spouse_id: Optional[str] = None  # set to "" to unlink
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    date_of_birth: str | None = None
+    ni_number: str | None = None
+    utr: str | None = None
+    region: Literal["england", "wales", "scotland", "northern_ireland"] | None = None
+    employment_status: (
+        Literal["employed", "self-employed", "director", "retired", "other"] | None
+    ) = None
+    phone: str | None = None
+    address_line_1: str | None = None
+    address_line_2: str | None = None
+    city: str | None = None
+    postcode: str | None = None
+    marital_status: str | None = None
+    number_of_children: int | None = None
+    claims_child_benefit: bool | None = None
+    employer_name: str | None = None
+    company_name: str | None = None
+    company_number: str | None = None
+    notes: str | None = None
+    spouse_id: str | None = None  # set to "" to unlink
 
     @field_validator("email")
     @classmethod
@@ -585,8 +595,8 @@ async def update_client(
 
 
 class UpdateHouseholdRequest(BaseModel):
-    name: Optional[str] = None
-    notes: Optional[str] = None
+    name: str | None = None
+    notes: str | None = None
 
 
 @router.patch("/households/{household_id}")
@@ -635,7 +645,9 @@ async def compute_client_tax_profile(
     logger.info(
         "Computing tax profile",
         client_id=client_id,
-        income_sources=[{"type": s.type, "gross_amount": s.gross_amount} for s in body.income_sources],
+        income_sources=[
+            {"type": s.type, "gross_amount": s.gross_amount} for s in body.income_sources
+        ],
         pension_contributions=body.pension_contributions,
         gift_aid=body.gift_aid,
         claims_child_benefit=body.claims_child_benefit,
@@ -713,8 +725,12 @@ async def compute_client_tax_profile(
         ],
         pension_data={
             "contributions": body.pension_contributions,
-            "aa_remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else 60000 - body.pension_contributions,
-            "annual_allowance": pos.pension_aa_result.annual_allowance if pos.pension_aa_result else 60000,
+            "aa_remaining": pos.pension_aa_result.remaining
+            if pos.pension_aa_result
+            else 60000 - body.pension_contributions,
+            "annual_allowance": pos.pension_aa_result.annual_allowance
+            if pos.pension_aa_result
+            else 60000,
         },
         allowances=[
             {
@@ -723,14 +739,18 @@ async def compute_client_tax_profile(
                 "annual_limit": 12570,
                 "used": min(pos.total_income, pos.personal_allowance),
                 "remaining": max(0, pos.personal_allowance - pos.total_income),
-                "status": "fully_used" if pos.total_income >= pos.personal_allowance else "available",
+                "status": "fully_used"
+                if pos.total_income >= pos.personal_allowance
+                else "available",
             },
             {
                 "type": "pension_aa",
                 "label": "Pension Annual Allowance",
                 "annual_limit": 60000,
                 "used": body.pension_contributions,
-                "remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else 60000 - body.pension_contributions,
+                "remaining": pos.pension_aa_result.remaining
+                if pos.pension_aa_result
+                else 60000 - body.pension_contributions,
             },
             {
                 "type": "dividend",
@@ -757,7 +777,9 @@ async def compute_client_tax_profile(
         hicbc={
             "number_of_children": body.number_of_children,
             "claims_child_benefit": body.claims_child_benefit,
-            "child_benefit_amount": pos.hicbc_result.child_benefit_annual if pos.hicbc_result else 0,
+            "child_benefit_amount": pos.hicbc_result.child_benefit_annual
+            if pos.hicbc_result
+            else 0,
             "clawback_percentage": pos.hicbc_result.clawback_percentage if pos.hicbc_result else 0,
             "hicbc_charge": pos.hicbc_result.hicbc_charge if pos.hicbc_result else 0,
         },
@@ -772,7 +794,9 @@ async def compute_client_tax_profile(
         ],
         ni_breakdown={
             "class1": {
-                "total_employee_ni": pos.ni_result.class_1.total_employee_ni if pos.ni_result.class_1 else 0,
+                "total_employee_ni": pos.ni_result.class_1.total_employee_ni
+                if pos.ni_result.class_1
+                else 0,
             },
             "class2": {
                 "annual_ni": pos.ni_result.class_2.annual_ni if pos.ni_result.class_2 else 0,
@@ -788,17 +812,19 @@ async def compute_client_tax_profile(
 
     # Save observations
     for obs_item in pos.observations:
-        session.add(Observation(
-            client_id=client_id,
-            tax_year=pos.tax_year,
-            title=obs_item.title,
-            description=obs_item.description,
-            severity=obs_item.severity,
-            priority="high" if obs_item.severity in ("warning", "critical") else "medium",
-            category=obs_item.category,
-            potential_saving=obs_item.potential_saving,
-            source="engine",
-        ))
+        session.add(
+            Observation(
+                client_id=client_id,
+                tax_year=pos.tax_year,
+                title=obs_item.title,
+                description=obs_item.description,
+                severity=obs_item.severity,
+                priority="high" if obs_item.severity in ("warning", "critical") else "medium",
+                category=obs_item.category,
+                potential_saving=obs_item.potential_saving,
+                source="engine",
+            )
+        )
 
     await session.flush()
 
@@ -832,7 +858,11 @@ async def create_observation(
     if client is None:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    priority = "high" if body.severity == "warning" else ("medium" if body.severity == "opportunity" else "low")
+    priority = (
+        "high"
+        if body.severity == "warning"
+        else ("medium" if body.severity == "opportunity" else "low")
+    )
 
     obs = Observation(
         client_id=client_id,
@@ -847,7 +877,9 @@ async def create_observation(
     session.add(obs)
     await session.flush()
 
-    logger.info("Observation created", client_id=client_id, observation_id=obs.id, source=body.source)
+    logger.info(
+        "Observation created", client_id=client_id, observation_id=obs.id, source=body.source
+    )
 
     return {
         "id": obs.id,
@@ -997,8 +1029,13 @@ async def update_pension_history(
     pension_data["contributions_history"] = body.contributions_history
     tp.pension_data = pension_data
     from sqlalchemy.orm.attributes import flag_modified
+
     flag_modified(tp, "pension_data")
     await session.flush()
 
-    logger.info("Pension history updated", client_id=client_id, years=list(body.contributions_history.keys()))
+    logger.info(
+        "Pension history updated",
+        client_id=client_id,
+        years=list(body.contributions_history.keys()),
+    )
     return {"client_id": client_id, "contributions_history": body.contributions_history}

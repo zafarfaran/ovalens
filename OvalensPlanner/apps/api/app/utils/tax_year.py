@@ -7,6 +7,7 @@ def get_default_tax_year() -> str:
     """Default tax year for calculations: from DEFAULT_TAX_YEAR config or current date."""
     try:
         from app.config import get_settings
+
         settings = get_settings()
         if settings.default_tax_year:
             return settings.default_tax_year

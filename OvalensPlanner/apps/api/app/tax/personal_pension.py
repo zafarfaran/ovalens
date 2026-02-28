@@ -95,9 +95,7 @@ def analyse_personal_pension(
     )
 
     # -- Total benefit (headline summary) --------------------------------------
-    pa_restored = round_currency(
-        proposed.personal_allowance - current.personal_allowance
-    )
+    pa_restored = round_currency(proposed.personal_allowance - current.personal_allowance)
     pa_restoration_value = round_currency(pa_restored * 0.40) if pa_restored > 0 else 0.0
     total_annual_benefit = total_tax_relief  # basic + higher + hicbc (already computed)
     client_out_of_pocket = net_cost_after_relief
@@ -122,8 +120,10 @@ def analyse_personal_pension(
     pension_aa_warning = None
     if pension_contributions_by_year:
         from app.tax.pension_aa import calculate_pension_aa
+
         aa_check = calculate_pension_aa(
-            adjusted_income=0, threshold_income=0,
+            adjusted_income=0,
+            threshold_income=0,
             current_year_contributions=total_pension,
             contributions_by_year=pension_contributions_by_year,
         )
@@ -175,9 +175,7 @@ def analyse_personal_pension(
         "pa_change": {
             "current": current.personal_allowance,
             "proposed": proposed.personal_allowance,
-            "restored": round_currency(
-                proposed.personal_allowance - current.personal_allowance
-            ),
+            "restored": round_currency(proposed.personal_allowance - current.personal_allowance),
         },
         "effective_relief_rate": effective_relief,
         "thresholds": thresholds,
@@ -234,9 +232,7 @@ def _identify_thresholds(
         )
 
     current_hicbc = (
-        current_position.hicbc_result.hicbc_charge
-        if current_position.hicbc_result
-        else 0
+        current_position.hicbc_result.hicbc_charge if current_position.hicbc_result else 0
     )
 
     thresholds = []
@@ -257,30 +253,26 @@ def _identify_thresholds(
             if position_at_threshold.hicbc_result
             else 0
         )
-        it_saving = round_currency(
-            current_position.income_tax - position_at_threshold.income_tax
-        )
+        it_saving = round_currency(current_position.income_tax - position_at_threshold.income_tax)
         hicbc_saving = round_currency(current_hicbc - hicbc_at_threshold)
         annual_saving = round_currency(it_saving + hicbc_saving)
 
         additional = contribution_needed - current_contribution
-        relief_rate = (
-            round_currency(annual_saving / additional * 100)
-            if additional > 0
-            else 0.0
-        )
+        relief_rate = round_currency(annual_saving / additional * 100) if additional > 0 else 0.0
 
         total_pension = contribution_needed + employer_contributions
         feasible = total_pension <= aa_limit
 
-        thresholds.append({
-            "name": name,
-            "contribution_needed": round_currency(contribution_needed),
-            "additional_over_current": round_currency(additional),
-            "annual_saving": annual_saving,
-            "effective_relief": relief_rate,
-            "feasible": feasible,
-        })
+        thresholds.append(
+            {
+                "name": name,
+                "contribution_needed": round_currency(contribution_needed),
+                "additional_over_current": round_currency(additional),
+                "annual_saving": annual_saving,
+                "effective_relief": relief_rate,
+                "feasible": feasible,
+            }
+        )
 
     # Sort by contribution_needed ascending
     thresholds.sort(key=lambda t: t["contribution_needed"])

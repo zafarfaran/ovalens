@@ -57,7 +57,7 @@ def calculate_hicbc(
         )
 
     start = hicbc["start_threshold"]
-    full = hicbc["full_clawback_threshold"]
+    hicbc["full_clawback_threshold"]
 
     if adjusted_net_income <= start:
         clawback_pct = 0.0

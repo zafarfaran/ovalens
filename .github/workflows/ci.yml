@@ -1,7 +1,7 @@
 # CI: lint, type-check, test, and build for API and Web.
-# CD: connect this repo to Vercel (see docs/CI-CD.md) for automatic deploys on push.
+# CD: on push to main, deploy API and Web to Vercel (after CI passes).
 
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -77,3 +77,40 @@ jobs:
           NEXT_PUBLIC_API_URL: https://ovalens-api.vercel.app
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'placeholder' }}
+
+  # Deploy to Vercel only on push to main, after CI passes
+  deploy-api:
+    name: Deploy API to Vercel
+    runs-on: ubuntu-latest
+    needs: [api, web]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Deploy API to Vercel
+        working-directory: OvalensPlanner/apps/api
+        run: vercel --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_API }}
+
+  deploy-web:
+    name: Deploy Web to Vercel
+    runs-on: ubuntu-latest
+    needs: [api, web]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Deploy Web to Vercel
+        working-directory: OvalensPlanner
+        run: vercel --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}

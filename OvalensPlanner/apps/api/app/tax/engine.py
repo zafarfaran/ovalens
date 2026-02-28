@@ -18,11 +18,11 @@ from app.tax.observations import detect_observations
 from app.tax.pension_aa import calculate_pension_aa
 from app.tax.rounding import round_currency
 from app.tax.types import (
+    NON_SAVINGS_TYPES,
     HICBCResult,
     IncomeSource,
     IncomeType,
     NIResult,
-    NON_SAVINGS_TYPES,
     PensionAAResult,
     TaxPosition,
 )
@@ -56,15 +56,9 @@ def compute_full_tax_position(
     is_scottish = region.lower() == "scotland"
 
     # ── 1. Categorise income ─────────────────────────────────────────────
-    non_savings = sum(
-        s.net_amount for s in income_sources if s.source_type in NON_SAVINGS_TYPES
-    )
-    savings = sum(
-        s.net_amount for s in income_sources if s.source_type == IncomeType.SAVINGS
-    )
-    dividends = sum(
-        s.net_amount for s in income_sources if s.source_type == IncomeType.DIVIDENDS
-    )
+    non_savings = sum(s.net_amount for s in income_sources if s.source_type in NON_SAVINGS_TYPES)
+    savings = sum(s.net_amount for s in income_sources if s.source_type == IncomeType.SAVINGS)
+    dividends = sum(s.net_amount for s in income_sources if s.source_type == IncomeType.DIVIDENDS)
     total_income = non_savings + savings + dividends
 
     # Identify employment vs self-employment for NI
@@ -109,11 +103,16 @@ def compute_full_tax_position(
         class_2 = calculate_class_2_ni(se_income, tax_year=tax_year)
         class_4 = calculate_class_4_ni(se_income, tax_year=tax_year)
 
-    total_ni = sum(filter(None, [
-        class_1.total_employee_ni if class_1 else None,
-        class_2.annual_ni if class_2 else None,
-        class_4.total_ni if class_4 else None,
-    ]))
+    total_ni = sum(
+        filter(
+            None,
+            [
+                class_1.total_employee_ni if class_1 else None,
+                class_2.annual_ni if class_2 else None,
+                class_4.total_ni if class_4 else None,
+            ],
+        )
+    )
     ni_result = NIResult(
         class_1=class_1,
         class_2=class_2,
@@ -150,7 +149,11 @@ def compute_full_tax_position(
 
     # ── 7. Observations ──────────────────────────────────────────────────
     observations = detect_observations(
-        ani_result, it_result, ni_result, hicbc_result, pension_aa_result,
+        ani_result,
+        it_result,
+        ni_result,
+        hicbc_result,
+        pension_aa_result,
         total_income=total_income,
         pension_contributions=total_pension,
         gift_aid=gift_aid,
@@ -163,12 +166,8 @@ def compute_full_tax_position(
 
     # ── 8. Summary ───────────────────────────────────────────────────────
     hicbc_charge = hicbc_result.hicbc_charge if hicbc_result else 0.0
-    total_tax = round_currency(
-        it_result.total_income_tax + ni_result.total_ni + hicbc_charge
-    )
-    effective_rate = round_currency(
-        (total_tax / total_income * 100) if total_income > 0 else 0.0
-    )
+    total_tax = round_currency(it_result.total_income_tax + ni_result.total_ni + hicbc_charge)
+    effective_rate = round_currency((total_tax / total_income * 100) if total_income > 0 else 0.0)
     marginal_rate = _compute_marginal_rate(ani_result, it_result, ni_result)
 
     logger.info(

@@ -5,12 +5,11 @@ All engine I/O uses frozen dataclasses from this single file.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-
 # ── Enums ────────────────────────────────────────────────────────────────────
+
 
 class PAStatus(StrEnum):
     FULL = "full"
@@ -28,16 +27,19 @@ class IncomeType(StrEnum):
     OTHER = "other"
 
 
-NON_SAVINGS_TYPES = frozenset({
-    IncomeType.EMPLOYMENT,
-    IncomeType.SELF_EMPLOYMENT,
-    IncomeType.RENTAL,
-    IncomeType.PENSION_INCOME,
-    IncomeType.OTHER,
-})
+NON_SAVINGS_TYPES = frozenset(
+    {
+        IncomeType.EMPLOYMENT,
+        IncomeType.SELF_EMPLOYMENT,
+        IncomeType.RENTAL,
+        IncomeType.PENSION_INCOME,
+        IncomeType.OTHER,
+    }
+)
 
 
 # ── Core dataclasses ────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class IncomeSource:
@@ -195,6 +197,7 @@ class ObservationItem:
 
 
 # ── Master output ────────────────────────────────────────────────────────────
+
 
 @dataclass
 class TaxPosition:

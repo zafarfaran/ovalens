@@ -5,7 +5,8 @@ Use get_tax_year_constants(tax_year) or get_default_tax_year() for the default.
 See docs/TAX_YEAR_UPDATE_PROCESS.md for adding new years.
 """
 
-from app.tax.loader import get_all_tax_years, get_tax_year_constants as _get_constants
+from app.tax.loader import get_all_tax_years
+from app.tax.loader import get_tax_year_constants as _get_constants
 from app.utils.tax_year import get_default_tax_year
 
 # Load all years from data/*.yaml
@@ -20,6 +21,7 @@ def get_tax_year_constants(tax_year: str | None = None) -> dict:
 
 # ── Backward-compatible module-level constants (from default tax year) ───────
 # These are derived from the default tax year (config or current date), not hardcoded.
+
 
 def _default_data() -> dict:
     """Data for the default tax year (used by deprecated module-level constants)."""
@@ -51,10 +53,30 @@ BASIC_RATE_LIMIT = _default["income_tax"]["basic_rate_ceiling"]
 HIGHER_RATE_LIMIT = _default["income_tax"]["higher_rate_ceiling"]
 
 INCOME_TAX_BANDS = [
-    {"name": "Personal Allowance", "lower": 0, "upper": int(_default["income_tax"]["personal_allowance"]), "rate": 0.00},
-    {"name": "Basic Rate", "lower": int(_default["income_tax"]["personal_allowance"]) + 1, "upper": _default["income_tax"]["basic_rate_ceiling"], "rate": 0.20},
-    {"name": "Higher Rate", "lower": _default["income_tax"]["basic_rate_ceiling"] + 1, "upper": _default["income_tax"]["higher_rate_ceiling"], "rate": 0.40},
-    {"name": "Additional Rate", "lower": _default["income_tax"]["higher_rate_ceiling"] + 1, "upper": None, "rate": 0.45},
+    {
+        "name": "Personal Allowance",
+        "lower": 0,
+        "upper": int(_default["income_tax"]["personal_allowance"]),
+        "rate": 0.00,
+    },
+    {
+        "name": "Basic Rate",
+        "lower": int(_default["income_tax"]["personal_allowance"]) + 1,
+        "upper": _default["income_tax"]["basic_rate_ceiling"],
+        "rate": 0.20,
+    },
+    {
+        "name": "Higher Rate",
+        "lower": _default["income_tax"]["basic_rate_ceiling"] + 1,
+        "upper": _default["income_tax"]["higher_rate_ceiling"],
+        "rate": 0.40,
+    },
+    {
+        "name": "Additional Rate",
+        "lower": _default["income_tax"]["higher_rate_ceiling"] + 1,
+        "upper": None,
+        "rate": 0.45,
+    },
 ]
 
 SCOTTISH_INCOME_TAX_BANDS = _scottish_bands_from_default()

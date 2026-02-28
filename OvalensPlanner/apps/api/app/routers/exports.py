@@ -29,7 +29,10 @@ async def export_tax_report(
     user_id: str = Depends(get_current_user),
 ) -> StreamingResponse:
     """Generate and return a PDF tax report."""
-    client_name = f"{req.client.get('first_name', '')}_{req.client.get('last_name', '')}".strip("_") or "client"
+    client_name = (
+        f"{req.client.get('first_name', '')}_{req.client.get('last_name', '')}".strip("_")
+        or "client"
+    )
     tax_year = req.tax_position.get("tax_year", "2024-25").replace("/", "-")
 
     buf = generate_tax_report(
