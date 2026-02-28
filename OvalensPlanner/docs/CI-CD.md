@@ -2,14 +2,16 @@
 
 ## CI (GitHub Actions)
 
-The pipeline runs on **push** and **pull_request** to `main`.
+The pipeline runs on **push** and **pull_request** to `main` and `dev`.
 
 | Job   | What it does |
 |-------|----------------|
 | **API** | Python 3.12, `uv sync --all-extras`, Ruff lint, Pytest in `OvalensPlanner/apps/api` |
 | **Web** | Node 20, `npm ci`, Turbo lint + type-check + build for `@helio/web` |
-| **Deploy API** | On push to `main` only: deploy `OvalensPlanner/apps/api` to Vercel (ovalens-api) |
-| **Deploy Web** | On push to `main` only: deploy `OvalensPlanner` to Vercel (ovalens-web) |
+| **Deploy API** | On push to `main`: production deploy to Vercel (ovalens-api) |
+| **Deploy Web** | On push to `main`: production deploy to Vercel (ovalens-web) |
+| **Deploy API (Preview)** | On push to `dev`: preview deploy (Vercel preview URL) |
+| **Deploy Web (Preview)** | On push to `dev`: preview deploy (Vercel preview URL) |
 
 - **Location:** `.github/workflows/ci.yml` (repo root).
 - **CI secrets:** None required. Optional for web build: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or placeholders are used).
@@ -34,7 +36,8 @@ To get org and project IDs: run `vercel link` in the API or Web project director
 - **API:** Root directory = `OvalensPlanner/apps/api`; use existing `vercel.json` and env vars in Vercel.
 - **Web:** Root directory = `OvalensPlanner`; build/output per your existing Vercel config. Set all env vars in the Vercel project settings.
 
-Deploy jobs run only on **push** to `main` (not on pull requests). Preview deployments can still use Vercel’s Git integration if the repo is connected in Vercel.
+- **Production:** Deploy jobs run on **push to `main`** only (not on PRs).
+- **Preview:** Push to **`dev`** runs **Deploy API (Preview)** and **Deploy Web (Preview)** (no `--prod`); Vercel assigns preview URLs for that branch. Create a `dev` branch and push to it to get preview deployments.
 
 ## Quick checklist
 
@@ -42,3 +45,4 @@ Deploy jobs run only on **push** to `main` (not on pull requests). Preview deplo
 - [ ] Env vars and secrets set in Vercel for both API and Web projects.
 - [ ] Optional: add `NEXT_PUBLIC_SUPABASE_*` to GitHub secrets so the CI web build matches production.
 - [ ] Push to `main` to run CI and trigger production deploy.
+- [ ] Create branch `dev` and push to it to trigger preview deploys (optional).
