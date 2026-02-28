@@ -45,10 +45,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (!supabase) return;
-    const redirectTo =
-      typeof window !== "undefined"
-        ? (process.env.NEXT_PUBLIC_APP_URL?.trim() || window.location.origin).replace(/\/$/, "")
-        : undefined;
+    let redirectTo: string | undefined;
+    if (typeof window !== "undefined") {
+      const isLocalhost =
+        window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      // Always redirect back to current origin when on localhost so local dev works
+      // even if NEXT_PUBLIC_APP_URL is set to production (e.g. shared .env).
+      redirectTo = (isLocalhost ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL?.trim() || window.location.origin).replace(/\/$/, "");
+    }
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: redirectTo || undefined },
