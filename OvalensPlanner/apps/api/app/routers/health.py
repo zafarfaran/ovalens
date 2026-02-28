@@ -18,3 +18,9 @@ async def health(
     settings = get_settings()
     database = "postgresql" if settings.is_postgres else "sqlite"
     return {"status": "ok", "service": "ovalens-api", "version": "0.0.1", "database": database}
+
+
+@router.get("/health/sentry-test")
+async def sentry_test() -> None:
+    """Raise a synthetic exception to verify Sentry capture. Remove or protect in production."""
+    raise RuntimeError("Sentry API test — synthetic exception for error monitoring verification")

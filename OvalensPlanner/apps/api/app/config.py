@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     # Auth: Supabase JWT secret (Project Settings → API → JWT Secret) for token verification
     supabase_jwt_secret: str | None = None
 
+    # Observability: Sentry DSN (leave unset to disable error reporting)
+    sentry_dsn: str | None = None
+    sentry_release: str | None = None  # e.g. "ovalens-api@0.0.1"; default used if unset
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str] | None) -> list[str]:
