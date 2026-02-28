@@ -64,6 +64,15 @@ def _scrub_dict(obj: Any) -> Any:
 
 def _before_send(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
     """Scrub PII and attach request correlation tags before sending to Sentry."""
+    # Drop shutdown noise (Ctrl+C, asyncio cancellation) so only real errors create issues
+    exc_info = hint.get("exc_info")
+    if exc_info and len(exc_info) >= 2:
+        exc_type, exc_value = exc_info[0], exc_info[1]
+        if exc_type is KeyboardInterrupt:
+            return None
+        if exc_value is not None and exc_value.__class__.__name__ == "CancelledError":
+            return None
+
     # Service tag (monorepo: filter api vs web in one Sentry project)
     tags = event.setdefault("tags", {})
     if isinstance(tags, dict):
@@ -111,15 +120,17 @@ def init_sentry(
         return
 
     import sentry_sdk
-    from sentry_sdk.integrations.fastapi import FastApiIntegration
 
+    # Do not use FastApiIntegration: it wraps every request and can block the event loop
+    # when sending (sync transport). Manual capture_exception() and exception handlers
+    # still send events; unhandled route exceptions are not auto-captured.
     sentry_sdk.init(
         dsn=dsn.strip(),
         environment=environment,
         release=release or "ovalens-api@0.0.1",
         before_send=_before_send,
         send_default_pii=send_default_pii,
-        integrations=[FastApiIntegration()],
+        integrations=[],  # FastApiIntegration removed to avoid blocking requests
     )
     # Tag all API events with environment (dev/staging/production) for filtering
     sentry_sdk.set_tag("environment", environment)

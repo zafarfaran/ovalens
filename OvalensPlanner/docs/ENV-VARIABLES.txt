@@ -52,6 +52,10 @@ LOG_LEVEL=INFO
 SUPABASE_JWT_SECRET=
 CORS_ORIGINS=["https://www.ovalens.com","https://ovalens.com","https://ovalens-web.vercel.app"]
 
+# Optional — metrics (see docs/METRICS-PRODUCTION.md)
+# METRICS_ENABLED=true
+# METRICS_TOKEN=
+
 
 --------------------------------------------------------------------------------
 3. VERCEL — WEB PROJECT (ovalens-web / www.ovalens.com) — Variables in Vercel
@@ -98,4 +102,6 @@ NOTES
   (Project Settings → Database → Connection string URI).
 - SUPABASE_JWT_SECRET: Supabase Project Settings → API → JWT Secret.
 - NEXT_PUBLIC_* are exposed to the browser; do not put server-only secrets there.
+- Metrics: /metrics is exposed when ENVIRONMENT is beta or production (or METRICS_ENABLED=true).
+  Optional METRICS_TOKEN protects the endpoint; see docs/METRICS-PRODUCTION.md for dashboards.
 ================================================================================

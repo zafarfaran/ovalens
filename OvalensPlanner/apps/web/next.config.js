@@ -8,10 +8,16 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   transpilePackages: ["@helio/shared", "@helio/logger"],
   async rewrites() {
+    const base = apiUrl.replace(/\/$/, "");
     return [
       {
         source: "/api/:path*",
-        destination: `${apiUrl.replace(/\/$/, "")}/api/:path*`,
+        destination: `${base}/api/:path*`,
+      },
+      // Metrics: proxy to backend so GET /metrics works without auth (e.g. Prometheus scrape)
+      {
+        source: "/metrics",
+        destination: `${base}/metrics`,
       },
     ];
   },

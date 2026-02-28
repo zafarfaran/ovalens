@@ -19,7 +19,9 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.config import get_settings
 from app.core.logging import Section, get_logger
+from app.core.metrics import record_http_request
 
 # Map URL path prefixes to sections.
 _PATH_SECTION_MAP: list[tuple[str, Section]] = [
@@ -54,32 +56,50 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
         section = _section_from_path(request.url.path)
         start_time = time.perf_counter()
+        settings = get_settings()
 
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(
             request_id=request_id,
             section=section.value,
+            service="api",
+            env=settings.environment,
             method=request.method,
             path=request.url.path,
         )
 
         logger = get_logger(__name__)
 
-        logger.debug("Request started")
+        logger.debug("request_started")
 
         try:
             response = await call_next(request)
         except Exception:
-            duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
-            logger.exception("Unhandled exception", duration_ms=duration_ms)
+            duration_seconds = time.perf_counter() - start_time
+            duration_ms = round(duration_seconds * 1000, 2)
+            if request.url.path != "/metrics":
+                record_http_request(
+                    method=request.method,
+                    status_code=500,
+                    duration_seconds=duration_seconds,
+                )
+            logger.exception("request_failed", duration_ms=duration_ms)
             raise
 
         duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        duration_seconds = (time.perf_counter() - start_time)
         response.headers["X-Request-ID"] = request_id
+
+        if request.url.path != "/metrics":
+            record_http_request(
+                method=request.method,
+                status_code=response.status_code,
+                duration_seconds=duration_seconds,
+            )
 
         log_method = logger.info if response.status_code < 400 else logger.warning
         log_method(
-            "Request completed",
+            "request_completed",
             status_code=response.status_code,
             duration_ms=duration_ms,
         )
