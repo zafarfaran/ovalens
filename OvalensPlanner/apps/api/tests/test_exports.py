@@ -3,14 +3,24 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.dependencies import get_current_user
 from app.main import app
+
+
+async def _fake_get_current_user() -> str:
+    """Test double: no JWT required."""
+    return "test-user"
 
 
 @pytest.fixture
 async def client():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as c:
-        yield c
+    app.dependency_overrides[get_current_user] = _fake_get_current_user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://testserver") as c:
+            yield c
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
 
 
 PAYLOAD = {
