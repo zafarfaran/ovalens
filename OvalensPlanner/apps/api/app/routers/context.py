@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.core.logging import get_logger
 from app.db.engine import get_db_session
 from app.db.models import ContextSnippet
-from app.dependencies import get_request_logger
+from app.dependencies import get_current_user, get_request_logger
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["context"])
@@ -50,9 +50,9 @@ async def ingest_context(
     body: IngestRequest,
     session: AsyncSession = Depends(get_db_session),
     log: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Receive raw web page content, clean it with an LLM, and store it."""
-    user_id = "demo-user"
     snippet_id = str(uuid.uuid4())
 
     raw = body.raw_content[:MAX_RAW_CONTENT_LENGTH]
@@ -102,9 +102,9 @@ async def ingest_context(
 async def get_pending_context(
     session: AsyncSession = Depends(get_db_session),
     log: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Return unconsumed context snippets for the current user."""
-    user_id = "demo-user"
 
     result = await session.execute(
         select(ContextSnippet)
@@ -138,9 +138,9 @@ async def dismiss_context(
     snippet_id: str,
     session: AsyncSession = Depends(get_db_session),
     log: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Dismiss a context snippet without using it (mark as consumed)."""
-    user_id = "demo-user"
     result = await session.execute(
         update(ContextSnippet)
         .where(ContextSnippet.id == snippet_id)

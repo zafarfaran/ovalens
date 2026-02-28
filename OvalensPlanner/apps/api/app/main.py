@@ -16,17 +16,23 @@ from app.routers import chat, clients, context, documents, exports, health
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan — startup and shutdown."""
+    from app.core.logging import get_logger
+
+    logger = get_logger(__name__)
     settings = get_settings()
     setup_logging(settings.log_level, settings.environment)
 
-    # Initialise the database (SQLite or PostgreSQL/Supabase) and seed demo data
-    from app.db.engine import get_session_factory, init_db, init_fts
-    from app.db.seed import seed_if_empty
+    try:
+        from app.db.engine import get_session_factory, init_db, init_fts
+        from app.db.seed import seed_if_empty
 
-    await init_db()
-    async with get_session_factory()() as session:
-        await seed_if_empty(session)
-    await init_fts()
+        await init_db()
+        async with get_session_factory()() as session:
+            await seed_if_empty(session)
+        await init_fts()
+    except Exception as e:  # noqa: BLE001
+        logger.exception("startup_failed", error=str(e), msg="DB or seed failed; API may return 500 for data routes")
+        # Continue so the app can still respond (e.g. CORS preflight, health)
 
     yield
 

@@ -11,7 +11,7 @@ import {
   IconSearch,
 } from "@/components/icons";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { useApi } from "@/hooks/use-api";
 
 /* ─── Types ─── */
 
@@ -120,6 +120,7 @@ interface FormFields {
 /* ─── Component ─── */
 
 export function EditClientForm({ client, allClients, onSaved, onCancel }: EditClientFormProps) {
+  const { api } = useApi();
   const [form, setForm] = useState<FormFields>({
     first_name: client.first_name || "",
     last_name: client.last_name || "",
@@ -161,7 +162,7 @@ export function EditClientForm({ client, allClients, onSaved, onCancel }: EditCl
 
   // Fetch pension history on mount
   useEffect(() => {
-    fetch(`${API_BASE}/api/clients/${client.id}/pension-history`)
+    api(`/api/clients/${client.id}/pension-history`)
       .then((r) => r.json())
       .then((data) => {
         if (data.contributions_history && Object.keys(data.contributions_history).length > 0) {
@@ -244,7 +245,7 @@ export function EditClientForm({ client, allClients, onSaved, onCancel }: EditCl
     setSubmitting(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/clients/${client.id}`, {
+      const res = await api(`/api/clients/${client.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
@@ -257,7 +258,7 @@ export function EditClientForm({ client, allClients, onSaved, onCancel }: EditCl
 
       // Save pension history
       try {
-        await fetch(`${API_BASE}/api/clients/${client.id}/pension-history`, {
+        await api(`/api/clients/${client.id}/pension-history`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ contributions_history: pensionHistory }),

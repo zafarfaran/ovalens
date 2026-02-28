@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Outfit, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/auth-context";
+import { LoginGate } from "@/components/login-gate";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -36,7 +38,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <LoginGate>{children}</LoginGate>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

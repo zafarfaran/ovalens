@@ -112,6 +112,8 @@ function CustomTooltip({
 
 /* ── Component ─────────────────────────────────────────────── */
 
+const num = (v: number | undefined | null): number => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
+
 export function ScenarioComparisonChart({
   current,
   proposed,
@@ -122,25 +124,25 @@ export function ScenarioComparisonChart({
     return [
       {
         scenario: "Current",
-        incomeTax: current.income_tax,
-        ni: isPension ? 0 : current.national_insurance,
-        hicbc: current.hicbc,
+        incomeTax: num(current?.income_tax),
+        ni: isPension ? 0 : num(current?.national_insurance),
+        hicbc: num(current?.hicbc),
       },
       {
         scenario: "Proposed",
-        incomeTax: proposed.income_tax,
-        ni: isPension ? 0 : proposed.national_insurance,
-        hicbc: proposed.hicbc,
+        incomeTax: num(proposed?.income_tax),
+        ni: isPension ? 0 : num(proposed?.national_insurance),
+        hicbc: num(proposed?.hicbc),
       },
     ];
   }, [current, proposed, isPension]);
 
   /* Shared maximum so both bars are scaled identically */
-  const maxTax = Math.max(current.total_tax, proposed.total_tax, 1);
+  const maxTax = Math.max(num(current?.total_tax), num(proposed?.total_tax), 1);
 
   /* Check which segments are present across both scenarios */
-  const hasNI = !isPension && (current.national_insurance > 0 || proposed.national_insurance > 0);
-  const hasHICBC = current.hicbc > 0 || proposed.hicbc > 0;
+  const hasNI = !isPension && (num(current?.national_insurance) > 0 || num(proposed?.national_insurance) > 0);
+  const hasHICBC = num(current?.hicbc) > 0 || num(proposed?.hicbc) > 0;
 
   /* Build legend items dynamically */
   const legendItems = useMemo(() => {
@@ -155,14 +157,14 @@ export function ScenarioComparisonChart({
   /* Build savings breakdown items */
   const savingsBreakdown = useMemo(() => {
     const items: { label: string; value: number }[] = [];
-    if (savings.income_tax > 0) items.push({ label: "Income Tax", value: savings.income_tax });
-    if (!isPension && savings.national_insurance && savings.national_insurance > 0) {
-      items.push({ label: "NI", value: savings.national_insurance });
+    if (num(savings?.income_tax) > 0) items.push({ label: "Income Tax", value: num(savings?.income_tax) });
+    if (!isPension && num(savings?.national_insurance) > 0) {
+      items.push({ label: "NI", value: num(savings?.national_insurance) });
     }
-    if (!isPension && savings.employer_ni && savings.employer_ni > 0) {
-      items.push({ label: "Employer NI", value: savings.employer_ni });
+    if (!isPension && num(savings?.employer_ni) > 0) {
+      items.push({ label: "Employer NI", value: num(savings?.employer_ni) });
     }
-    if (savings.hicbc_avoided > 0) items.push({ label: "HICBC avoided", value: savings.hicbc_avoided });
+    if (num(savings?.hicbc_avoided) > 0) items.push({ label: "HICBC avoided", value: num(savings?.hicbc_avoided) });
     return items;
   }, [savings, isPension]);
 
@@ -175,7 +177,7 @@ export function ScenarioComparisonChart({
   const isOnlyIncomeTax = !hasNI && !hasHICBC;
 
   /* Nothing to show */
-  if (current.total_tax === 0 && proposed.total_tax === 0) return null;
+  if (num(current?.total_tax) === 0 && num(proposed?.total_tax) === 0) return null;
 
   return (
     <motion.div
@@ -276,19 +278,19 @@ export function ScenarioComparisonChart({
         <div className="flex items-center gap-2.5">
           <span className="text-[10px] text-[var(--muted)]">Current</span>
           <span className="text-[12px] font-mono font-semibold text-[var(--foreground)] tabular-nums">
-            {fmt(current.total_tax)}
+            {fmt(num(current?.total_tax))}
           </span>
         </div>
         <div className="flex items-center gap-2.5">
           <span className="text-[10px] text-[var(--muted)]">Proposed</span>
           <span className="text-[12px] font-mono font-semibold text-[var(--foreground)] tabular-nums">
-            {fmt(proposed.total_tax)}
+            {fmt(num(proposed?.total_tax))}
           </span>
         </div>
       </div>
 
       {/* Savings callout */}
-      {savings.total > 0 && (
+      {num(savings?.total) > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -304,7 +306,7 @@ export function ScenarioComparisonChart({
               </span>
             </div>
             <span className="text-[17px] font-mono font-bold text-emerald-600 dark:text-emerald-400 tracking-tight tabular-nums">
-              {fmt(savings.total)}
+              {fmt(num(savings?.total))}
               <span className="text-[10px] font-normal text-emerald-600/50 dark:text-emerald-400/40 ml-0.5">
                 /yr
               </span>
@@ -344,7 +346,7 @@ export function ScenarioComparisonChart({
               Monthly
             </span>
             <span className="text-[11px] font-mono font-medium text-emerald-600/60 dark:text-emerald-400/50 tabular-nums">
-              {fmt(Math.round(savings.total / 12))}/mo
+              {fmt(Math.round(num(savings?.total) / 12))}/mo
             </span>
           </motion.div>
         </motion.div>

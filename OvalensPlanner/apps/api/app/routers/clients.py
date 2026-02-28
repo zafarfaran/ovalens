@@ -11,7 +11,7 @@ from structlog.stdlib import BoundLogger
 
 from app.db.engine import get_db_session
 from app.db.models import Client, Household, MeetingNote, Observation, TaxProfile
-from app.dependencies import get_request_logger
+from app.dependencies import get_current_user, get_request_logger
 from app.tax.engine import compute_full_tax_position
 from app.tax.types import IncomeSource as TaxIncomeSource, IncomeType
 
@@ -95,10 +95,9 @@ class ComputeTaxProfileRequest(BaseModel):
 async def list_clients(
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """List all clients with their latest tax profile summary."""
-    user_id = "demo-user"
-
     logger.info("Listing clients", user_id=user_id)
 
     result = await session.execute(
@@ -140,14 +139,13 @@ async def list_clients(
 async def list_households(
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """List all households with members and aggregated tax data.
 
     NOTE: Uses N+1 query pattern (1 + H + C queries) consistent with list_clients.
     Acceptable for demo dataset; use eager loading / subqueries at scale.
     """
-    user_id = "demo-user"
-
     logger.info("Listing households", user_id=user_id)
 
     result = await session.execute(
@@ -216,23 +214,19 @@ async def list_households(
     return {"households": households_out}
 
 
-@router.get("/clients/{client_id}")
-async def get_client(
+async def _get_client_detail(
     client_id: str,
-    session: AsyncSession = Depends(get_db_session),
-    logger: BoundLogger = Depends(get_request_logger),
+    session: AsyncSession,
+    logger: BoundLogger,
+    user_id: str,
 ):
-    """Get client detail with full tax profile and observations."""
-    logger.info("Fetching client detail", client_id=client_id)
-
-    # Load client
+    """Load client detail with tax profile and observations. Returns 404 if not found or not owned by user."""
     result = await session.execute(
-        select(Client).where(Client.id == client_id)
+        select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
     )
     client = result.scalar_one_or_none()
-
     if client is None:
-        logger.warning("Client not found", client_id=client_id)
+        logger.warning("Client not found or access denied", client_id=client_id, user_id=user_id)
         raise HTTPException(status_code=404, detail="Client not found")
 
     # Load spouse (if linked)
@@ -371,23 +365,33 @@ async def get_client(
     }
 
 
+@router.get("/clients/{client_id}")
+async def get_client(
+    client_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
+):
+    """Get client detail with full tax profile and observations."""
+    return await _get_client_detail(client_id, session, logger, user_id)
+
+
 @router.post("/clients", status_code=201)
 async def create_client(
     body: CreateClientRequest,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Create a new client with an auto-generated household."""
-    user_id = "demo-user"
-
     logger.info("Creating client", first_name=body.first_name, last_name=body.last_name)
 
-    # If spouse_id is provided, validate it and reuse their household
+    # If spouse_id is provided, validate it and reuse their household (must belong to user)
     household_id: str | None = None
     existing_spouse: Client | None = None
     if body.spouse_id:
         sp_result = await session.execute(
-            select(Client).where(Client.id == body.spouse_id)
+            select(Client).where(Client.id == body.spouse_id).where(Client.user_id == user_id)
         )
         existing_spouse = sp_result.scalar_one_or_none()
         if existing_spouse is None:
@@ -510,10 +514,11 @@ async def update_client(
     body: UpdateClientRequest,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Update client fields (partial update — only sent fields are changed)."""
     result = await session.execute(
-        select(Client).where(Client.id == client_id)
+        select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
     )
     client = result.scalar_one_or_none()
     if client is None:
@@ -537,9 +542,9 @@ async def update_client(
             client.spouse_id = None
 
         elif new_spouse_id is not None:
-            # Link to a new spouse
+            # Link to a new spouse (must belong to same user)
             sp_result = await session.execute(
-                select(Client).where(Client.id == new_spouse_id)
+                select(Client).where(Client.id == new_spouse_id).where(Client.user_id == user_id)
             )
             new_spouse = sp_result.scalar_one_or_none()
             if new_spouse is None:
@@ -576,7 +581,7 @@ async def update_client(
 
     logger.info("Client updated", client_id=client_id, fields=list(updates.keys()))
 
-    return await get_client(client_id, session, logger)
+    return await _get_client_detail(client_id, session, logger, user_id)
 
 
 class UpdateHouseholdRequest(BaseModel):
@@ -590,10 +595,11 @@ async def update_household(
     body: UpdateHouseholdRequest,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Update household fields (partial update)."""
     result = await session.execute(
-        select(Household).where(Household.id == household_id)
+        select(Household).where(Household.id == household_id).where(Household.user_id == user_id)
     )
     household = result.scalar_one_or_none()
     if household is None:
@@ -616,12 +622,11 @@ async def compute_client_tax_profile(
     body: ComputeTaxProfileRequest,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Compute and save a tax profile for a client using the deterministic engine."""
-
-    # Load client
     result = await session.execute(
-        select(Client).where(Client.id == client_id)
+        select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
     )
     client = result.scalar_one_or_none()
     if client is None:
@@ -799,8 +804,7 @@ async def compute_client_tax_profile(
 
     logger.info("Tax profile computed and saved", client_id=client_id, total_tax=pos.total_tax)
 
-    # Return full client detail (reuse existing endpoint logic)
-    return await get_client(client_id, session, logger)
+    return await _get_client_detail(client_id, session, logger, user_id)
 
 
 class CreateObservationRequest(BaseModel):
@@ -818,10 +822,11 @@ async def create_observation(
     body: CreateObservationRequest,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Create a single observation for a client."""
     result = await session.execute(
-        select(Client).where(Client.id == client_id)
+        select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
     )
     client = result.scalar_one_or_none()
     if client is None:
@@ -862,8 +867,14 @@ async def delete_observation(
     observation_id: str,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Delete a single observation by ID."""
+    client_result = await session.execute(
+        select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
+    )
+    if client_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Client not found")
     result = await session.execute(
         select(Observation)
         .where(Observation.id == observation_id)
@@ -885,11 +896,11 @@ async def list_meeting_notes(
     client_id: str,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """List all meeting notes for a client, newest first."""
-    # Verify client exists
     result = await session.execute(
-        select(Client).where(Client.id == client_id)
+        select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
     )
     client = result.scalar_one_or_none()
     if client is None:
@@ -935,8 +946,14 @@ async def get_pension_history(
     client_id: str,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Return prior-year pension contributions for carry forward."""
+    client_result = await session.execute(
+        select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
+    )
+    if client_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Client not found")
     result = await session.execute(
         select(TaxProfile)
         .where(TaxProfile.client_id == client_id)
@@ -958,8 +975,14 @@ async def update_pension_history(
     body: PensionHistoryInput,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Save prior-year pension contributions for carry forward."""
+    client_result = await session.execute(
+        select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
+    )
+    if client_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Client not found")
     result = await session.execute(
         select(TaxProfile)
         .where(TaxProfile.client_id == client_id)

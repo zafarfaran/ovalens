@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from structlog.stdlib import BoundLogger
 
 from app.db.engine import get_db_session
-from app.dependencies import get_request_logger
+from app.dependencies import get_current_user, get_request_logger
 from app.services.chat import ChatService
 
 router = APIRouter(tags=["chat"])
@@ -45,10 +45,9 @@ async def chat_stream(
     body: ChatStreamRequest,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """SSE streaming endpoint for AI chat responses."""
-    user_id = "demo-user"
-
     logger.info(
         "Chat stream request",
         user_id=user_id,
@@ -87,10 +86,9 @@ async def list_conversations(
     client_id: str | None = None,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """List conversations, optionally filtered by client_id."""
-    user_id = "demo-user"
-
     logger.info(
         "Listing conversations",
         user_id=user_id,
@@ -126,10 +124,9 @@ async def create_conversation(
     body: CreateConversationRequest,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Create a new conversation."""
-    user_id = "demo-user"
-
     logger.info(
         "Creating conversation",
         user_id=user_id,
@@ -156,11 +153,14 @@ async def get_messages(
     conversation_id: str,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Get messages for a conversation."""
-    logger.info("Fetching messages", conversation_id=conversation_id)
-
     service = ChatService(session)
+    conv = await service.get_conversation(conversation_id)
+    if conv is None or conv.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    logger.info("Fetching messages", conversation_id=conversation_id)
     messages = await service.get_messages(conversation_id)
 
     return {
@@ -184,22 +184,22 @@ async def update_conversation(
     body: UpdateConversationRequest,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Update a conversation's title or status."""
+    service = ChatService(session)
+    conv = await service.get_conversation(conversation_id)
+    if conv is None or conv.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Conversation not found")
     logger.info(
         "Updating conversation",
         conversation_id=conversation_id,
         title=body.title,
         status=body.status,
     )
-
-    # Filter out None values so we only update provided fields
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
-
     if updates:
-        service = ChatService(session)
         await service.update_conversation(conversation_id, **updates)
-
     return {"ok": True}
 
 
@@ -208,11 +208,13 @@ async def delete_conversation(
     conversation_id: str,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
 ):
     """Soft-delete a conversation."""
-    logger.info("Deleting conversation", conversation_id=conversation_id)
-
     service = ChatService(session)
+    conv = await service.get_conversation(conversation_id)
+    if conv is None or conv.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    logger.info("Deleting conversation", conversation_id=conversation_id)
     await service.delete_conversation(conversation_id)
-
     return {"ok": True}

@@ -42,12 +42,14 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Payloa
   );
 }
 
+const num = (v: number | undefined | null): number => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
+
 export function TaxDonutChart({ incomeTax, nationalInsurance, dividendTax, hicbcCharge }: TaxDonutProps) {
   const data = [
-    { name: "Income Tax", value: incomeTax },
-    { name: "National Insurance", value: nationalInsurance },
-    ...(dividendTax > 0 ? [{ name: "Dividend Tax", value: dividendTax }] : []),
-    ...(hicbcCharge && hicbcCharge > 0 ? [{ name: "HICBC", value: hicbcCharge }] : []),
+    { name: "Income Tax", value: num(incomeTax) },
+    { name: "National Insurance", value: num(nationalInsurance) },
+    ...(num(dividendTax) > 0 ? [{ name: "Dividend Tax", value: num(dividendTax) }] : []),
+    ...(num(hicbcCharge) > 0 ? [{ name: "HICBC", value: num(hicbcCharge) }] : []),
   ].filter((d) => d.value > 0);
 
   if (data.length === 0) return null;

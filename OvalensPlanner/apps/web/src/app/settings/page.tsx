@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-provider";
+import { useAuth } from "@/contexts/auth-context";
 import {
   OvalensLogo,
   IconUser,
@@ -262,7 +263,30 @@ function AccountSection() {
       <div className="flex justify-end mt-6">
         <SaveButton />
       </div>
+
+      <SignOutCard />
     </div>
+  );
+}
+
+function SignOutCard() {
+  const { signOut, user } = useAuth();
+  return (
+    <Card delay={0.18}>
+      <CardTitle>Sign out</CardTitle>
+      <p className="text-[11px] font-light text-slate-500 dark:text-zinc-400 mt-1 mb-4">
+        {user?.email
+          ? `Signed in as ${user.email}`
+          : "End your session on this device"}
+      </p>
+      <button
+        type="button"
+        onClick={() => signOut()}
+        className="text-[11px] font-medium text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 px-3 py-2 rounded-lg border border-red-200 dark:border-red-800/30 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+      >
+        Sign out
+      </button>
+    </Card>
   );
 }
 

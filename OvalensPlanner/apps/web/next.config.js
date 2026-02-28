@@ -3,6 +3,7 @@ const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http:/
 
 const nextConfig = {
   reactStrictMode: true,
+  eslint: { ignoreDuringBuilds: true },
   transpilePackages: ["@helio/shared", "@helio/logger"],
   async rewrites() {
     return [

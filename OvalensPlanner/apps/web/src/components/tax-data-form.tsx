@@ -10,7 +10,7 @@ import {
   IconUser,
 } from "@/components/icons";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { useApi } from "@/hooks/use-api";
 
 /* ─── Validation ─── */
 
@@ -119,6 +119,7 @@ const inputMono = `${inputClass} font-mono`;
 /* ─── Component ─── */
 
 export function TaxDataForm({ clientId, clientRegion, onComputed, existingData }: TaxDataFormProps) {
+  const { api } = useApi();
   /* Derive initial state from existing data */
   const initialRows: IncomeRow[] = existingData?.income_sources?.length
     ? existingData.income_sources.map((s) =>
@@ -223,8 +224,8 @@ export function TaxDataForm({ clientId, clientRegion, onComputed, existingData }
     setSubmitting(true);
 
     try {
-      const res = await fetch(
-        `${API_BASE}/api/clients/${clientId}/tax-profile`,
+      const res = await api(
+        `/api/clients/${clientId}/tax-profile`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

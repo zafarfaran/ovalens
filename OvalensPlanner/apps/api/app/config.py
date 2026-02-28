@@ -1,7 +1,9 @@
 """Application configuration via Pydantic Settings."""
 
 from functools import lru_cache
+from typing import Union
 
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,6 +12,18 @@ def _normalize_database_url(url: str) -> str:
     if url.strip().startswith("postgresql://") and "+asyncpg" not in url:
         return url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return url
+
+
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3003",
+    "https://ovalens-web.vercel.app",
+    "https://www.ovalens.com",
+    "https://ovalens.com",
+]
 
 
 class Settings(BaseSettings):
@@ -37,13 +51,33 @@ class Settings(BaseSettings):
     # App
     environment: str = "development"
     log_level: str = "DEBUG"
-<<<<<<< HEAD
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003"]
-    # Default tax year for calculations (e.g. "2025/26"). If unset, derived from current date.
-    default_tax_year: str | None = None
-=======
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "https://ovalens-web.vercel.app"]
->>>>>>> 709924f6a90e412d3d94e176991640b7556f99c9
+    cors_origins: list[str] = Field(default_factory=lambda: list(DEFAULT_CORS_ORIGINS))
+    default_tax_year: str | None = None  # e.g. "2025/26"; if unset, derived from current date
+
+    # Auth: Supabase JWT secret (Project Settings → API → JWT Secret) for token verification
+    supabase_jwt_secret: str | None = None
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: Union[str, list[str], None]) -> list[str]:
+        if isinstance(v, str):
+            s = v.strip()
+            if not s:
+                return list(DEFAULT_CORS_ORIGINS)
+            if s.startswith("["):
+                import json
+                try:
+                    parsed = json.loads(s)
+                except json.JSONDecodeError:
+                    return list(DEFAULT_CORS_ORIGINS)
+                if not isinstance(parsed, list) or len(parsed) == 0:
+                    return list(DEFAULT_CORS_ORIGINS)
+                return [str(o).strip() for o in parsed if str(o).strip()]
+            origins = [o.strip() for o in v.split(",") if o.strip()]
+            return origins if origins else list(DEFAULT_CORS_ORIGINS)
+        if isinstance(v, list):
+            return list(v) if v else list(DEFAULT_CORS_ORIGINS)
+        return list(DEFAULT_CORS_ORIGINS)
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

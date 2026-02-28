@@ -36,11 +36,13 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Payloa
   );
 }
 
+const num = (v: number | undefined | null): number => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
+
 export function NIDonutChart({ class1, class2, class4, total }: NIDonutProps) {
   const data = [
-    ...(class1 > 0 ? [{ name: "Class 1 (Employee)", value: class1 }] : []),
-    ...(class2 > 0 ? [{ name: "Class 2 (Self-employed)", value: class2 }] : []),
-    ...(class4 > 0 ? [{ name: "Class 4 (Self-employed)", value: class4 }] : []),
+    ...(num(class1) > 0 ? [{ name: "Class 1 (Employee)", value: num(class1) }] : []),
+    ...(num(class2) > 0 ? [{ name: "Class 2 (Self-employed)", value: num(class2) }] : []),
+    ...(num(class4) > 0 ? [{ name: "Class 4 (Self-employed)", value: num(class4) }] : []),
   ];
 
   if (data.length === 0) return null;

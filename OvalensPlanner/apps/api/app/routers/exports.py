@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from app.dependencies import get_current_user
 from app.services.pdf_report import generate_tax_report
 
 router = APIRouter(tags=["exports"])
@@ -23,7 +24,10 @@ class ExportRequest(BaseModel):
 
 
 @router.post("/exports/tax-report")
-async def export_tax_report(req: ExportRequest) -> StreamingResponse:
+async def export_tax_report(
+    req: ExportRequest,
+    user_id: str = Depends(get_current_user),
+) -> StreamingResponse:
     """Generate and return a PDF tax report."""
     client_name = f"{req.client.get('first_name', '')}_{req.client.get('last_name', '')}".strip("_") or "client"
     tax_year = req.tax_position.get("tax_year", "2024-25").replace("/", "-")

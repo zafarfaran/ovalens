@@ -28,6 +28,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Payloa
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload as { name: string; value: number; pct: number };
   if (!d) return null;
+  const pct = typeof d.pct === "number" && !Number.isNaN(d.pct) ? d.pct : 0;
   return (
     <div
       className="rounded-xl px-3.5 py-2.5 shadow-xl border backdrop-blur-xl"
@@ -38,20 +39,23 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Payloa
     >
       <p className="text-[11px] font-medium text-[var(--foreground)]/70">{d.name}</p>
       <p className="text-[14px] font-mono font-semibold text-[var(--foreground)]">{fmt(d.value)}</p>
-      <p className="text-[10px] text-[var(--muted)]">{d.pct.toFixed(1)}% of total</p>
+      <p className="text-[10px] text-[var(--muted)]">{pct.toFixed(1)}% of total</p>
     </div>
   );
 }
 
+const num = (v: number | undefined | null): number => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
+
 export function IncomeBarChart({ sources, totalIncome }: IncomeBarChartProps) {
-  const data = sources.map((s) => {
-    const val = s.gross_amount ?? s.amount ?? 0;
+  const total = num(totalIncome);
+  const data = (sources ?? []).map((s) => {
+    const val = num(s.gross_amount ?? s.amount);
     return {
-      name: s.label,
+      name: s.label ?? "",
       value: val,
-      pct: totalIncome > 0 ? (val / totalIncome) * 100 : 0,
+      pct: total > 0 ? (val / total) * 100 : 0,
     };
-  });
+  }).filter((d) => d.value >= 0);
 
   if (data.length === 0) return null;
 

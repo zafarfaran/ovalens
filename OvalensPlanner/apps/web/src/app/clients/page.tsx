@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useApi } from "@/hooks/use-api";
 import { ThemeToggle } from "@/components/theme-provider";
 import { AddClientPanel } from "@/components/add-client-panel";
 import { TaxDataForm } from "@/components/tax-data-form";
@@ -34,8 +35,6 @@ import {
   IconFileText,
   IconTrash,
 } from "@/components/icons";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 /* ─── Types ─── */
 
@@ -697,6 +696,7 @@ function HouseholdDetail({
   onViewMember: (id: string) => void;
   onUpdated?: () => void;
 }) {
+  const { api } = useApi();
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(household.name);
   const [editNotes, setEditNotes] = useState(household.notes || "");
@@ -713,7 +713,7 @@ function HouseholdDetail({
   const saveEdit = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/api/households/${household.id}`, {
+      const res = await api(`/api/households/${household.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -876,6 +876,7 @@ function HouseholdDetail({
    ════════════════════════════════════════════════════════════════ */
 
 export default function ClientsPage() {
+  const { api } = useApi();
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ClientDetail | null>(null);
@@ -905,21 +906,21 @@ export default function ClientsPage() {
     setDetailLoading(true);
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/clients/${selectedId}`);
+        const res = await api(`/api/clients/${selectedId}`);
         const data: ClientDetail = await res.json();
         setDetail(data);
       } catch { /* noop */ }
       finally { setDetailLoading(false); }
     })();
-  }, [selectedId]);
+  }, [selectedId, api]);
 
   /* Fetch lists */
   useEffect(() => {
     (async () => {
       try {
         const [clientsRes, householdsRes] = await Promise.all([
-          fetch(`${API_BASE}/api/clients`),
-          fetch(`${API_BASE}/api/households`),
+          api("/api/clients"),
+          api("/api/households"),
         ]);
         if (!clientsRes.ok) throw new Error(`Clients: ${clientsRes.status}`);
         if (!householdsRes.ok) throw new Error(`Households: ${householdsRes.status}`);
@@ -939,7 +940,7 @@ export default function ClientsPage() {
         setHouseholdsLoading(false);
       }
     })();
-  }, []);
+  }, [api]);
 
   /* Fetch detail */
   useEffect(() => {
@@ -951,14 +952,14 @@ export default function ClientsPage() {
     setDetailLoading(true);
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/clients/${selectedId}`);
+        const res = await api(`/api/clients/${selectedId}`);
         const data: ClientDetail = await res.json();
         if (!cancelled) setDetail(data);
       } catch { /* noop */ }
       finally { if (!cancelled) setDetailLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [selectedId]);
+  }, [selectedId, api]);
 
   /* Keyboard navigation */
   useEffect(() => {
@@ -1008,19 +1009,19 @@ export default function ClientsPage() {
 
   const refetchHouseholds = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/households`);
+      const res = await api("/api/households");
       if (res.ok) {
         const data = await res.json();
         setHouseholds(data.households || []);
       }
     } catch { /* noop */ }
-  }, []);
+  }, [api]);
 
   /* Delete observation handler */
   const handleDeleteObservation = useCallback(async (obsId: string) => {
     if (!selectedId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/clients/${selectedId}/observations/${obsId}`, { method: "DELETE" });
+      const res = await api(`/api/clients/${selectedId}/observations/${obsId}`, { method: "DELETE" });
       if (res.ok) refetchDetail();
     } catch (err) {
       console.error("Failed to delete observation:", err);
@@ -1209,9 +1210,28 @@ export default function ClientsPage() {
         <div className="max-w-[860px] mx-auto px-4 py-6 md:px-10 md:py-10">
           {sidebarMode === "clients" ? (
             <AnimatePresence mode="wait">
-              {detailLoading || !detail ? (
+              {loading ? (
                 <motion.div key="skel" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                   <Skeleton />
+                </motion.div>
+              ) : !selectedId || !detail ? (
+                <motion.div
+                  key="empty-clients"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="rounded-2xl border border-slate-200/70 dark:border-zinc-800/70 bg-white/70 dark:bg-zinc-900/50 p-8 text-center"
+                >
+                  <h2 className="text-[16px] font-medium text-[var(--foreground)]">No clients yet</h2>
+                  <p className="mt-2 text-[13px] text-[var(--muted)]">
+                    Your account has no client records in this environment.
+                  </p>
+                  <button
+                    onClick={() => setShowAddPanel(true)}
+                    className="mt-4 inline-flex items-center justify-center rounded-lg bg-brand-500 px-4 py-2 text-[12px] font-medium text-white hover:bg-brand-600 transition-colors"
+                  >
+                    Add first client
+                  </button>
                 </motion.div>
               ) : (
                 <motion.div
@@ -1329,7 +1349,7 @@ export default function ClientsPage() {
                         // Also refetch client list to update sidebar name
                         (async () => {
                           try {
-                            const res = await fetch(`${API_BASE}/api/clients`);
+                            const res = await api("/api/clients");
                             if (res.ok) {
                               const data = await res.json();
                               setClients(data.clients || []);
@@ -1634,9 +1654,22 @@ export default function ClientsPage() {
             </AnimatePresence>
           ) : (
             <AnimatePresence mode="wait">
-              {householdsLoading || !selectedHousehold ? (
+              {householdsLoading ? (
                 <motion.div key="hh-skel" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                   <Skeleton />
+                </motion.div>
+              ) : !selectedHousehold ? (
+                <motion.div
+                  key="empty-households"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="rounded-2xl border border-slate-200/70 dark:border-zinc-800/70 bg-white/70 dark:bg-zinc-900/50 p-8 text-center"
+                >
+                  <h2 className="text-[16px] font-medium text-[var(--foreground)]">No households yet</h2>
+                  <p className="mt-2 text-[13px] text-[var(--muted)]">
+                    Households appear after clients are created and linked.
+                  </p>
                 </motion.div>
               ) : (
                 <motion.div

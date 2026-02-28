@@ -15,6 +15,7 @@ import { ScenarioComparisonChart } from "@/components/charts/scenario-comparison
 import { NetBenefitCard } from "@/components/charts/net-benefit-card";
 import { TotalBenefitHero } from "@/components/charts/total-benefit-hero";
 import { VoiceMode } from "@/components/voice-mode";
+import { useApi } from "@/hooks/use-api";
 import {
   OvalensLogo,
   IconSend,
@@ -44,8 +45,6 @@ import {
   IconBell,
   IconSettings,
 } from "@/components/icons";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 /* ─── Types ─── */
 
@@ -377,12 +376,13 @@ export default function ChatPage() {
 }
 
 function ChatPageInner() {
+  const { api, token } = useApi();
   const { theme, toggle: toggleTheme } = useTheme();
   const searchParams = useSearchParams();
   const router = useRouter();
 
   /* ── Live data state (restored from localStorage where available) ── */
-  const [selectedClientId, setSelectedClientId] = useState<string>("client-sarah");
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [clientDetail, setClientDetail] = useState<ClientDetail | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -392,11 +392,11 @@ function ChatPageInner() {
   /* ── Callback to refresh client detail (e.g. after AI saves an observation) ── */
   const refreshClientDetail = useCallback(() => {
     if (!selectedClientId) return;
-    fetch(`${API_BASE}/api/clients/${selectedClientId}`)
+    api(`/api/clients/${selectedClientId}`)
       .then((r) => r.json())
       .then((data) => setClientDetail(data))
       .catch((err) => console.error("Failed to refresh client detail:", err));
-  }, [selectedClientId]);
+  }, [selectedClientId, api]);
 
   /* ── useChat hook ── */
   const {
@@ -539,7 +539,7 @@ function ChatPageInner() {
           source: "ai",
         }));
 
-      const res = await fetch(`${API_BASE}/api/exports/tax-report`, {
+      const res = await api("/api/exports/tax-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -569,49 +569,70 @@ function ChatPageInner() {
     } finally {
       setIsExporting(false);
     }
-  }, [isExporting, dashboardData, clientDetail, scenariosList, messages, meetingNotes]);
+  }, [api, isExporting, dashboardData, clientDetail, scenariosList, messages, meetingNotes]);
 
-  /* ── Load clients on mount ── */
+  /* ── Load clients when token is ready ── */
   useEffect(() => {
-    fetch(`${API_BASE}/api/clients`)
-      .then((r) => r.json())
-      .then((data) => {
-        setClients(data.clients);
-        if (data.clients.length > 0) {
-          setSelectedClientId(data.clients[0].id);
+    if (!token) return;
+    api("/api/clients")
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        const list = Array.isArray(data?.clients) ? data.clients : [];
+        setClients(list);
+        if (list.length > 0) {
+          setSelectedClientId(list[0].id);
         }
       })
-      .catch((err) => console.error("Failed to load clients:", err));
-  }, []);
+      .catch((err) => {
+        setClients([]);
+        setSelectedClientId("");
+        console.error("Failed to load clients:", err);
+      });
+  }, [token, api]);
 
   /* ── Load conversations helper ── */
   const loadConversations = useCallback(async () => {
     if (!selectedClientId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/chat/conversations?client_id=${selectedClientId}`);
+      const res = await api(`/api/chat/conversations?client_id=${selectedClientId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setConversations(data.conversations);
+      setConversations(Array.isArray(data?.conversations) ? data.conversations : []);
     } catch (err) {
+      setConversations([]);
       console.error("Failed to load conversations:", err);
     }
-  }, [selectedClientId]);
+  }, [selectedClientId, api]);
 
   /* ── Load client detail + conversations + meeting notes when selectedClientId changes ── */
   useEffect(() => {
-    if (!selectedClientId) return;
+    if (!token || !selectedClientId) return;
     // Fetch client detail (for observations, tax profile)
-    fetch(`${API_BASE}/api/clients/${selectedClientId}`)
-      .then((r) => r.json())
-      .then((data) => setClientDetail(data))
-      .catch((err) => console.error("Failed to load client detail:", err));
+    api(`/api/clients/${selectedClientId}`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        setClientDetail(data);
+      })
+      .catch((err) => {
+        setClientDetail(null);
+        console.error("Failed to load client detail:", err);
+      });
     // Fetch meeting notes
-    fetch(`${API_BASE}/api/clients/${selectedClientId}/meeting-notes`)
-      .then((r) => r.json())
-      .then((data) => setMeetingNotes(data.meeting_notes || []))
-      .catch((err) => console.error("Failed to load meeting notes:", err));
+    api(`/api/clients/${selectedClientId}/meeting-notes`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        setMeetingNotes(Array.isArray(data?.meeting_notes) ? data.meeting_notes : []);
+      })
+      .catch((err) => {
+        setMeetingNotes([]);
+        console.error("Failed to load meeting notes:", err);
+      });
     // Fetch conversations
     loadConversations();
-  }, [selectedClientId, loadConversations]);
+  }, [token, selectedClientId, api, loadConversations]);
 
   /* ── Refresh conversations after streaming completes ── */
   useEffect(() => {
@@ -665,7 +686,7 @@ function ChatPageInner() {
   /* ── New chat handler ── */
   const handleNewChat = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/chat/conversations`, {
+      const res = await api("/api/chat/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ client_id: selectedClientId }),
@@ -677,7 +698,7 @@ function ChatPageInner() {
     } catch (err) {
       console.error("Failed to create conversation:", err);
     }
-  }, [selectedClientId, clearMessages, loadConversations]);
+  }, [api, selectedClientId, clearMessages, loadConversations]);
 
   /* ── Auto-start new chat when arriving from landing page ── */
   useEffect(() => {
@@ -698,7 +719,7 @@ function ChatPageInner() {
   /* ── Delete conversation handler ── */
   const handleDeleteConversation = useCallback(async (convId: string) => {
     try {
-      await fetch(`${API_BASE}/api/chat/conversations/${convId}`, { method: "DELETE" });
+      await api(`/api/chat/conversations/${convId}`, { method: "DELETE" });
       if (activeConversationId === convId) {
         clearMessages();
         setActiveConversationId(null);
@@ -707,7 +728,7 @@ function ChatPageInner() {
     } catch (err) {
       console.error("Failed to delete conversation:", err);
     }
-  }, [activeConversationId, clearMessages, loadConversations]);
+  }, [api, activeConversationId, clearMessages, loadConversations]);
 
   /* ── Build grouped history from live conversations ── */
   const filteredHistory = useMemo(() => {

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { useApi } from "@/hooks/use-api";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface TaxComputationData {
@@ -103,6 +103,7 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function useChat(clientId: string, taxPlanMode: boolean = false, onObservationSaved?: () => void) {
+  const { api } = useApi();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<StatusPhase>("idle");
   const [statusMessage, setStatusMessage] = useState("");
@@ -176,7 +177,7 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
       abortRef.current = controller;
 
       try {
-        const res = await fetch(`${API_BASE}/api/chat/stream`, {
+        const res = await api("/api/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -382,10 +383,12 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
     async (convId: string) => {
       setConversationId(convId);
       try {
-        const res = await fetch(`${API_BASE}/api/chat/conversations/${convId}/messages`);
+        const res = await api(`/api/chat/conversations/${convId}/messages`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        const messagesList = Array.isArray(data?.messages) ? data.messages : [];
         setMessages(
-          data.messages.map((m: any) => ({
+          messagesList.map((m: any) => ({
             id: m.id,
             role: m.role,
             content: m.content,
@@ -399,7 +402,7 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
           }))
         );
         // Restore dashboard_data from the last assistant message that has it
-        const lastDashboard = [...data.messages]
+        const lastDashboard = [...messagesList]
           .reverse()
           .find((m: any) => m.role === "assistant" && m.dashboard_data);
         if (lastDashboard) {
@@ -408,6 +411,8 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
           setDashboardData(null);
         }
       } catch (err) {
+        setMessages([]);
+        setDashboardData(null);
         console.error("Failed to load messages:", err);
       }
     },

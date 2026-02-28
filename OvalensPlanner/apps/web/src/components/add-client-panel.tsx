@@ -4,8 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { z } from "zod";
 import { IconUser, IconShield, IconFileText } from "@/components/icons";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { useApi } from "@/hooks/use-api";
 
 /* ─── Validation ─── */
 
@@ -165,6 +164,7 @@ const inputError =
 /* ─── Main Component ─── */
 
 export function AddClientPanel({ isOpen, onClose, onClientAdded }: AddClientPanelProps) {
+  const { api } = useApi();
   const [form, setForm] = useState<ClientFormData>({ ...INITIAL_FORM });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Set<string>>(new Set());
@@ -251,7 +251,7 @@ export function AddClientPanel({ isOpen, onClose, onClientAdded }: AddClientPane
     setApiError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/clients`, {
+      const res = await api("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(result.data),

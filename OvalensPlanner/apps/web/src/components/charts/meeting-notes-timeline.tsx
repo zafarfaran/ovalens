@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { IconFileText } from "@/components/icons";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { useApi } from "@/hooks/use-api";
 
 interface MeetingNote {
   id: string;
@@ -20,6 +20,7 @@ interface MeetingNote {
 const ease = [0.16, 1, 0.3, 1] as const;
 
 export function MeetingNotesTimeline({ clientId }: { clientId: string }) {
+  const { api } = useApi();
   const [notes, setNotes] = useState<MeetingNote[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,14 +29,14 @@ export function MeetingNotesTimeline({ clientId }: { clientId: string }) {
     setLoading(true);
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/clients/${clientId}/meeting-notes`);
+        const res = await api(`/api/clients/${clientId}/meeting-notes`);
         const data = await res.json();
         if (!cancelled) setNotes(data.meeting_notes || []);
       } catch { /* noop */ }
       finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [clientId]);
+  }, [clientId, api]);
 
   if (loading) {
     return (
