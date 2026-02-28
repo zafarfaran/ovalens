@@ -9,10 +9,14 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   const body = await req.text();
+  const auth = req.headers.get("Authorization");
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (auth) headers["Authorization"] = auth;
 
   const upstream = await fetch(`${BACKEND}/api/chat/stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body,
   });
 
