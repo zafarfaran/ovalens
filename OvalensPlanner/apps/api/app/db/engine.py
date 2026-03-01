@@ -52,9 +52,9 @@ async def init_db() -> None:
 
     # Mask password in logs
     url_for_log = (
-        settings.database_url_async.split("@")[-1]
-        if "@" in settings.database_url_async
-        else settings.database_url_async
+        settings.effective_database_url.split("@")[-1]
+        if "@" in settings.effective_database_url
+        else settings.effective_database_url
     )
     logger.info(
         "Initialising database",

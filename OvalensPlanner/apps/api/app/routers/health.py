@@ -1,4 +1,7 @@
-"""Health check endpoint."""
+"""Liveness endpoint — used by orchestrators to decide if the process should be restarted.
+
+Does not depend on DB or external services. For readiness (can we accept traffic?), use GET /ready.
+"""
 
 import asyncio
 
@@ -11,16 +14,23 @@ from app.dependencies import get_request_logger
 
 router = APIRouter(tags=["health"])
 
+SERVICE_VERSION = "0.0.1"
+
 
 @router.get("/health")
 async def health(
     logger: BoundLogger = Depends(get_request_logger),
 ) -> dict[str, str]:
-    """Service health check."""
-    logger.debug("Health check")
+    """Liveness probe: process is running. No DB or config checks. Use /ready for readiness."""
+    logger.debug("Liveness check")
     settings = get_settings()
     database = "postgresql" if settings.is_postgres else "sqlite"
-    return {"status": "ok", "service": "ovalens-api", "version": "0.0.1", "database": database}
+    return {
+        "status": "ok",
+        "service": "ovalens-api",
+        "version": SERVICE_VERSION,
+        "database": database,
+    }
 
 
 @router.get("/health/sentry-test")

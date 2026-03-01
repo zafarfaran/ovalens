@@ -180,8 +180,14 @@ def test_net_benefit_with_hicbc():
     nb = r["net_benefit"]
     assert nb["hicbc_avoided"] == r["savings"]["hicbc_avoided"]
     assert nb["hicbc_avoided"] > 0
-    assert nb["total_tax_relief"] == nb["basic_rate_relief"] + nb["higher_rate_relief"] + nb["hicbc_avoided"]
-    assert nb["net_cost_after_relief"] == nb["net_cost_to_client"] - nb["higher_rate_relief"] - nb["hicbc_avoided"]
+    assert nb["total_tax_relief"] == (
+        nb["basic_rate_relief"] + nb["higher_rate_relief"] + nb["hicbc_avoided"]
+    )
+    assert nb["net_cost_after_relief"] == (
+        nb["net_cost_to_client"]
+        - nb["higher_rate_relief"]
+        - nb["hicbc_avoided"]
+    )
 
 
 def test_net_benefit_zero_additional_contribution():
@@ -262,7 +268,9 @@ def test_total_benefit_higher_rate():
     assert tb["higher_rate_relief"] == r["net_benefit"]["higher_rate_relief"]
     assert tb["hicbc_avoided"] == r["net_benefit"]["hicbc_avoided"]
     # Total = basic + higher + hicbc
-    assert tb["total_annual_benefit"] == tb["basic_rate_relief"] + tb["higher_rate_relief"] + tb["hicbc_avoided"]
+    assert tb["total_annual_benefit"] == (
+        tb["basic_rate_relief"] + tb["higher_rate_relief"] + tb["hicbc_avoided"]
+    )
     assert tb["total_annual_benefit"] > 0
     # Into pension = gross additional contribution
     assert tb["into_pension"] == 10000

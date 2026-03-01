@@ -1,7 +1,6 @@
 """Tests for salary sacrifice analysis."""
 
 from app.tax.salary_sacrifice import analyse_salary_sacrifice
-from app.tax.types import IncomeSource, IncomeType
 
 
 def test_salary_sacrifice_basic():

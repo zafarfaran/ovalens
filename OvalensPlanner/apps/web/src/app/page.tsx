@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   motion,
   AnimatePresence,
@@ -11,6 +12,7 @@ import {
   useSpring,
 } from "framer-motion";
 import { useRef, useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/auth-context";
 import {
   FadeUp,
   FadeIn,
@@ -1167,6 +1169,20 @@ function Footer() {
    ═══════════════════════════════════════════════════ */
 
 export default function Home() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (user) {
+      router.replace("/chat");
+    }
+  }, [user, isLoading, router]);
+
+  if (!isLoading && user) {
+    return null; // redirecting to /chat
+  }
+
   return (
     <main>
       <Navbar />

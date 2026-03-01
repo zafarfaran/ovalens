@@ -58,6 +58,7 @@ class Section(StrEnum):
 
     CHAT = "chat"
     CLIENTS = "clients"
+    CONTEXT = "context"
     DOCUMENTS = "documents"
     HEALTH = "health"
     TAX = "tax"
@@ -70,6 +71,7 @@ class Section(StrEnum):
 _MODULE_SECTION_MAP: list[tuple[str, Section]] = [
     ("app.routers.chat", Section.CHAT),
     ("app.routers.clients", Section.CLIENTS),
+    ("app.routers.context", Section.CONTEXT),
     ("app.routers.documents", Section.DOCUMENTS),
     ("app.routers.health", Section.HEALTH),
     ("app.tax", Section.TAX),

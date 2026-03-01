@@ -49,9 +49,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       const isLocalhost =
         window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-      // Always redirect back to current origin when on localhost so local dev works
-      // even if NEXT_PUBLIC_APP_URL is set to production (e.g. shared .env).
-      redirectTo = (isLocalhost ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL?.trim() || window.location.origin).replace(/\/$/, "");
+      const base = (isLocalhost ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL?.trim() || window.location.origin).replace(/\/$/, "");
+      // After OAuth, always redirect to chat (not landing).
+      redirectTo = `${base}/chat`;
     }
     await supabase.auth.signInWithOAuth({
       provider: "google",

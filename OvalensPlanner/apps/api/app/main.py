@@ -11,7 +11,7 @@ from app.core.errors import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.middleware import RequestContextMiddleware
 from app.core.observability import init_sentry
-from app.routers import chat, clients, context, documents, exports, health, metrics_router
+from app.routers import chat, clients, context, documents, exports, health, metrics_router, ready
 
 
 @asynccontextmanager
@@ -73,8 +73,9 @@ app.add_middleware(RequestContextMiddleware)
 # Exception handlers
 register_exception_handlers(app)
 
-# Routers
+# Routers (health = liveness, ready = readiness)
 app.include_router(health.router)
+app.include_router(ready.router)
 if settings.should_expose_metrics:
     app.include_router(metrics_router.router)
 app.include_router(chat.router, prefix="/api")

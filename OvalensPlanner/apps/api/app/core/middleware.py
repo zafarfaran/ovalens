@@ -27,9 +27,11 @@ from app.core.metrics import record_http_request
 _PATH_SECTION_MAP: list[tuple[str, Section]] = [
     ("/api/chat", Section.CHAT),
     ("/api/clients", Section.CLIENTS),
+    ("/api/context", Section.CONTEXT),
     ("/api/extract", Section.DOCUMENTS),
     ("/api/documents", Section.DOCUMENTS),
     ("/health", Section.HEALTH),
+    ("/ready", Section.HEALTH),
 ]
 
 

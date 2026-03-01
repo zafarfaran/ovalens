@@ -71,7 +71,7 @@ async def seed_if_empty(session: AsyncSession) -> None:
     )
     session.add(household)
 
-    # ── Client ──────────────────────────────────────────────────────────
+    # ── Clients (self-referencing spouse_id: insert first, then set FK) ──
     client = Client(
         id="client-sarah",
         household_id="hh-mitchell",
@@ -84,21 +84,15 @@ async def seed_if_empty(session: AsyncSession) -> None:
         date_of_birth="1982-03-15",
         ni_number="QQ 12 34 56 C",
         utr="1234567890",
-        # Contact
         phone="+44 7700 900123",
         address_line_1="42 Elm Grove",
         address_line_2="Clapham",
         city="London",
         postcode="SW4 7QR",
-        # Personal / family
         marital_status="married",
         number_of_children=2,
         claims_child_benefit=True,
-        # Spouse link
-        spouse_id="client-james",
-        # Professional
         employer_name="Meridian Capital Partners",
-        # Notes
         notes=(
             "Two children (ages 8 and 11). Sarah is a senior portfolio manager. "
             "James runs a freelance consultancy. They own two buy-to-let flats in South London."
@@ -106,7 +100,6 @@ async def seed_if_empty(session: AsyncSession) -> None:
     )
     session.add(client)
 
-    # ── Client — Spouse ─────────────────────────────────────────────────
     spouse = Client(
         id="client-james",
         household_id="hh-mitchell",
@@ -118,27 +111,26 @@ async def seed_if_empty(session: AsyncSession) -> None:
         employment_status="self-employed",
         date_of_birth="1980-07-22",
         ni_number="AB 98 76 54 D",
-        # Contact (same household address)
         phone="+44 7700 900456",
         address_line_1="42 Elm Grove",
         address_line_2="Clapham",
         city="London",
         postcode="SW4 7QR",
-        # Personal / family
         marital_status="married",
         number_of_children=2,
         claims_child_benefit=False,
-        # Spouse link (bidirectional)
-        spouse_id="client-sarah",
-        # Professional
         company_name="Mitchell Consulting Ltd",
-        # Notes
         notes=(
             "Self-employed IT consultant. Annual income ~£45,000. "
             "Unused pension allowance available for carry-forward planning."
         ),
     )
     session.add(spouse)
+
+    # Flush so both rows exist before setting self-referencing spouse_id (FK)
+    await session.flush()
+    client.spouse_id = spouse.id
+    spouse.spouse_id = client.id
 
     # ── TaxProfile (2025/26) — engine-computed ─────────────────────────
     tax_profile = TaxProfile(
