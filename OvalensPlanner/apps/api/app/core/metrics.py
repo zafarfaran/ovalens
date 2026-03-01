@@ -91,6 +91,12 @@ if _PROMETHEUS_AVAILABLE:
         ["model"],
         registry=REGISTRY,
     )
+    RATE_LIMIT_HITS_TOTAL = Counter(
+        "ovalens_rate_limit_hits_total",
+        "Requests rejected due to rate limit (429)",
+        ["endpoint", "scope"],
+        registry=REGISTRY,
+    )
 else:
     REGISTRY = None  # type: ignore[assignment]
 
@@ -166,6 +172,13 @@ def record_llm_failure(model: str) -> None:
     if not _PROMETHEUS_AVAILABLE:
         return
     LLM_FAILURES_TOTAL.labels(model=model).inc()
+
+
+def record_rate_limit_hit(endpoint: str, scope: str) -> None:
+    """Record a rate limit hit (429) for observability."""
+    if not _PROMETHEUS_AVAILABLE:
+        return
+    RATE_LIMIT_HITS_TOTAL.labels(endpoint=endpoint, scope=scope).inc()
 
 
 def get_metrics_content_type() -> str:

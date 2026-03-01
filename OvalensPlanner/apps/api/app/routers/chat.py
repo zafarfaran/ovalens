@@ -9,8 +9,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from structlog.stdlib import BoundLogger
 
+from app.config import get_settings
 from app.db.engine import get_db_session
-from app.dependencies import get_current_user, get_request_logger
+from app.dependencies import get_current_user, get_request_logger, rate_limit_chat_stream
 from app.services.chat import ChatService
 
 router = APIRouter(tags=["chat"])
@@ -40,14 +41,37 @@ class UpdateConversationRequest(BaseModel):
 # ─── Endpoints ────────────────────────────────────────────────────────────
 
 
-@router.post("/chat/stream")
+@router.post(
+    "/chat/stream",
+    responses={
+        413: {"description": "Message exceeds maximum length"},
+        429: {
+            "description": "Rate limit exceeded",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {"code": "RATE_LIMIT_EXCEEDED", "message": "Rate limit exceeded. Try again later."},
+                        "retry_after_seconds": 45,
+                    }
+                }
+            },
+        }
+    },
+)
 async def chat_stream(
     body: ChatStreamRequest,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
     user_id: str = Depends(get_current_user),
+    _rate_limit: None = Depends(rate_limit_chat_stream),
 ):
     """SSE streaming endpoint for AI chat responses."""
+    settings = get_settings()
+    if settings.chat_max_message_length > 0 and len(body.message) > settings.chat_max_message_length:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Message exceeds maximum length ({settings.chat_max_message_length} characters).",
+        )
     logger.info(
         "Chat stream request",
         user_id=user_id,

@@ -68,6 +68,29 @@ class NotFoundError(AppError):
         self.resource_id = id
 
 
+class RateLimitError(AppError):
+    """Rate limit exceeded (429). Response body is predictable for clients.
+
+    Schema::
+        {
+          "error": { "code": "RATE_LIMIT_EXCEEDED", "message": "..." },
+          "retry_after_seconds": <number>
+        }
+    """
+
+    def __init__(
+        self,
+        message: str = "Rate limit exceeded. Try again later.",
+        retry_after_seconds: float = 0,
+        limit: int = 0,
+        scope: str = "",
+    ) -> None:
+        super().__init__(message, code="RATE_LIMIT_EXCEEDED", status_code=429)
+        self.retry_after_seconds = retry_after_seconds
+        self.limit = limit
+        self.scope = scope
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Register custom exception handlers on the FastAPI app.
 
@@ -98,21 +121,30 @@ def register_exception_handlers(app: FastAPI) -> None:
             log_kwargs["resource_id"] = exc.resource_id
         elif isinstance(exc, ValidationError):
             log_kwargs["issues"] = exc.issues
+        elif isinstance(exc, RateLimitError):
+            log_kwargs["retry_after_seconds"] = exc.retry_after_seconds
+            log_kwargs["scope"] = exc.scope
 
         if exc.status_code >= 500:
             logger.error(exc.message, **log_kwargs)
         else:
             logger.warning(exc.message, **log_kwargs)
 
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "error": {
-                    "code": exc.code,
-                    "message": exc.message,
-                }
-            },
-        )
+        content: dict[str, object] = {
+            "error": {
+                "code": exc.code,
+                "message": exc.message,
+            }
+        }
+        if isinstance(exc, RateLimitError):
+            content["retry_after_seconds"] = round(exc.retry_after_seconds, 1)
+        response = JSONResponse(status_code=exc.status_code, content=content)
+        if isinstance(exc, RateLimitError):
+            response.headers["Retry-After"] = str(max(1, int(exc.retry_after_seconds)))
+            if exc.limit > 0:
+                response.headers["X-RateLimit-Limit"] = str(exc.limit)
+                response.headers["X-RateLimit-Remaining"] = "0"
+        return response
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(_request: Request, exc: Exception) -> JSONResponse:

@@ -120,17 +120,15 @@ def init_sentry(
         return
 
     import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
 
-    # Do not use FastApiIntegration: it wraps every request and can block the event loop
-    # when sending (sync transport). Manual capture_exception() and exception handlers
-    # still send events; unhandled route exceptions are not auto-captured.
     sentry_sdk.init(
         dsn=dsn.strip(),
         environment=environment,
         release=release or "ovalens-api@0.0.1",
         before_send=_before_send,
         send_default_pii=send_default_pii,
-        integrations=[],  # FastApiIntegration removed to avoid blocking requests
+        integrations=[FastApiIntegration()],
     )
     # Tag all API events with environment (dev/staging/production) for filtering
     sentry_sdk.set_tag("environment", environment)

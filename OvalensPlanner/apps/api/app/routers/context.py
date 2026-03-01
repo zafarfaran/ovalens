@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.core.logging import get_logger
 from app.db.engine import get_db_session
 from app.db.models import ContextSnippet
-from app.dependencies import get_current_user, get_request_logger
+from app.dependencies import get_current_user, get_request_logger, rate_limit_context_ingest
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["context"])
@@ -59,12 +59,28 @@ class IngestRequest(BaseModel):
     capture_type: str = "full_page"
 
 
-@router.post("/context/ingest")
+@router.post(
+    "/context/ingest",
+    responses={
+        429: {
+            "description": "Rate limit exceeded",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {"code": "RATE_LIMIT_EXCEEDED", "message": "Rate limit exceeded. Try again later."},
+                        "retry_after_seconds": 45,
+                    }
+                }
+            },
+        }
+    },
+)
 async def ingest_context(
     body: IngestRequest,
     session: AsyncSession = Depends(get_db_session),
     log: BoundLogger = Depends(get_request_logger),
     user_id: str = Depends(get_current_user),
+    _rate_limit: None = Depends(rate_limit_context_ingest),
 ):
     """Receive raw web page content, clean it with an LLM, and store it."""
     snippet_id = str(uuid.uuid4())

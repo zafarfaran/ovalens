@@ -14,6 +14,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+
+# Use timezone-aware timestamps so PostgreSQL (asyncpg) accepts datetime.now(UTC)
+DateTimeTZ = DateTime(timezone=True)
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -45,8 +48,8 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False, default="adviser")
     preferences: Mapped[dict | None] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow, onupdate=_utcnow)
 
     # relationships
     households = relationship("Household", back_populates="user")
@@ -63,8 +66,8 @@ class Household(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow, onupdate=_utcnow)
 
     # relationships
     user = relationship("User", back_populates="households")
@@ -113,8 +116,8 @@ class Client(Base):
     # Notes
     notes: Mapped[str | None] = mapped_column(Text)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow, onupdate=_utcnow)
 
     # relationships
     household = relationship("Household", back_populates="clients")
@@ -177,8 +180,8 @@ class TaxProfile(Base):
     confidence_notes: Mapped[list | None] = mapped_column(JSON, default=list)
     source_notes: Mapped[list | None] = mapped_column(JSON, default=list)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow, onupdate=_utcnow)
 
     # relationships
     client = relationship("Client", back_populates="tax_profiles")
@@ -205,8 +208,8 @@ class Document(Base):
     extracted_data: Mapped[dict | None] = mapped_column(JSON, default=dict)
     extraction_confidence: Mapped[float | None] = mapped_column(Float)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow, onupdate=_utcnow)
 
     # relationships
     client = relationship("Client", back_populates="documents")
@@ -230,7 +233,7 @@ class ContextSnippet(Base):
     capture_type: Mapped[str] = mapped_column(String, nullable=False, default="full_page")
     status: Mapped[str] = mapped_column(String, nullable=False, default="processing")
     is_consumed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
 
 
 # ─── 7. Conversation ──────────────────────────────────────────────────────
@@ -245,13 +248,13 @@ class Conversation(Base):
     title: Mapped[str | None] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, default="active")
     last_message_preview: Mapped[str | None] = mapped_column(String)
-    last_message_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_message_at: Mapped[datetime | None] = mapped_column(DateTimeTZ)
     message_count: Mapped[int] = mapped_column(Integer, default=0)
     unread: Mapped[bool] = mapped_column(Boolean, default=False)
     tags: Mapped[list | None] = mapped_column(JSON, default=list)
     tax_plan_mode: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow, onupdate=_utcnow)
 
     # relationships
     user = relationship("User", back_populates="conversations")
@@ -275,7 +278,7 @@ class Message(Base):
     model: Mapped[str | None] = mapped_column(String)
     input_tokens: Mapped[int | None] = mapped_column(Integer)
     output_tokens: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
 
     # relationships
     conversation = relationship("Conversation", back_populates="messages")
@@ -300,8 +303,8 @@ class Observation(Base):
     action_required: Mapped[str | None] = mapped_column(String)
     is_dismissed: Mapped[bool] = mapped_column(Boolean, default=False)
     source: Mapped[str] = mapped_column(String, nullable=False, default="engine")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow, onupdate=_utcnow)
 
     # relationships
     client = relationship("Client", back_populates="observations")
@@ -316,14 +319,14 @@ class MeetingNote(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     client_id: Mapped[str] = mapped_column(ForeignKey("clients.id"), nullable=False)
     author_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
-    meeting_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    meeting_date: Mapped[datetime] = mapped_column(DateTimeTZ, nullable=False)
     subject: Mapped[str] = mapped_column(String, nullable=False)
     attendees: Mapped[str | None] = mapped_column(String)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     action_items: Mapped[list | None] = mapped_column(JSON, default=list)
     tags: Mapped[list | None] = mapped_column(JSON, default=list)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow, onupdate=_utcnow)
 
     # relationships
     client = relationship("Client", back_populates="meeting_notes")
