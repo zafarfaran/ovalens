@@ -1,5 +1,6 @@
 """Application configuration via Pydantic Settings."""
 
+import os
 from functools import lru_cache
 
 from pydantic import Field, field_validator, model_validator
@@ -36,14 +37,19 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _require_postgres_in_production(self) -> "Settings":
-        """In beta/production, DATABASE_URL must be set to a Postgres URL (no accidental SQLite)."""
+        """In beta/production, DATABASE_URL must be a Postgres URL (no accidental SQLite).
+        Exception: Vercel preview deployments (VERCEL_ENV=preview) may use SQLite so previews can boot without a DB.
+        """
         if self.environment not in ("beta", "production"):
+            return self
+        if os.environ.get("VERCEL_ENV") == "preview":
             return self
         url = self.database_url.strip()
         if not url.startswith("postgresql") and "postgresql+" not in url:
             raise ValueError(
                 "In beta/production, DATABASE_URL must be a PostgreSQL URL. "
-                "Set DATABASE_URL in your deployment environment (e.g. Supabase connection string)."
+                "On Vercel: Project Settings → Environment Variables → add DATABASE_URL with your "
+                "Supabase connection string (Postgres). Get it from Supabase: Project Settings → Database → Connection string."
             )
         return self
 

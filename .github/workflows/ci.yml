@@ -1,13 +1,13 @@
-# CI: lint, type-check, test, and build (runs on push/PR to main and dev).
+# CI: lint, type-check, test, and build (runs on main, dev, and feature/* branches).
 # CD: production deploy only on push to main; preview deploy on push to dev.
 
 name: CI/CD
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, "feature/**"]
   pull_request:
-    branches: [main, dev]
+    branches: [main, dev, "feature/**"]
 
 defaults:
   run:

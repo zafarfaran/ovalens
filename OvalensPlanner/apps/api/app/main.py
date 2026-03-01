@@ -73,6 +73,18 @@ app.add_middleware(RequestContextMiddleware)
 # Exception handlers
 register_exception_handlers(app)
 
+
+@app.get("/")
+def root() -> dict[str, str]:
+    """Root route so GET / returns a friendly response instead of 404."""
+    return {
+        "service": "Ovalens API",
+        "docs": "/docs",
+        "health": "/health",
+        "ready": "/ready",
+    }
+
+
 # Routers (health = liveness, ready = readiness)
 app.include_router(health.router)
 app.include_router(ready.router)
