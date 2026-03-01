@@ -1,5 +1,6 @@
 """Async database engine and session management (SQLite + PostgreSQL/Supabase)."""
 
+import os
 from collections.abc import AsyncIterator
 
 from sqlalchemy import text
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
 from app.core.logging import get_logger
@@ -16,11 +18,20 @@ logger = get_logger(__name__)
 
 settings = get_settings()
 
-# Use async driver URL (postgresql+asyncpg for Supabase/Postgres)
+# On Vercel (serverless), use NullPool so each request gets a new connection that is closed
+# after use. Use Supabase connection pooler (port 6543) as DATABASE_URL to avoid
+# "Cannot assign requested address" from opening too many direct DB connections.
+_is_vercel = os.environ.get("VERCEL") == "1"
+_engine_kw: dict = {
+    "echo": settings.environment == "development",
+    "future": True,
+}
+if _is_vercel and settings.is_postgres:
+    _engine_kw["poolclass"] = NullPool
+
 engine = create_async_engine(
     settings.database_url_async,
-    echo=settings.environment == "development",
-    future=True,
+    **_engine_kw,
 )
 
 async_session_factory = async_sessionmaker(
