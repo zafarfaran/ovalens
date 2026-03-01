@@ -46,13 +46,19 @@ async def ready() -> JSONResponse:
     db_ok, db_error = await _check_database()
     config_ok, config_error = _check_critical_config()
 
+    # Avoid leaking raw DB exception details in beta/production.
+    if settings.environment in ("beta", "production") and not db_ok and db_error:
+        safe_db_error = "Database connection failed"
+    else:
+        safe_db_error = db_error
+
     checks = {
         "database": "ok" if db_ok else "error",
         "config": "ok" if config_ok else "error",
     }
     details: dict[str, str] = {}
     if not db_ok:
-        details["database"] = db_error
+        details["database"] = safe_db_error
     if not config_ok:
         details["config"] = config_error
 

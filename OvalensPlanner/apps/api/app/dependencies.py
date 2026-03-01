@@ -86,7 +86,7 @@ async def _check_endpoint_rate_limits(
     ip = _get_ip(request)
 
     if per_user_limit > 0:
-        allowed, count, limit, retry = await check_rate_limit(
+        allowed, _count, limit, retry = await check_rate_limit(
             endpoint, "user", user_id, per_user_limit, window_seconds
         )
         if not allowed:
@@ -107,7 +107,7 @@ async def _check_endpoint_rate_limits(
             )
 
     if per_ip_limit > 0:
-        allowed, count, limit, retry = await check_rate_limit(
+        allowed, _count, limit, retry = await check_rate_limit(
             endpoint, "ip", ip, per_ip_limit, window_seconds
         )
         if not allowed:
