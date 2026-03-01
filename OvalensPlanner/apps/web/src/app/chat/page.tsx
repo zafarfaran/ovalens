@@ -96,6 +96,23 @@ interface Observation {
   savingsBreakdown?: SavingsBreakdown | null;
 }
 
+/** Raw observation shape from API (engine or clientDetail). */
+interface ObservationRaw {
+  id?: string;
+  title?: string;
+  description?: string;
+  detail?: string;
+  type?: string;
+  severity?: string;
+  category?: string;
+  potential_saving?: number;
+  potentialSaving?: number;
+  source?: string;
+  is_dismissed?: boolean;
+  action?: string;
+  savingsBreakdown?: unknown;
+}
+
 interface ScenarioData {
   id: string;
   name: string;
@@ -471,7 +488,7 @@ function ChatPageInner() {
     if (scenariosList.length > 0) {
       setActiveScenarioId(scenariosList[scenariosList.length - 1].id);
     }
-  }, [scenariosList.length]);
+  }, [scenariosList]);
 
   // Auto-switch to Scenarios tab when generation starts
   useEffect(() => {
@@ -528,9 +545,9 @@ function ChatPageInner() {
       };
 
       // Gather AI observations from clientDetail
-      const aiObservations = (cd?.observations || [])
-        .filter((o: any) => o.source === "ai" && !o.is_dismissed)
-        .map((o: any) => ({
+      const aiObservations = (cd?.observations || [] as ObservationRaw[])
+        .filter((o) => o.source === "ai" && !o.is_dismissed)
+        .map((o) => ({
           title: o.title,
           description: o.description,
           severity: o.severity,
@@ -791,7 +808,7 @@ function ChatPageInner() {
 
   const observations: Observation[] = useMemo(() => {
     // Engine observations from dashboardData
-    const engineObs: Observation[] = (dashboardData?.observations || []).map((obs: any) => ({
+    const engineObs: Observation[] = (dashboardData?.observations || []).map((obs: ObservationRaw) => ({
       id: obs.id || undefined,
       severity: (obs.type || obs.severity || "info") as "critical" | "warning" | "opportunity" | "info",
       title: obs.title,
@@ -802,9 +819,9 @@ function ChatPageInner() {
       savingsBreakdown: obs.savingsBreakdown || null,
     }));
     // AI observations from clientDetail (DB)
-    const aiObs: Observation[] = (clientDetail?.observations || [])
-      .filter((o: any) => o.source === "ai" && !o.is_dismissed)
-      .map((obs: any) => ({
+    const aiObs: Observation[] = (clientDetail?.observations || [] as ObservationRaw[])
+      .filter((o) => o.source === "ai" && !o.is_dismissed)
+      .map((obs: ObservationRaw) => ({
         id: obs.id,
         severity: (obs.severity || "info") as "critical" | "warning" | "opportunity" | "info",
         title: obs.title,
@@ -826,7 +843,7 @@ function ChatPageInner() {
     const items: { label: string; amount: string; detail: string; pct: number; color: string }[] = [];
 
     if (tc.incomeTaxByBand && Array.isArray(tc.incomeTaxByBand)) {
-      tc.incomeTaxByBand.forEach((band: any, i: number) => {
+      tc.incomeTaxByBand.forEach((band: Record<string, unknown>, i: number) => {
         const amount = band.tax ?? band.amount ?? 0;
         items.push({
           label: band.band || band.label || `Band ${i + 1}`,
@@ -868,7 +885,7 @@ function ChatPageInner() {
 
   const allowancesData = useMemo(() => {
     if (!dashboardData?.allowancesTracker?.allowances) return [];
-    return dashboardData.allowancesTracker.allowances.map((a: any) => ({
+    return dashboardData.allowancesTracker.allowances.map((a: Record<string, unknown>) => ({
       label: a.name || a.label,
       used: a.used ?? 0,
       total: a.annualLimit ?? a.annual_limit ?? 0,

@@ -1026,7 +1026,7 @@ export default function ClientsPage() {
     } catch (err) {
       console.error("Failed to delete observation:", err);
     }
-  }, [selectedId, refetchDetail]);
+  }, [selectedId, refetchDetail, api]);
 
   /* Derived */
   const tp = detail?.tax_profile;

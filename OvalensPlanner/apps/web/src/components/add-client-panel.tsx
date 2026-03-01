@@ -271,7 +271,7 @@ export function AddClientPanel({ isOpen, onClose, onClientAdded }: AddClientPane
     } finally {
       setSubmitting(false);
     }
-  }, [form, onClientAdded]);
+  }, [form, onClientAdded, api]);
 
   /* Keyboard: Escape to close (guarded during submission) */
   useEffect(() => {

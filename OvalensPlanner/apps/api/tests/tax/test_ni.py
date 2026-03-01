@@ -9,7 +9,6 @@ from app.tax.national_insurance import (
     calculate_class_4_ni,
 )
 
-
 # ── Class 1 ──────────────────────────────────────────────────────────────────
 
 def test_class_1_below_pt():

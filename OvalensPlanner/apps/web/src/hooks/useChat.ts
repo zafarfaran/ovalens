@@ -372,7 +372,7 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
         abortRef.current = null;
       }
     },
-    [clientId, conversationId, isStreaming, taxPlanMode, onObservationSaved]
+    [clientId, conversationId, isStreaming, taxPlanMode, onObservationSaved, api]
   );
 
   const stopStreaming = useCallback(() => {
@@ -416,7 +416,7 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
         console.error("Failed to load messages:", err);
       }
     },
-    []
+    [api]
   );
 
   const clearMessages = useCallback(() => {

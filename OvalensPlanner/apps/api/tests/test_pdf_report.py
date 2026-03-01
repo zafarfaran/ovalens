@@ -4,7 +4,6 @@ import io
 
 from app.services.pdf_report import generate_tax_report
 
-
 # ---------------------------------------------------------------------------
 # Shared test fixtures
 # ---------------------------------------------------------------------------
@@ -72,7 +71,13 @@ def _full_dashboard_data() -> dict:
         },
         "allowancesTracker": {
             "allowances": [
-                {"name": "Personal Allowance", "annualLimit": 12570, "used": 12570, "remaining": 0, "status": "fully_used"},
+                {
+                    "name": "Personal Allowance",
+                    "annualLimit": 12570,
+                    "used": 12570,
+                    "remaining": 0,
+                    "status": "fully_used",
+                },
             ],
         },
         "hicbc": {"applies": False},

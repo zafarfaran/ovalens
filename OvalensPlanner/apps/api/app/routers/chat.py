@@ -50,7 +50,10 @@ class UpdateConversationRequest(BaseModel):
             "content": {
                 "application/json": {
                     "example": {
-                        "error": {"code": "RATE_LIMIT_EXCEEDED", "message": "Rate limit exceeded. Try again later."},
+                        "error": {
+                            "code": "RATE_LIMIT_EXCEEDED",
+                            "message": "Rate limit exceeded. Try again later.",
+                        },
                         "retry_after_seconds": 45,
                     }
                 }
@@ -67,10 +70,11 @@ async def chat_stream(
 ):
     """SSE streaming endpoint for AI chat responses."""
     settings = get_settings()
-    if settings.chat_max_message_length > 0 and len(body.message) > settings.chat_max_message_length:
+    max_len = settings.chat_max_message_length
+    if max_len > 0 and len(body.message) > max_len:
         raise HTTPException(
             status_code=413,
-            detail=f"Message exceeds maximum length ({settings.chat_max_message_length} characters).",
+            detail=f"Message exceeds maximum length ({max_len} characters).",
         )
     logger.info(
         "Chat stream request",

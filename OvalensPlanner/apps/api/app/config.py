@@ -87,18 +87,33 @@ class Settings(BaseSettings):
 
     # Rate limiting (expensive endpoints). 0 = disabled.
     # Chat stream: POST /api/chat/stream
-    rate_limit_chat_stream_per_user: int = Field(default=30, ge=0, description="Max requests per window per user; 0=disabled")
-    rate_limit_chat_stream_per_ip: int = Field(default=60, ge=0, description="Max requests per window per IP; 0=disabled")
+    rate_limit_chat_stream_per_user: int = Field(
+        default=30, ge=0, description="Max requests per window per user; 0=disabled"
+    )
+    rate_limit_chat_stream_per_ip: int = Field(
+        default=60, ge=0, description="Max requests per window per IP; 0=disabled"
+    )
     # Context ingest: POST /api/context/ingest
-    rate_limit_context_ingest_per_user: int = Field(default=20, ge=0, description="Max requests per window per user; 0=disabled")
-    rate_limit_context_ingest_per_ip: int = Field(default=40, ge=0, description="Max requests per window per IP; 0=disabled")
+    rate_limit_context_ingest_per_user: int = Field(
+        default=20, ge=0, description="Max requests per window per user; 0=disabled"
+    )
+    rate_limit_context_ingest_per_ip: int = Field(
+        default=40, ge=0, description="Max requests per window per IP; 0=disabled"
+    )
     # Window length in seconds (shared)
-    rate_limit_window_seconds: int = Field(default=60, ge=1, le=86400, description="Rate limit window in seconds")
-    # When True, client IP is taken from X-Forwarded-For (set by trusted proxy). When False, use request.client.host only (secure default).
-    rate_limit_trust_proxy: bool = Field(default=False, description="Use X-Forwarded-For for IP; only set True behind a trusted proxy")
+    rate_limit_window_seconds: int = Field(
+        default=60, ge=1, le=86400, description="Rate limit window in seconds"
+    )
+    # When True, use X-Forwarded-For for IP (trusted proxy). When False, use request.client.host.
+    rate_limit_trust_proxy: bool = Field(
+        default=False,
+        description="Use X-Forwarded-For for IP; only set True behind a trusted proxy",
+    )
 
     # Input size limits (LLM cost / abuse). 0 = no limit (not recommended for chat).
-    chat_max_message_length: int = Field(default=32_000, ge=0, description="Max characters per user message in chat stream; 0=unlimited")
+    chat_max_message_length: int = Field(
+        default=32_000, ge=0, description="Max chars per user message in chat; 0=unlimited"
+    )
 
     @property
     def should_expose_metrics(self) -> bool:

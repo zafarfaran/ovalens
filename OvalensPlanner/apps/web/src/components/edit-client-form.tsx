@@ -170,7 +170,7 @@ export function EditClientForm({ client, allClients, onSaved, onCancel }: EditCl
         }
       })
       .catch(() => {});
-  }, [client.id]);
+  }, [client.id, api]);
 
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -273,7 +273,7 @@ export function EditClientForm({ client, allClients, onSaved, onCancel }: EditCl
     } finally {
       setSubmitting(false);
     }
-  }, [form, client, selectedSpouseId, originalSpouseId, pensionHistory, onSaved]);
+  }, [form, client, selectedSpouseId, originalSpouseId, pensionHistory, onSaved, api]);
 
   // Resolve current spouse name for display
   const currentSpouseName = useMemo(() => {

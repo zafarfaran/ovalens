@@ -67,7 +67,7 @@ async def check_rate_limit(
         return True, count, limit, 0.0
 
 
-def get_client_ip(request: "object") -> str:
+def get_client_ip(request: object) -> str:
     """Extract client IP from Starlette Request.
 
     When rate_limit_trust_proxy is True, uses the first value of X-Forwarded-For

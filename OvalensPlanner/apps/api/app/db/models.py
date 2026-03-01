@@ -14,15 +14,15 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-
-# Use timezone-aware timestamps so PostgreSQL (asyncpg) accepts datetime.now(UTC)
-DateTimeTZ = DateTime(timezone=True)
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     mapped_column,
     relationship,
 )
+
+# Timezone-aware timestamps for PostgreSQL (asyncpg) and SQLite
+DateTimeTZ = DateTime(timezone=True)
 
 
 def _uuid() -> str:

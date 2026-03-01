@@ -3,10 +3,8 @@
 from datetime import date
 from unittest.mock import patch
 
-import pytest
-
 from app.utils import tax_year as tax_year_module
-from app.utils.tax_year import get_current_tax_year, get_default_tax_year, days_until_tax_year_end
+from app.utils.tax_year import days_until_tax_year_end, get_current_tax_year, get_default_tax_year
 
 
 def _real_date(*a, **k):

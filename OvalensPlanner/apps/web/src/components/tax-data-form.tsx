@@ -248,7 +248,7 @@ export function TaxDataForm({ clientId, clientRegion, onComputed, existingData }
     } finally {
       setSubmitting(false);
     }
-  }, [rows, pension, giftAid, claimsCB, numChildren, isaContributions, cgtGains, clientId, onComputed]);
+  }, [rows, pension, giftAid, claimsCB, numChildren, isaContributions, cgtGains, clientId, onComputed, api]);
 
   const regionLabel =
     clientRegion === "northern_ireland"

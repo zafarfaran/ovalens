@@ -9,7 +9,6 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.config import get_settings
-from app.dependencies import get_current_user
 from app.main import app
 
 # Supabase JWT audience required by app.core.auth
@@ -31,7 +30,7 @@ def _make_token(sub: str, secret: str = TEST_SECRET, exp_delta_seconds: int = 36
 
 @pytest.fixture
 async def auth_client(monkeypatch: pytest.MonkeyPatch, init_test_db: None):
-    """Client with test JWT secret so we can issue valid tokens. Depends on init_test_db for tables."""
+    """Client with test JWT secret; depends on init_test_db for tables."""
     monkeypatch.setenv("SUPABASE_JWT_SECRET", TEST_SECRET)
     get_settings.cache_clear()
     try:

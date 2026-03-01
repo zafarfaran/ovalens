@@ -34,7 +34,9 @@ async def _mock_stream_success(*args, **kwargs) -> AsyncGenerator[TokenEvent | D
     yield DoneEvent(conversation_id="conv-1", message_id="msg-1")
 
 
-async def _mock_stream_error_event(*args, **kwargs) -> AsyncGenerator[TokenEvent | ErrorEvent, None]:
+async def _mock_stream_error_event(
+    *args: object, **kwargs: object
+) -> AsyncGenerator[TokenEvent | ErrorEvent, None]:
     yield TokenEvent(content="x")
     yield ErrorEvent(error="Simulated LLM failure", code="TEST_ERROR")
 
@@ -42,8 +44,8 @@ async def _mock_stream_error_event(*args, **kwargs) -> AsyncGenerator[TokenEvent
 @pytest.mark.asyncio
 async def test_chat_stream_happy_path(chat_client: AsyncClient) -> None:
     """POST /api/chat/stream returns 200 and SSE stream with token and done events (mocked LLM)."""
-    with patch("app.routers.chat.ChatService") as MockService:
-        instance = MockService.return_value
+    with patch("app.routers.chat.ChatService") as mock_service:
+        instance = mock_service.return_value
         instance.stream_message = _mock_stream_success  # async generator, not coroutine
         response = await chat_client.post(
             "/api/chat/stream",
@@ -63,8 +65,8 @@ async def test_chat_stream_happy_path(chat_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_chat_stream_failure_path(chat_client: AsyncClient) -> None:
     """When stream yields an error event, response body contains event: error."""
-    with patch("app.routers.chat.ChatService") as MockService:
-        instance = MockService.return_value
+    with patch("app.routers.chat.ChatService") as mock_service:
+        instance = mock_service.return_value
         instance.stream_message = _mock_stream_error_event  # async generator
         response = await chat_client.post(
             "/api/chat/stream",

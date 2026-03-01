@@ -67,7 +67,10 @@ class IngestRequest(BaseModel):
             "content": {
                 "application/json": {
                     "example": {
-                        "error": {"code": "RATE_LIMIT_EXCEEDED", "message": "Rate limit exceeded. Try again later."},
+                        "error": {
+                            "code": "RATE_LIMIT_EXCEEDED",
+                            "message": "Rate limit exceeded. Try again later.",
+                        },
                         "retry_after_seconds": 45,
                     }
                 }
