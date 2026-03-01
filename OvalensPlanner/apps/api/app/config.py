@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _require_postgres_in_production(self) -> "Settings":
         """In beta/production, DATABASE_URL must be a Postgres URL (no accidental SQLite).
-        Exception: Vercel preview deployments (VERCEL_ENV=preview) may use SQLite so previews can boot without a DB.
+        Exception: Vercel preview (VERCEL_ENV=preview) may use SQLite so previews can boot.
         """
         if self.environment not in ("beta", "production"):
             return self
@@ -49,7 +49,8 @@ class Settings(BaseSettings):
             raise ValueError(
                 "In beta/production, DATABASE_URL must be a PostgreSQL URL. "
                 "On Vercel: Project Settings → Environment Variables → add DATABASE_URL with your "
-                "Supabase connection string (Postgres). Get it from Supabase: Project Settings → Database → Connection string."
+                "Supabase connection string (Postgres). Get it from Supabase: "
+                "Project Settings → Database → Connection string."
             )
         return self
 
