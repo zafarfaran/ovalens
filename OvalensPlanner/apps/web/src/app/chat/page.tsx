@@ -545,9 +545,9 @@ function ChatPageInner() {
       };
 
       // Gather AI observations from clientDetail
-      const aiObservations = (cd?.observations || [] as ObservationRaw[])
-        .filter((o) => o.source === "ai" && !o.is_dismissed)
-        .map((o) => ({
+      const aiObservations = ((cd?.observations ?? []) as ObservationRaw[])
+        .filter((o: ObservationRaw) => o.source === "ai" && !o.is_dismissed)
+        .map((o: ObservationRaw) => ({
           title: o.title,
           description: o.description,
           severity: o.severity,
@@ -809,24 +809,24 @@ function ChatPageInner() {
   const observations: Observation[] = useMemo(() => {
     // Engine observations from dashboardData
     const engineObs: Observation[] = (dashboardData?.observations || []).map((obs: ObservationRaw) => ({
-      id: obs.id || undefined,
+      id: obs.id ?? undefined,
       severity: (obs.type || obs.severity || "info") as "critical" | "warning" | "opportunity" | "info",
-      title: obs.title,
-      detail: obs.description || obs.detail || obs.action || "",
+      title: obs.title ?? "",
+      detail: obs.description ?? obs.detail ?? obs.action ?? "",
       category: obs.category || undefined,
       potentialSaving: obs.potentialSaving ?? obs.potential_saving ?? null,
       action: obs.action || null,
       savingsBreakdown: obs.savingsBreakdown || null,
     }));
     // AI observations from clientDetail (DB)
-    const aiObs: Observation[] = (clientDetail?.observations || [] as ObservationRaw[])
-      .filter((o) => o.source === "ai" && !o.is_dismissed)
+    const aiObs: Observation[] = ((clientDetail?.observations ?? []) as ObservationRaw[])
+      .filter((o: ObservationRaw) => o.source === "ai" && !o.is_dismissed)
       .map((obs: ObservationRaw) => ({
         id: obs.id,
         severity: (obs.severity || "info") as "critical" | "warning" | "opportunity" | "info",
-        title: obs.title,
-        detail: obs.description || "",
-        category: obs.category || undefined,
+        title: obs.title ?? "",
+        detail: obs.description ?? "",
+        category: obs.category ?? undefined,
         potentialSaving: obs.potential_saving ?? null,
         action: null,
         savingsBreakdown: null,
@@ -844,11 +844,11 @@ function ChatPageInner() {
 
     if (tc.incomeTaxByBand && Array.isArray(tc.incomeTaxByBand)) {
       tc.incomeTaxByBand.forEach((band: Record<string, unknown>, i: number) => {
-        const amount = band.tax ?? band.amount ?? 0;
+        const amount = Number(band.tax ?? band.amount ?? 0);
         items.push({
-          label: band.band || band.label || `Band ${i + 1}`,
-          amount: `\u00A3${Number(amount).toLocaleString()}`,
-          detail: band.rate ? `${(Number(band.rate) * 100).toFixed(0)}%` : "",
+          label: String(band.band ?? band.label ?? `Band ${i + 1}`),
+          amount: `\u00A3${amount.toLocaleString()}`,
+          detail: band.rate != null ? `${(Number(band.rate) * 100).toFixed(0)}%` : "",
           pct: Math.round((amount / total) * 100),
           color: BAND_COLORS[i % BAND_COLORS.length],
         });
