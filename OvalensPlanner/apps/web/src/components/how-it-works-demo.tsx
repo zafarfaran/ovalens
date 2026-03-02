@@ -493,13 +493,13 @@ function WorkflowModel() {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      className="absolute inset-0 p-5 md:p-7 flex flex-col"
+      className="absolute inset-0 p-4 sm:p-5 md:p-7 flex flex-col min-h-0 overflow-hidden"
     >
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.08, duration: 0.4 }}
-        className="flex items-center justify-between mb-4"
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 mb-3 sm:mb-4"
       >
         <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400 dark:text-zinc-500">Scenario comparison</div>
         <div className="flex items-center gap-1 text-[9px] text-slate-400 dark:text-zinc-500">
@@ -507,14 +507,14 @@ function WorkflowModel() {
           Sarah Mitchell &middot; 2025/26
         </div>
       </motion.div>
-      <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 flex-1 min-h-0 overflow-y-auto pr-1">
         {scenarios.map((scenario, si) => (
           <motion.div
             key={scenario.label}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 + si * 0.12, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className={`rounded-lg border p-3.5 md:p-4 flex flex-col ${
+            className={`rounded-lg border p-3 sm:p-3.5 md:p-4 flex flex-col ${
               scenario.active
                 ? "border-brand-200/50 dark:border-brand-800/30 bg-brand-50/30 dark:bg-brand-950/10"
                 : "border-slate-100 dark:border-zinc-800 bg-slate-50/30 dark:bg-zinc-800/20"
@@ -559,20 +559,20 @@ function WorkflowModel() {
         initial={{ opacity: 0, y: 8, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ delay: 1.0, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="mt-3 rounded-lg bg-emerald-500/[0.06] dark:bg-emerald-500/[0.04] border border-emerald-500/[0.12] dark:border-emerald-500/[0.08] px-4 py-3 flex items-center justify-between"
+        className="mt-4 shrink-0 rounded-lg bg-emerald-500/[0.06] dark:bg-emerald-500/[0.04] border border-emerald-500/[0.12] dark:border-emerald-500/[0.08] px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
       >
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-start gap-2.5 min-w-0">
           <div className="w-[5px] h-[5px] rounded-full bg-emerald-500" />
-          <div>
-            <div className="text-[11px] font-medium text-slate-800 dark:text-zinc-200">Recommended: Pension sacrifice</div>
-            <div className="text-[9px] font-light text-slate-500 dark:text-zinc-500 mt-0.5">Saves &pound;19,260/yr &middot; eliminates HICBC</div>
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium text-slate-800 dark:text-zinc-200 break-words">Recommended: Pension sacrifice</div>
+            <div className="text-[9px] font-light text-slate-500 dark:text-zinc-500 mt-0.5 break-words">Saves &pound;19,260/yr &middot; eliminates HICBC</div>
           </div>
         </div>
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 1.3, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="text-[18px] font-mono font-medium text-emerald-600 dark:text-emerald-400 tracking-tight"
+          className="text-[16px] sm:text-[18px] font-mono font-medium text-emerald-600 dark:text-emerald-400 tracking-tight self-start sm:self-auto"
         >
           &pound;19,260
         </motion.div>
@@ -686,7 +686,7 @@ export function HowItWorksDemo() {
           </div>
           <span className="text-[10px] font-light text-slate-400 dark:text-zinc-600">helio.tax</span>
         </div>
-        <div className="h-[340px] md:h-[400px] relative overflow-hidden">
+        <div className="h-[420px] sm:h-[380px] md:h-[400px] relative overflow-hidden">
           <AnimatePresence mode="wait">
             {activeStep === 0 && <WorkflowGather key="gather" />}
             {activeStep === 1 && <WorkflowDiscover key="discover" />}

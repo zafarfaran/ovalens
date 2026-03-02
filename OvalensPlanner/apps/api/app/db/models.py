@@ -244,7 +244,7 @@ class Conversation(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
-    client_id: Mapped[str] = mapped_column(ForeignKey("clients.id"), nullable=False)
+    client_id: Mapped[str | None] = mapped_column(ForeignKey("clients.id"), nullable=True)
     title: Mapped[str | None] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, default="active")
     last_message_preview: Mapped[str | None] = mapped_column(String)

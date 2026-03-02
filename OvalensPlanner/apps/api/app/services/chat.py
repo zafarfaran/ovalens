@@ -5,6 +5,7 @@ import uuid
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 
+from fastapi import HTTPException
 from sqlalchemy import desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,14 +50,23 @@ class ChatService:
     async def create_conversation(
         self,
         user_id: str,
-        client_id: str,
+        client_id: str | None = None,
         title: str | None = None,
     ) -> Conversation:
-        """Create a new conversation row."""
+        """Create a new conversation row. client_id optional (chat without a client)."""
+        if client_id:
+            result = await self.session.execute(
+                select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
+            )
+            if result.scalar_one_or_none() is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Client not found or access denied.",
+                )
         conversation = Conversation(
             id=str(uuid.uuid4()),
             user_id=user_id,
-            client_id=client_id,
+            client_id=client_id or None,
             title=title or "New conversation",
             status="active",
             message_count=0,
@@ -83,7 +93,7 @@ class ChatService:
             .where(Conversation.user_id == user_id)
             .where(Conversation.status != "deleted")
         )
-        if client_id is not None:
+        if client_id:
             stmt = stmt.where(Conversation.client_id == client_id)
         stmt = stmt.order_by(
             desc(Conversation.last_message_at),
@@ -172,7 +182,7 @@ class ChatService:
         self,
         conversation_id: str | None,
         user_id: str,
-        client_id: str,
+        client_id: str | None,
         content: str,
         tax_plan_mode: bool = False,
         context_snippet_ids: list[str] | None = None,
@@ -196,7 +206,7 @@ class ChatService:
         record_chat_stream_start()
         first_token_time: float | None = None
 
-        # 1. Auto-create conversation if needed
+        # 1. Resolve or create conversation (avoid FK violation when client sends stale/missing id)
         if not conversation_id:
             conversation = await self.create_conversation(user_id, client_id)
             conversation_id = conversation.id
@@ -204,6 +214,17 @@ class ChatService:
                 "conversation_auto_created",
                 conversation_id=conversation_id,
             )
+        else:
+            existing = await self.get_conversation(conversation_id)
+            if existing is None or existing.user_id != user_id:
+                requested_id = conversation_id
+                conversation = await self.create_conversation(user_id, client_id)
+                conversation_id = conversation.id
+                logger.info(
+                    "conversation_not_found_or_denied_created_new",
+                    requested_id=requested_id,
+                    conversation_id=conversation_id,
+                )
 
         # 2. Save user message (do not log raw content)
         user_message = Message(
@@ -278,7 +299,7 @@ class ChatService:
                 }
 
         tool_context = {
-            "client_id": client_id,
+            "client_id": client_id or "",
             "pension_contributions_by_year": pension_contributions_by_year,
         }
         async for event in provider.stream_chat(
@@ -375,12 +396,17 @@ class ChatService:
         )
         return messages
 
-    async def _load_client_context(self, client_id: str) -> tuple[dict | None, TaxProfile | None]:
+    async def _load_client_context(
+        self, client_id: str | None
+    ) -> tuple[dict | None, TaxProfile | None]:
         """Load client, latest tax profile, and undismissed observations.
 
         Returns the dict structure expected by ``build_system_prompt()``
         and the raw TaxProfile object (for pension contribution history).
+        When client_id is None (no client selected), returns (None, None).
         """
+        if not client_id:
+            return None, None
         # Load client
         result = await self.session.execute(select(Client).where(Client.id == client_id))
         client = result.scalar_one_or_none()

@@ -59,19 +59,26 @@ def verify_supabase_jwt(token: str) -> dict:
 
     Uses the project JWT secret (HS256). Raises HTTPException 401 on invalid or expired token.
     """
+    settings = get_settings()
+    is_dev = getattr(settings, "environment", "") == "development"
+    header = None
     try:
         header = jwt.get_unverified_header(token)
         alg = str(header.get("alg") or "").upper()
+        if is_dev:
+            logger.info("JWT verification: token alg=%s", alg or "(none)")
         if alg in {"ES256", "RS256"}:
             payload = _verify_asymmetric_supabase_jwt(token, alg)
         else:
-            settings = get_settings()
             secret = getattr(settings, "supabase_jwt_secret", None) or (
                 getattr(settings, "supabase_jwt_secret_key", None)
             )
             if not secret:
                 logger.warning("Supabase JWT secret not configured — rejecting all tokens")
                 raise HTTPException(status_code=501, detail="Authentication not configured")
+            secret = (secret or "").strip()
+            if is_dev:
+                logger.info("JWT verification: using HS256 with configured secret (len=%s)", len(secret))
             payload = jwt.decode(
                 token,
                 secret,
@@ -79,7 +86,20 @@ def verify_supabase_jwt(token: str) -> dict:
                 algorithms=[SUPABASE_JWT_ALGORITHM],
             )
     except PyJWTError as e:
-        logger.debug("JWT verification failed", error=str(e))
+        err_msg = str(e)
+        logger.debug("JWT verification failed", error=err_msg)
+        if is_dev:
+            alg_hint = (header or {}).get("alg") or "(unknown)"
+            logger.info(
+                "Auth 401: JWT error=%s. Alg was %s. For HS256 use the Dashboard JWT Secret (not anon key). "
+                "For ES256/RS256 the API uses JWKS from the token issuer.",
+                err_msg,
+                alg_hint,
+            )
+            if "Signature" in err_msg or "signature" in err_msg:
+                logger.info(
+                    "Signature failure usually means: wrong SUPABASE_JWT_SECRET, or token from a different project."
+                )
         raise HTTPException(status_code=401, detail="Invalid or expired token") from e
 
     sub = payload.get("sub")
