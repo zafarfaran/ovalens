@@ -78,7 +78,10 @@ def verify_supabase_jwt(token: str) -> dict:
                 raise HTTPException(status_code=501, detail="Authentication not configured")
             secret = (secret or "").strip()
             if is_dev:
-                logger.info("JWT verification: using HS256 with configured secret (len=%s)", len(secret))
+                logger.info(
+                    "JWT verification: using HS256 with configured secret (len=%s)",
+                    len(secret),
+                )
             payload = jwt.decode(
                 token,
                 secret,
@@ -87,18 +90,19 @@ def verify_supabase_jwt(token: str) -> dict:
             )
     except PyJWTError as e:
         err_msg = str(e)
+        # Do not log err_msg in the message (redacted when passed as key=error)
         logger.debug("JWT verification failed", error=err_msg)
         if is_dev:
             alg_hint = (header or {}).get("alg") or "(unknown)"
             logger.info(
-                "Auth 401: JWT error=%s. Alg was %s. For HS256 use the Dashboard JWT Secret (not anon key). "
-                "For ES256/RS256 the API uses JWKS from the token issuer.",
-                err_msg,
+                "Auth 401: JWT verification failed. Alg was %s. For HS256 use Dashboard "
+                "JWT Secret (not anon key). For ES256/RS256 the API uses JWKS from issuer.",
                 alg_hint,
             )
             if "Signature" in err_msg or "signature" in err_msg:
                 logger.info(
-                    "Signature failure usually means: wrong SUPABASE_JWT_SECRET, or token from a different project."
+                    "Signature failure usually means: wrong SUPABASE_JWT_SECRET, "
+                    "or token from a different project."
                 )
         raise HTTPException(status_code=401, detail="Invalid or expired token") from e
 
