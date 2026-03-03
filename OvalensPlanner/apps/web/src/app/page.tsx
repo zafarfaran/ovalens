@@ -20,7 +20,6 @@ import {
   staggerItem,
   AnimatedCounter,
   TiltCard,
-  MagneticButton,
   RevealMask,
 } from "@/components/motion";
 import { ThemeToggle } from "@/components/theme-provider";
@@ -35,6 +34,8 @@ import {
   IconZap,
   IconGlobe,
 } from "@/components/icons";
+
+const CALENDLY_URL = "https://calendly.com/admin-ovalens";
 
 /* ═══════════════════════════════════════════════════
    NAVBAR
@@ -68,18 +69,20 @@ function Navbar() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <a
-            href="#"
+          <Link
+            href="/chat"
             className="hidden sm:block text-[13px] font-light text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors px-3 py-2"
           >
             Sign in
-          </a>
-          <Link
-            href="/chat?new=1"
+          </Link>
+          <a
+            href={CALENDLY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-[13px] font-normal bg-slate-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 rounded-lg hover:bg-slate-800 dark:hover:bg-zinc-100 transition-colors"
           >
-            Get started
-          </Link>
+            Book a call
+          </a>
         </div>
       </div>
     </motion.nav>
@@ -232,17 +235,17 @@ function Hero() {
               transition={{ duration: 0.7, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
               className="mt-10 flex items-center gap-4"
             >
-              <MagneticButton>
-                <Link
-                  href="/chat?new=1"
-                  className="group relative inline-flex items-center gap-2.5 bg-slate-900 dark:bg-white text-white dark:text-zinc-900 text-[13px] font-normal px-6 py-3 rounded-lg transition-all hover:bg-slate-800 dark:hover:bg-zinc-100 overflow-hidden"
-                >
-                  {/* Subtle shimmer on hover */}
-                  <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 dark:via-black/10 to-transparent" />
-                  <span className="relative">Start free trial</span>
-                  <IconArrowRight className="relative w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              </MagneticButton>
+              <a
+                href={CALENDLY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative inline-flex items-center gap-2.5 bg-slate-900 dark:bg-white text-white dark:text-zinc-900 text-[13px] font-normal px-6 py-3 rounded-lg transition-all duration-300 hover:bg-slate-800 dark:hover:bg-zinc-100 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-300/30 dark:hover:shadow-black/30 overflow-hidden"
+              >
+                {/* Subtle shimmer on hover */}
+                <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 dark:via-black/10 to-transparent" />
+                <span className="relative">Book a call</span>
+                <IconArrowRight className="relative w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+              </a>
               <a
                 href="#how-it-works"
                 className="text-[13px] font-light text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors px-3 py-3"
@@ -251,14 +254,13 @@ function Hero() {
               </a>
             </motion.div>
 
-            {/* Micro social proof */}
+            {/* Micro social proof — commented out
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.85 }}
               className="mt-12 flex items-center gap-3"
             >
-              {/* Stacked avatars */}
               <div className="flex -space-x-2">
                 {["JR", "SM", "AT", "KL"].map((initials, i) => (
                   <div
@@ -273,6 +275,7 @@ function Hero() {
                 Trusted by 120+ advisers
               </span>
             </motion.div>
+            */}
           </motion.div>
 
           {/* ── Right: Product preview — floating with perspective ── */}
@@ -308,7 +311,7 @@ function Hero() {
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute -bottom-4 -left-4 md:-left-8 z-10"
+                className="hidden md:block absolute -bottom-4 -left-4 md:-left-8 z-10"
               >
                 <div className="flex items-center gap-3 bg-white dark:bg-zinc-900 rounded-lg border border-slate-200/80 dark:border-zinc-800 shadow-lg shadow-slate-200/40 dark:shadow-black/40 px-4 py-3">
                   <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center">
@@ -368,39 +371,39 @@ function Hero() {
 
 function ProductPreview() {
   return (
-    <div className="flex h-[340px] md:h-[420px] text-[11px] md:text-xs">
+    <div className="flex flex-col md:flex-row min-h-[420px] md:h-[420px] text-[10px] sm:text-[11px] md:text-xs">
       {/* Chat side */}
-      <div className="w-[38%] border-r border-slate-100 dark:border-zinc-800 flex flex-col">
-        <div className="px-4 py-3 border-b border-slate-100 dark:border-zinc-800 flex items-center gap-2">
+      <div className="w-full md:w-[38%] border-b md:border-b-0 md:border-r border-slate-100 dark:border-zinc-800 flex flex-col">
+        <div className="px-3 sm:px-4 py-3 border-b border-slate-100 dark:border-zinc-800 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-400" />
           <span className="font-medium text-slate-700 dark:text-zinc-200">Sarah Mitchell</span>
         </div>
-        <div className="flex-1 p-4 space-y-3 overflow-hidden">
+        <div className="flex-1 p-3 sm:p-4 space-y-2.5 sm:space-y-3 overflow-hidden">
           <PreviewBubbleAI text="I've analysed Sarah's 2025/26 position. Employment income of £145,000 with £32,500 in dividends. I've found 3 planning opportunities." />
           <PreviewBubbleUser text="What's the biggest tax saving available?" />
           <PreviewBubbleAI text="Pension contributions — she has £42,000 unused annual allowance. A full contribution could save up to £16,800 in tax." />
         </div>
-        <div className="px-4 py-3 border-t border-slate-100 dark:border-zinc-800">
-          <div className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/50 px-3 py-2 text-slate-400 dark:text-zinc-500">
+        <div className="px-3 sm:px-4 py-3 border-t border-slate-100 dark:border-zinc-800">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/50 px-3 py-2 text-[10px] sm:text-[11px] text-slate-400 dark:text-zinc-500">
             Ask about your client...
           </div>
         </div>
       </div>
 
       {/* Dashboard side */}
-      <div className="flex-1 bg-slate-50/50 dark:bg-zinc-950/50 p-4 md:p-6 space-y-4 overflow-hidden">
+      <div className="flex-1 bg-slate-50/50 dark:bg-zinc-950/50 p-3 sm:p-4 md:p-6 space-y-3 md:space-y-4 overflow-hidden">
         <div className="flex items-center justify-between">
-          <span className="font-medium text-slate-700 dark:text-zinc-200 text-xs md:text-sm">Tax Summary — 2025/26</span>
-          <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-light">Last updated just now</span>
+          <span className="font-medium text-slate-700 dark:text-zinc-200 text-[11px] sm:text-xs md:text-sm">Tax Summary — 2025/26</span>
+          <span className="text-[9px] sm:text-[10px] text-slate-400 dark:text-zinc-500 font-light">Last updated just now</span>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
           <PreviewStatCard label="Total liability" value="£52,847" delta="+£3,200" negative />
           <PreviewStatCard label="Effective rate" value="27.0%" delta="+1.2%" negative />
           <PreviewStatCard label="Opportunities" value="3" delta="£16,800" />
         </div>
 
-        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-slate-200/60 dark:border-zinc-800 p-3 md:p-4 space-y-2.5">
+        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-slate-200/60 dark:border-zinc-800 p-3 md:p-4 space-y-2">
           <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:text-zinc-500">Allowances</span>
           <PreviewAllowanceBar label="Personal Allowance" pct={100} detail="Tapered to £0" />
           <PreviewAllowanceBar label="Pension AA" pct={30} detail="£42,000 remaining" />
@@ -1013,37 +1016,95 @@ function Stats() {
 }
 
 /* ═══════════════════════════════════════════════════
-   TESTIMONIAL
+   TESTIMONIAL — mission statement (integrated section)
    ═══════════════════════════════════════════════════ */
 
 function Testimonial() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+  const smoothProgress = useSpring(scrollYProgress, {
+    stiffness: 92,
+    damping: 26,
+    mass: 0.75,
+  });
+  const contentY = useTransform(smoothProgress, [0, 0.45, 1], [24, 0, -10]);
+  const contentOpacity = useTransform(smoothProgress, [0, 0.16, 0.84, 1], [0.62, 1, 1, 0.9]);
+  const bgOpacity = useTransform(smoothProgress, [0.06, 0.35, 1], [0, 1, 0.92]);
+  const textFillProgress = useTransform(smoothProgress, [0.14, 0.72], [0, 1]);
+  const fillClipPath = useTransform(
+    textFillProgress,
+    (v) => `inset(0 ${Math.max(0, 100 - v * 100)}% 0 0)`
+  );
+  const accentScaleY = useTransform(smoothProgress, [0.1, 0.36], [0, 1]);
+
   return (
-    <section className="py-24 md:py-32 bg-slate-50/60 dark:bg-zinc-950/50">
-      <div className="max-w-7xl mx-auto px-6 md:px-12">
-        <FadeUp className="max-w-3xl mx-auto text-center">
-          {/* Quote mark SVG */}
-          <svg viewBox="0 0 24 24" className="w-8 h-8 mx-auto mb-6 text-brand-300 dark:text-brand-700" fill="currentColor">
-            <path d="M11 7.05C8.17 8.2 6 11.5 6 14.78c0 2.06 1.27 3.22 2.8 3.22 1.42 0 2.7-1.1 2.7-2.6 0-1.42-1.02-2.5-2.3-2.5-.4 0-.72.1-1 .26.22-1.8 1.58-3.83 3.3-4.83L11 7.05zm7 0c-2.83 1.15-5 4.45-5 7.73 0 2.06 1.27 3.22 2.8 3.22 1.42 0 2.7-1.1 2.7-2.6 0-1.42-1.02-2.5-2.3-2.5-.4 0-.72.1-1 .26.22-1.8 1.58-3.83 3.3-4.83L18 7.05z" />
-          </svg>
+    <section
+      ref={sectionRef}
+      className="relative py-24 md:py-32 overflow-hidden border-t border-slate-200/50 dark:border-zinc-800/50"
+    >
+      {/* Section background — integrated with page */}
+      <div className="absolute inset-0 bg-slate-50/50 dark:bg-zinc-950/30" />
+      <motion.div
+        style={{ opacity: bgOpacity }}
+        className="absolute inset-0 pointer-events-none"
+        aria-hidden
+      >
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(100%,720px)] aspect-square rounded-full bg-brand-200/12 dark:bg-brand-900/8 blur-[80px]" />
+        <div className="absolute top-1/3 right-0 w-96 h-96 rounded-full bg-violet-200/8 dark:bg-violet-900/4 blur-[60px]" />
+      </motion.div>
 
-          <blockquote className="text-xl md:text-2xl font-extralight text-slate-800 dark:text-zinc-200 leading-relaxed">
-            Ovalens has fundamentally changed how we approach tax planning reviews.
-            What used to take hours now takes minutes, and the AI catches
-            opportunities we might have missed.
-          </blockquote>
+      <div className="relative max-w-7xl mx-auto px-6 md:px-12">
+        <motion.div
+          style={{ y: contentY, opacity: contentOpacity }}
+          className="max-w-3xl mx-auto"
+        >
+          <div className="relative pl-8 md:pl-10 border-l border-slate-200 dark:border-zinc-800">
+            <motion.div
+              style={{ scaleY: accentScaleY, transformOrigin: "top" }}
+              aria-hidden
+              className="absolute left-0 top-0 bottom-0 w-0.5 -ml-px bg-gradient-to-b from-brand-400 to-brand-400/20 dark:from-brand-500 dark:to-brand-500/20"
+            />
 
-          <div className="mt-8 flex items-center justify-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 text-xs font-medium">
-              JR
-            </div>
-            <div className="text-left">
-              <p className="text-sm font-medium text-slate-900 dark:text-white">James Richardson</p>
-              <p className="text-xs font-light text-slate-400 dark:text-zinc-500">
-                Director, Ashworth Financial Planning
+            <div className="py-2">
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-brand-500 dark:text-brand-400 mb-6">
+                Why we&apos;re building
               </p>
+
+              <div className="relative">
+                <blockquote className="text-xl md:text-2xl lg:text-[1.6rem] font-extralight text-slate-800 dark:text-zinc-200 leading-[1.55] space-y-4">
+                  <span className="block">We&apos;re building Ovalens because tax planning reviews shouldn&apos;t take hours.</span>
+                  <span className="block">
+                    We want every adviser to have AI that&apos;s{" "}
+                    <span className="font-light text-slate-700 dark:text-zinc-300">fast, accurate, and built for the UK</span>.
+                  </span>
+                </blockquote>
+                <motion.div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ clipPath: fillClipPath, WebkitClipPath: fillClipPath }}
+                  aria-hidden
+                >
+                  <blockquote className="text-xl md:text-2xl lg:text-[1.6rem] font-extralight leading-[1.55] space-y-4 bg-gradient-to-r from-brand-600 via-violet-600 to-brand-500 dark:from-brand-400 dark:via-violet-400 dark:to-brand-400 bg-clip-text text-transparent">
+                    <span className="block">We&apos;re building Ovalens because tax planning reviews shouldn&apos;t take hours.</span>
+                    <span className="block">
+                      We want every adviser to have AI that&apos;s{" "}
+                      <span className="font-light">fast, accurate, and built for the UK</span>.
+                    </span>
+                  </blockquote>
+                </motion.div>
+              </div>
+
+              <div className="mt-8 flex items-center gap-3">
+                <div className="w-px h-5 bg-slate-300 dark:bg-zinc-600" />
+                <p className="text-[13px] font-light text-slate-500 dark:text-zinc-500 tracking-wide">
+                  The Ovalens team
+                </p>
+              </div>
             </div>
           </div>
-        </FadeUp>
+        </motion.div>
       </div>
     </section>
   );
@@ -1091,20 +1152,14 @@ function CTA() {
           </p>
 
           <div className="mt-10 flex items-center justify-center gap-4">
-            <MagneticButton>
-              <Link
-                href="/chat?new=1"
-                className="group inline-flex items-center gap-2 bg-white text-slate-900 text-sm font-normal px-6 py-3 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                Start free trial
-                <IconArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            </MagneticButton>
             <a
-              href="#"
-              className="text-sm font-light text-slate-400 hover:text-white transition-colors px-4 py-3"
+              href={CALENDLY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-2 bg-white text-slate-900 text-sm font-normal px-6 py-3 rounded-lg hover:bg-slate-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/20"
             >
-              Book a demo
+              Book a call
+              <IconArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
             </a>
           </div>
         </FadeUp>
@@ -1146,7 +1201,10 @@ function Footer() {
               <ul className="space-y-2.5">
                 {items.map((item) => (
                   <li key={item}>
-                    <a href="#" className="text-sm font-light hover:text-white transition-colors">
+                    <a
+                      href={item === "Security" ? "/security" : "#"}
+                      className="text-sm font-light hover:text-white transition-colors"
+                    >
                       {item}
                     </a>
                   </li>
@@ -1187,7 +1245,7 @@ export default function Home() {
     <main>
       <Navbar />
       <Hero />
-      <LogoCloud />
+      {/* <LogoCloud /> — Trusted by leading advisory firms */}
       <Features />
       <HowItWorks />
       <Stats />

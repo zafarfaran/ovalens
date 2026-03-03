@@ -1,21 +1,29 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { ThemeToggle } from "@/components/theme-provider";
-import { OvalensLogo } from "@/components/icons";
+import { OvalensLogo, IconEye, IconEyeOff } from "@/components/icons";
 import { HowItWorksDemo } from "@/components/how-it-works-demo";
 
 /** Routes that are visible without signing in */
-const PUBLIC_PATHS = ["/"];
+const PUBLIC_PATHS = ["/", "/security"];
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
 export function LoginGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { session, isLoading, signInWithGoogle } = useAuth();
+  const { session, isLoading, signInWithGoogle, signInWithEmailPassword } = useAuth();
+  // const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  // const [authSuccess, setAuthSuccess] = useState<string | null>(null);
 
   const isPublic = pathname != null && PUBLIC_PATHS.includes(pathname);
   if (isPublic) {
@@ -74,7 +82,7 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, ease }}
-            className="w-full lg:w-[420px] lg:min-w-[380px] lg:flex-shrink-0 flex flex-col border-t lg:border-t-0 lg:border-l border-slate-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900/95 backdrop-blur-sm"
+            className="w-full lg:w-[420px] lg:min-w-[380px] lg:flex-shrink-0 flex flex-col border-t lg:border-t-0 lg:border-l border-slate-200/70 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm"
           >
             <div className="flex-1 flex flex-col justify-center p-8 md:p-10 max-w-[400px] mx-auto lg:mx-0 lg:max-w-none w-full">
             {/* Title with gradient accent */}
@@ -118,15 +126,110 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
               </motion.p>
             )}
 
+            {supabaseConfigured && (
+              <motion.form
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.35, ease }}
+                className="space-y-4"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setAuthError(null);
+                  // setAuthSuccess(null);
+                  if (!email.trim() || !password) {
+                    setAuthError("Please enter email and password.");
+                    return;
+                  }
+                  setAuthLoading(true);
+                  const { error } = await signInWithEmailPassword(email.trim(), password);
+                  setAuthLoading(false);
+                  if (error) {
+                    setAuthError(error.message);
+                    return;
+                  }
+                }}
+              >
+                <div>
+                  <label htmlFor="login-email" className="sr-only">
+                    Email
+                  </label>
+                  <input
+                    id="login-email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-zinc-700/80 bg-slate-50 dark:bg-[#0c0c0f] text-slate-900 dark:text-zinc-100 text-[13px] font-light py-3.5 px-4 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] dark:[&:-webkit-autofill]:!bg-[#0c0c0f] dark:[&:-webkit-autofill]:!text-zinc-100"
+                  />
+                </div>
+                <div className="relative">
+                  <label htmlFor="login-password" className="sr-only">
+                    Password
+                  </label>
+                  <input
+                    id="login-password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300/80 dark:border-zinc-700/80 bg-slate-50 dark:bg-[#0c0c0f] text-slate-900 dark:text-zinc-100 text-[13px] font-light py-3.5 pl-4 pr-11 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] dark:[&:-webkit-autofill]:!bg-[#0c0c0f] dark:[&:-webkit-autofill]:!text-zinc-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((p) => !p)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-700 dark:text-zinc-100 hover:text-slate-900 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+                  >
+                    {showPassword ? (
+                      <IconEyeOff className="w-4 h-4" />
+                    ) : (
+                      <IconEye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                {authError && (
+                  <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200/50 dark:border-red-800/30 rounded-lg px-3 py-2">
+                    {authError}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full rounded-xl border border-transparent bg-slate-900 dark:bg-zinc-700 text-white dark:text-white text-[13px] font-medium py-3.5 px-4 transition-all duration-200 hover:bg-slate-800 dark:hover:bg-zinc-600 hover:shadow-md hover:shadow-slate-300/30 dark:hover:shadow-black/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {authLoading ? "Signing in..." : "Sign in with email"}
+                </button>
+              </motion.form>
+            )}
+
+            {supabaseConfigured && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.45 }}
+                className="relative my-6"
+              >
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-300/70 dark:border-zinc-700/70" />
+                </div>
+                <div className="relative flex justify-center text-[11px]">
+                  <span className="bg-white dark:bg-zinc-900 px-3 text-slate-500 dark:text-zinc-400">or continue with</span>
+                </div>
+              </motion.div>
+            )}
+
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.35, ease }}
+              transition={{ duration: 0.5, delay: 0.5, ease }}
             >
               <button
                 type="button"
                 onClick={() => signInWithGoogle()}
-                className="group relative w-full flex items-center justify-center gap-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-white dark:bg-zinc-800/80 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-[13px] font-medium py-3.5 px-4 transition-all duration-200 hover:shadow-lg hover:shadow-slate-200/30 dark:hover:shadow-black/20 hover:border-slate-300 dark:hover:border-zinc-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+                disabled={!supabaseConfigured}
+                className="group relative w-full flex items-center justify-center gap-3 rounded-xl border border-slate-300/80 dark:border-zinc-800 dark:bg-zinc-950 bg-slate-50 hover:bg-white dark:hover:bg-zinc-900 text-slate-700 dark:text-zinc-200 text-[13px] font-medium py-3.5 px-4 transition-all duration-200 hover:shadow-md hover:shadow-slate-300/20 dark:hover:shadow-black/20 hover:border-slate-300 dark:hover:border-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] disabled:opacity-50"
               >
                 <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" aria-hidden>
                   <path
@@ -149,6 +252,29 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
                 <span>Continue with Google</span>
               </button>
             </motion.div>
+
+            {/* Create account toggle (hidden for now)
+            {supabaseConfigured && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.55 }}
+                className="mt-4 text-center"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    setAuthError(null);
+                    // setAuthSuccess(null);
+                  }}
+                  className="text-[12px] font-light text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                >
+                  {isSignUp ? "Already have an account? Sign in" : "Don’t have an account? Create one"}
+                </button>
+              </motion.p>
+            )}
+            */}
 
             <motion.p
               initial={{ opacity: 0 }}
