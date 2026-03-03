@@ -22,14 +22,14 @@ router = APIRouter(tags=["chat"])
 
 class ChatStreamRequest(BaseModel):
     conversation_id: str | None = None
-    client_id: str
+    client_id: str | None = None  # Optional: no client selected still allows chat
     message: str
     tax_plan_mode: bool = False
     context_snippet_ids: list[str] | None = None
 
 
 class CreateConversationRequest(BaseModel):
-    client_id: str
+    client_id: str | None = None
     title: str | None = None
 
 
@@ -76,10 +76,13 @@ async def chat_stream(
             status_code=413,
             detail=f"Message exceeds maximum length ({max_len} characters).",
         )
+    # Normalize empty string to None so chat works when no client is selected
+    client_id = (body.client_id or "").strip() or None
+
     logger.info(
         "Chat stream request",
         user_id=user_id,
-        client_id=body.client_id,
+        client_id=client_id,
         conversation_id=body.conversation_id,
         message_length=len(body.message),
     )
@@ -90,7 +93,7 @@ async def chat_stream(
         async for event in service.stream_message(
             conversation_id=body.conversation_id,
             user_id=user_id,
-            client_id=body.client_id,
+            client_id=client_id,
             content=body.message,
             tax_plan_mode=body.tax_plan_mode,
             context_snippet_ids=body.context_snippet_ids,
@@ -117,6 +120,7 @@ async def list_conversations(
     user_id: str = Depends(get_current_user),
 ):
     """List conversations, optionally filtered by client_id."""
+    client_id = (client_id or "").strip() or None
     logger.info(
         "Listing conversations",
         user_id=user_id,
@@ -154,18 +158,19 @@ async def create_conversation(
     logger: BoundLogger = Depends(get_request_logger),
     user_id: str = Depends(get_current_user),
 ):
-    """Create a new conversation."""
+    """Create a new conversation. client_id is optional (no client selected)."""
+    client_id = (body.client_id or "").strip() or None
     logger.info(
         "Creating conversation",
         user_id=user_id,
-        client_id=body.client_id,
+        client_id=client_id,
         title=body.title,
     )
 
     service = ChatService(session)
     conversation = await service.create_conversation(
         user_id=user_id,
-        client_id=body.client_id,
+        client_id=client_id,
         title=body.title,
     )
 

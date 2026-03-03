@@ -84,6 +84,25 @@ export function IconArrowRight({ className = "w-4 h-4" }: { className?: string }
   );
 }
 
+export function IconEye({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} stroke="currentColor" {...s}>
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="2.5" />
+    </svg>
+  );
+}
+
+export function IconEyeOff({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} stroke="currentColor" {...s}>
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="2.5" />
+      <line x1="5" y1="5" x2="19" y2="19" />
+    </svg>
+  );
+}
+
 export function IconLink({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} stroke="currentColor" {...s}>

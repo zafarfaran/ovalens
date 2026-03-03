@@ -8,6 +8,9 @@ import { supabase } from "@/lib/supabase/client";
 /**
  * Returns a fetch function that automatically adds the current session's Bearer token.
  * Use for all backend API calls so the API can authenticate and scope by user.
+ *
+ * If you get 401 on local dev: ensure the API .env has SUPABASE_JWT_SECRET set to the
+ * JWT Secret of the same Supabase project as the web app (Supabase → Settings → API).
  */
 export function useApi() {
   const { accessToken } = useAuth();

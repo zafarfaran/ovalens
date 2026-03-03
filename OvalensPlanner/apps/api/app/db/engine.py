@@ -29,6 +29,11 @@ _engine_kw: dict = {
 if _is_vercel and settings.is_postgres:
     _engine_kw["poolclass"] = NullPool
 
+# PgBouncer (Supabase pooler) in transaction mode does not support prepared statements.
+# Disable asyncpg's statement cache to avoid DuplicatePreparedStatementError.
+if settings.is_postgres:
+    _engine_kw["connect_args"] = {"statement_cache_size": 0}
+
 engine = create_async_engine(
     settings.database_url_async,
     **_engine_kw,

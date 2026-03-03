@@ -9,6 +9,8 @@ type AuthContextValue = {
   session: Session | null;
   isLoading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmailPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUpWithEmailPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   accessToken: string | null;
 };
@@ -59,6 +61,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const signInWithEmailPassword = useCallback(
+    async (email: string, password: string): Promise<{ error: Error | null }> => {
+      if (!supabase) return { error: new Error("Auth is not configured") };
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error: error ?? null };
+    },
+    []
+  );
+
+  const signUpWithEmailPassword = useCallback(
+    async (email: string, password: string): Promise<{ error: Error | null }> => {
+      if (!supabase) return { error: new Error("Auth is not configured") };
+      const { error } = await supabase.auth.signUp({ email, password });
+      return { error: error ?? null };
+    },
+    []
+  );
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -69,6 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     isLoading,
     signInWithGoogle,
+    signInWithEmailPassword,
+    signUpWithEmailPassword,
     signOut,
     accessToken: session?.access_token ?? null,
   };
