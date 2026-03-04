@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-provider";
@@ -74,12 +74,29 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
+function isSection(value: string): value is Section {
+  return NAV_ITEMS.some((item) => item.id === value);
+}
+
 /* ═══════════════════════════════════════════════════
    SETTINGS PAGE
    ═══════════════════════════════════════════════════ */
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<Section>("account");
+
+  useEffect(() => {
+    const applyHashSection = () => {
+      const sectionFromHash = window.location.hash.replace("#", "");
+      if (isSection(sectionFromHash)) {
+        setActiveSection(sectionFromHash);
+      }
+    };
+
+    applyHashSection();
+    window.addEventListener("hashchange", applyHashSection);
+    return () => window.removeEventListener("hashchange", applyHashSection);
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-[#fafbfc] dark:bg-[#0a0a0c]">
@@ -124,7 +141,10 @@ export default function SettingsPage() {
               {NAV_ITEMS.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => setActiveSection(item.id)}
+                  onClick={() => {
+                    setActiveSection(item.id);
+                    window.history.replaceState(null, "", `#${item.id}`);
+                  }}
                   className={`relative w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-normal transition-all ${
                     activeSection === item.id
                       ? "text-slate-900 dark:text-white bg-white dark:bg-zinc-800/80 shadow-sm shadow-slate-200/50 dark:shadow-none"
