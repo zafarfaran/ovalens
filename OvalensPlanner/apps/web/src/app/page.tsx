@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   motion,
@@ -11,7 +12,7 @@ import {
   useMotionValue,
   useSpring,
 } from "framer-motion";
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, memo } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import {
   FadeUp,
@@ -23,7 +24,16 @@ import {
   RevealMask,
 } from "@/components/motion";
 import { ThemeToggle } from "@/components/theme-provider";
-import { HowItWorksDemo } from "@/components/how-it-works-demo";
+
+const HowItWorksDemo = dynamic(
+  () => import("@/components/how-it-works-demo").then((mod) => ({ default: mod.HowItWorksDemo })),
+  {
+    ssr: true,
+    loading: () => (
+      <div className="min-h-[420px] rounded-xl border border-slate-200/60 dark:border-zinc-800 bg-slate-50/30 dark:bg-zinc-900/30 animate-pulse" aria-hidden />
+    ),
+  }
+);
 import {
   OvalensLogo,
   IconCalculator,
@@ -38,6 +48,24 @@ import {
 } from "@/components/icons";
 
 const CALENDLY_URL = "https://calendly.com/admin-ovalens";
+
+/** Mobile/touch detection for lighter animations and scroll work (reduces lag). */
+function useLandingPerformance() {
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTouch, setIsTouch] = useState(false);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 768px)");
+    setIsMobile(mql.matches);
+    setIsTouch("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
+    const onResize = () => setIsMobile(window.matchMedia("(max-width: 768px)").matches);
+    mql.addEventListener("change", onResize);
+    return () => mql.removeEventListener("change", onResize);
+  }, []);
+
+  return { isMobile, isTouch };
+}
 
 /* ═══════════════════════════════════════════════════
    NAVBAR
@@ -100,6 +128,7 @@ function Navbar() {
 
 function Hero() {
   const sectionRef = useRef(null);
+  const { isMobile, isTouch } = useLandingPerformance();
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start start", "end start"],
@@ -108,7 +137,7 @@ function Hero() {
   const previewY = useTransform(scrollYProgress, [0, 1], [0, 40]);
   const bgOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
 
-  /* Mouse-following ambient glow */
+  /* Mouse-following ambient glow (disabled on touch to avoid constant spring updates) */
   const mouseX = useMotionValue(0.5);
   const mouseY = useMotionValue(0.3);
   const smoothX = useSpring(mouseX, { stiffness: 40, damping: 30 });
@@ -130,13 +159,13 @@ function Hero() {
   return (
     <section
       ref={sectionRef}
-      onMouseMove={handleMouseMove}
+      onMouseMove={isTouch ? undefined : handleMouseMove}
       className="relative min-h-[100vh] flex items-center overflow-hidden"
     >
-      {/* ── Ambient glow that follows cursor ── */}
+      {/* ── Ambient glow (cursor-follow on desktop only; static on touch to save work) ── */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
-        style={{ opacity: bgOpacity }}
+        style={isMobile ? { opacity: 1 } : { opacity: bgOpacity }}
       >
         <motion.div
           className="absolute w-[700px] h-[700px] rounded-full pointer-events-none"
@@ -147,20 +176,16 @@ function Hero() {
               "radial-gradient(circle, rgba(92,124,250,0.08) 0%, rgba(92,124,250,0.02) 40%, transparent 70%)",
           }}
         />
-        {/* Subtle dot pattern */}
         <div className="absolute inset-0 bg-dots opacity-30" />
-        {/* Fixed accent orb (top-right) */}
-        <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-brand-200/20 dark:bg-brand-800/10 blur-[120px]" />
-        {/* Fixed accent orb (bottom-left) */}
-        <div className="absolute -bottom-40 -left-20 w-[400px] h-[400px] rounded-full bg-violet-200/15 dark:bg-violet-900/10 blur-[100px]" />
+        {/* Lighter blur on mobile to reduce GPU cost */}
+        <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-brand-200/20 dark:bg-brand-800/10 blur-[120px] max-md:blur-[60px]" />
+        <div className="absolute -bottom-40 -left-20 w-[400px] h-[400px] rounded-full bg-violet-200/15 dark:bg-violet-900/10 blur-[100px] max-md:blur-[50px]" />
       </motion.div>
 
-      {/* ── Main content grid ── */}
       <div className="relative w-full max-w-7xl mx-auto px-6 md:px-12 pt-28 pb-16 md:pt-36 md:pb-24">
         <div className="grid md:grid-cols-12 gap-8 md:gap-6 items-center">
-          {/* ── Left: Text content ── */}
           <motion.div
-            style={{ y: contentY }}
+            style={isMobile ? undefined : { y: contentY }}
             className="md:col-span-6 lg:col-span-5"
           >
             {/* Status badge */}
@@ -283,9 +308,8 @@ function Hero() {
             */}
           </motion.div>
 
-          {/* ── Right: Product preview — floating with perspective ── */}
           <motion.div
-            style={{ y: previewY }}
+            style={isMobile ? undefined : { y: previewY }}
             className="md:col-span-6 lg:col-span-7 md:pl-4"
           >
             <motion.div
@@ -620,11 +644,11 @@ const FEATURES = [
   },
 ];
 
-function Features() {
+const Features = memo(function Features() {
   const [active, setActive] = useState(0);
 
   return (
-    <section id="features" className="py-24 md:py-32 bg-white dark:bg-zinc-950">
+    <section id="features" className="section-content-visibility py-24 md:py-32 bg-white dark:bg-zinc-950">
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         <FadeUp>
           <div className="max-w-xl mb-14">
@@ -703,7 +727,7 @@ function Features() {
       </div>
     </section>
   );
-}
+});
 
 /* ── Feature visual panel — switches content based on active feature ── */
 
@@ -1062,7 +1086,7 @@ const LANDING_INTEGRATIONS = [
   },
 ];
 
-function IntegrationsShowcase() {
+const IntegrationsShowcase = memo(function IntegrationsShowcase() {
   const featuredIntegration = LANDING_INTEGRATIONS.find(
     (integration) => integration.name === "Nora Notes"
   );
@@ -1072,11 +1096,11 @@ function IntegrationsShowcase() {
   const looped = [...coreIntegrations, ...coreIntegrations];
 
   return (
-    <section id="integrations" className="relative py-24 md:py-32 overflow-hidden">
+    <section id="integrations" className="section-content-visibility relative py-24 md:py-32 overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_22%,rgba(92,124,250,0.18),transparent_42%),radial-gradient(circle_at_88%_15%,rgba(139,92,246,0.14),transparent_36%),linear-gradient(160deg,#f7f9ff_0%,#ffffff_52%,#f7f5ff_100%)] dark:bg-[radial-gradient(circle_at_12%_22%,rgba(116,143,252,0.2),transparent_42%),radial-gradient(circle_at_88%_15%,rgba(167,139,250,0.17),transparent_36%),linear-gradient(160deg,#0a0a0f_0%,#09090b_52%,#0d0d13_100%)]" />
       <div className="absolute inset-0 bg-grid opacity-60 pointer-events-none" />
-      <div className="absolute top-8 left-[-8rem] w-[22rem] h-[22rem] rounded-full bg-brand-300/25 dark:bg-brand-700/20 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10rem] right-[-6rem] w-[21rem] h-[21rem] rounded-full bg-violet-300/25 dark:bg-violet-700/20 blur-[120px] pointer-events-none" />
+      <div className="absolute top-8 left-[-8rem] w-[22rem] h-[22rem] rounded-full bg-brand-300/25 dark:bg-brand-700/20 blur-[120px] max-md:blur-[60px] pointer-events-none" />
+      <div className="absolute bottom-[-10rem] right-[-6rem] w-[21rem] h-[21rem] rounded-full bg-violet-300/25 dark:bg-violet-700/20 blur-[120px] max-md:blur-[60px] pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-6 md:px-12">
         <FadeUp className="max-w-3xl">
@@ -1094,16 +1118,12 @@ function IntegrationsShowcase() {
         </FadeUp>
 
         <div className="relative mt-14 md:mt-16">
-          <motion.div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 md:w-64 md:h-64 rounded-full border border-brand-200/70 dark:border-brand-700/40"
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 26, ease: "linear" }}
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 md:w-64 md:h-64 rounded-full border border-brand-200/70 dark:border-brand-700/40 animate-spin-slow"
             aria-hidden
           />
-          <motion.div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-44 md:w-52 md:h-52 rounded-full border border-violet-200/70 dark:border-violet-700/40"
-            animate={{ rotate: -360 }}
-            transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-44 md:w-52 md:h-52 rounded-full border border-violet-200/70 dark:border-violet-700/40 animate-spin-slow-reverse"
             aria-hidden
           />
 
@@ -1236,14 +1256,7 @@ function IntegrationsShowcase() {
             <div className="relative overflow-hidden">
               <div className="absolute inset-y-0 left-0 w-20 md:w-28 bg-gradient-to-r from-white dark:from-[#0a0a0f] to-transparent z-10 pointer-events-none" />
               <div className="absolute inset-y-0 right-0 w-20 md:w-28 bg-gradient-to-l from-white dark:from-[#0a0a0f] to-transparent z-10 pointer-events-none" />
-              <motion.div
-                className="flex w-max gap-4"
-                initial={{ opacity: 0, y: 14 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                animate={{ x: ["0%", "-50%"] }}
-                transition={{ x: { duration: 24, ease: "linear", repeat: Infinity }, opacity: { duration: 0.45 }, y: { duration: 0.45 } }}
-              >
+              <div className="marquee-track gap-4">
                 {looped.map((integration, i) => (
                   <div
                     key={`moving-top-${integration.name}-${i}`}
@@ -1256,20 +1269,13 @@ function IntegrationsShowcase() {
                     </p>
                   </div>
                 ))}
-              </motion.div>
+              </div>
             </div>
 
             <div className="relative overflow-hidden">
               <div className="absolute inset-y-0 left-0 w-20 md:w-28 bg-gradient-to-r from-white dark:from-[#0a0a0f] to-transparent z-10 pointer-events-none" />
               <div className="absolute inset-y-0 right-0 w-20 md:w-28 bg-gradient-to-l from-white dark:from-[#0a0a0f] to-transparent z-10 pointer-events-none" />
-              <motion.div
-                className="flex w-max gap-4"
-                initial={{ opacity: 0, y: 14 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                animate={{ x: ["-50%", "0%"] }}
-                transition={{ x: { duration: 20, ease: "linear", repeat: Infinity }, opacity: { duration: 0.45 }, y: { duration: 0.45 } }}
-              >
+              <div className="marquee-track-reverse gap-4">
                 {looped.map((integration, i) => (
                   <div
                     key={`moving-bottom-${integration.name}-${i}`}
@@ -1282,7 +1288,7 @@ function IntegrationsShowcase() {
                     </p>
                   </div>
                 ))}
-              </motion.div>
+              </div>
             </div>
           </div>
         </div>
@@ -1295,17 +1301,17 @@ function IntegrationsShowcase() {
       </div>
     </section>
   );
-}
+});
 
 /* ═══════════════════════════════════════════════════
    HOW IT WORKS — interactive product walkthrough
    ═══════════════════════════════════════════════════ */
 
-function HowItWorks() {
+const HowItWorks = memo(function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="relative py-24 md:py-36 overflow-hidden bg-slate-50/60 dark:bg-zinc-950/50"
+      className="section-content-visibility relative py-24 md:py-36 overflow-hidden bg-slate-50/60 dark:bg-zinc-950/50"
     >
       <div className="absolute inset-0 bg-grid pointer-events-none" />
       <div className="relative max-w-7xl mx-auto px-6 md:px-12">
@@ -1324,15 +1330,15 @@ function HowItWorks() {
       </div>
     </section>
   );
-}
+});
 
 /* ═══════════════════════════════════════════════════
    STATS — animated counters
    ═══════════════════════════════════════════════════ */
 
-function Stats() {
+const Stats = memo(function Stats() {
   return (
-    <section className="py-20 md:py-28 bg-white dark:bg-zinc-950 border-y border-slate-100 dark:border-zinc-900">
+    <section className="section-content-visibility py-20 md:py-28 bg-white dark:bg-zinc-950 border-y border-slate-100 dark:border-zinc-900">
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         <StaggerChildren stagger={0.1} className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto text-center">
           {[
@@ -1356,14 +1362,15 @@ function Stats() {
       </div>
     </section>
   );
-}
+});
 
 /* ═══════════════════════════════════════════════════
    TESTIMONIAL — mission statement (integrated section)
    ═══════════════════════════════════════════════════ */
 
-function Testimonial() {
+const Testimonial = memo(function Testimonial() {
   const sectionRef = useRef<HTMLElement>(null);
+  const { isMobile } = useLandingPerformance();
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start end", "end start"],
@@ -1386,27 +1393,26 @@ function Testimonial() {
   return (
     <section
       ref={sectionRef}
-      className="relative py-24 md:py-32 overflow-hidden border-t border-slate-200/50 dark:border-zinc-800/50"
+      className="section-content-visibility relative py-24 md:py-32 overflow-hidden border-t border-slate-200/50 dark:border-zinc-800/50"
     >
-      {/* Section background — integrated with page */}
       <div className="absolute inset-0 bg-slate-50/50 dark:bg-zinc-950/30" />
       <motion.div
-        style={{ opacity: bgOpacity }}
+        style={isMobile ? { opacity: 1 } : { opacity: bgOpacity }}
         className="absolute inset-0 pointer-events-none"
         aria-hidden
       >
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(100%,720px)] aspect-square rounded-full bg-brand-200/12 dark:bg-brand-900/8 blur-[80px]" />
-        <div className="absolute top-1/3 right-0 w-96 h-96 rounded-full bg-violet-200/8 dark:bg-violet-900/4 blur-[60px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(100%,720px)] aspect-square rounded-full bg-brand-200/12 dark:bg-brand-900/8 blur-[80px] max-md:blur-[40px]" />
+        <div className="absolute top-1/3 right-0 w-96 h-96 rounded-full bg-violet-200/8 dark:bg-violet-900/4 blur-[60px] max-md:blur-[32px]" />
       </motion.div>
 
       <div className="relative max-w-7xl mx-auto px-6 md:px-12">
         <motion.div
-          style={{ y: contentY, opacity: contentOpacity }}
+          style={isMobile ? undefined : { y: contentY, opacity: contentOpacity }}
           className="max-w-3xl mx-auto"
         >
           <div className="relative pl-8 md:pl-10 border-l border-slate-200 dark:border-zinc-800">
             <motion.div
-              style={{ scaleY: accentScaleY, transformOrigin: "top" }}
+              style={isMobile ? { scaleY: 1 } : { scaleY: accentScaleY, transformOrigin: "top" }}
               aria-hidden
               className="absolute left-0 top-0 bottom-0 w-0.5 -ml-px bg-gradient-to-b from-brand-400 to-brand-400/20 dark:from-brand-500 dark:to-brand-500/20"
             />
@@ -1426,7 +1432,7 @@ function Testimonial() {
                 </blockquote>
                 <motion.div
                   className="absolute inset-0 pointer-events-none"
-                  style={{ clipPath: fillClipPath, WebkitClipPath: fillClipPath }}
+                  style={isMobile ? { clipPath: "inset(0 0 0 0)", WebkitClipPath: "inset(0 0 0 0)" } : { clipPath: fillClipPath, WebkitClipPath: fillClipPath }}
                   aria-hidden
                 >
                   <blockquote className="text-xl md:text-2xl lg:text-[1.6rem] font-extralight leading-[1.55] space-y-4 bg-gradient-to-r from-brand-600 via-violet-600 to-brand-500 dark:from-brand-400 dark:via-violet-400 dark:to-brand-400 bg-clip-text text-transparent">
@@ -1451,14 +1457,15 @@ function Testimonial() {
       </div>
     </section>
   );
-}
+});
 
 /* ═══════════════════════════════════════════════════
    CTA
    ═══════════════════════════════════════════════════ */
 
-function CTA() {
+const CTA = memo(function CTA() {
   const ref = useRef(null);
+  const { isMobile } = useLandingPerformance();
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start end", "end start"],
@@ -1466,9 +1473,8 @@ function CTA() {
   const gridY = useTransform(scrollYProgress, [0, 1], [-40, 40]);
 
   return (
-    <section ref={ref} className="relative py-24 md:py-32 bg-slate-950 dark:bg-black text-white overflow-hidden">
-      {/* Parallax grid */}
-      <motion.div style={{ y: gridY }} className="absolute inset-0 bg-grid-dark pointer-events-none" />
+    <section ref={ref} className="section-content-visibility relative py-24 md:py-32 bg-slate-950 dark:bg-black text-white overflow-hidden">
+      <motion.div style={isMobile ? undefined : { y: gridY }} className="absolute inset-0 bg-grid-dark pointer-events-none" />
 
       {/* Gradient accent orbs */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-brand-500/10 rounded-full blur-[100px] pointer-events-none" />
@@ -1509,13 +1515,13 @@ function CTA() {
       </div>
     </section>
   );
-}
+});
 
 /* ═══════════════════════════════════════════════════
    FOOTER
    ═══════════════════════════════════════════════════ */
 
-function Footer() {
+const Footer = memo(function Footer() {
   const cols = {
     Product: ["Features", "Pricing", "Changelog", "Documentation"],
     Company: ["About", "Blog", "Careers", "Contact"],
@@ -1563,7 +1569,7 @@ function Footer() {
       </div>
     </footer>
   );
-}
+});
 
 /* ═══════════════════════════════════════════════════
    PAGE

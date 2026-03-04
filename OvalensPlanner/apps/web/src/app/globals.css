@@ -276,6 +276,55 @@
   animation-play-state: paused;
 }
 
+/* Marquee reverse (second row) */
+@keyframes marquee-reverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.marquee-track-reverse {
+  display: flex;
+  width: max-content;
+  animation: marquee-reverse 22s linear infinite;
+}
+
+.marquee-track-reverse:hover {
+  animation-play-state: paused;
+}
+
+/* Mobile: reduce heavy blur for GPU (apply in components via max-md:blur-[60px]) */
+
+/* Slow rotating rings (GPU-friendly, used instead of Framer on integrations) */
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 26s linear infinite;
+}
+
+.animate-spin-slow-reverse {
+  animation: spin-slow 20s linear infinite reverse;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track,
+  .marquee-track-reverse {
+    animation-duration: 0.01ms;
+  }
+  .animate-spin-slow,
+  .animate-spin-slow-reverse {
+    animation-duration: 0.01ms;
+  }
+}
+
+/* Desktop: skip layout/paint for off-screen sections (content-visibility) */
+.section-content-visibility {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
 /* ── Workflow pulse ── */
 
 @keyframes workflow-pulse {
