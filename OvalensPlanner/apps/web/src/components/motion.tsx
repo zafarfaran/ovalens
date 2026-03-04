@@ -263,14 +263,19 @@ export function TiltCard({
   tiltDegree?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [isTouch, setIsTouch] = useState(false);
   const rotateX = useMotionValue(0);
   const rotateY = useMotionValue(0);
   const smoothX = useSpring(rotateX, { stiffness: 150, damping: 20 });
   const smoothY = useSpring(rotateY, { stiffness: 150, damping: 20 });
 
+  useEffect(() => {
+    setIsTouch("ontouchstart" in window || navigator.maxTouchPoints > 0);
+  }, []);
+
   const handleMouse = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!ref.current) return;
+      if (!ref.current || isTouch) return;
       const rect = ref.current.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
@@ -279,13 +284,17 @@ export function TiltCard({
       rotateX.set(-y * tiltDegree);
       rotateY.set(x * tiltDegree);
     },
-    [rotateX, rotateY, tiltDegree]
+    [rotateX, rotateY, tiltDegree, isTouch]
   );
 
   const handleLeave = useCallback(() => {
     rotateX.set(0);
     rotateY.set(0);
   }, [rotateX, rotateY]);
+
+  if (isTouch) {
+    return <div className={className}>{children}</div>;
+  }
 
   return (
     <motion.div
