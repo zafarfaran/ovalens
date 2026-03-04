@@ -33,6 +33,8 @@ import {
   IconArrowRight,
   IconZap,
   IconGlobe,
+  IconDatabase,
+  IconCheck,
 } from "@/components/icons";
 
 const CALENDLY_URL = "https://calendly.com/admin-ovalens";
@@ -58,6 +60,9 @@ function Navbar() {
         <div className="hidden md:flex items-center gap-8 text-[13px] font-light tracking-wide text-slate-500 dark:text-zinc-400">
           <a href="#features" className="hover:text-slate-900 dark:hover:text-white transition-colors">
             Features
+          </a>
+          <a href="#integrations" className="hover:text-slate-900 dark:hover:text-white transition-colors">
+            Integrations
           </a>
           <a href="#how-it-works" className="hover:text-slate-900 dark:hover:text-white transition-colors">
             How it works
@@ -955,6 +960,344 @@ function FeatureVisual({ activeId }: { activeId: string }) {
 }
 
 /* ═══════════════════════════════════════════════════
+   INTEGRATIONS — one-click activation section
+   ═══════════════════════════════════════════════════ */
+
+function LogoSalesforce() {
+  return (
+    <svg viewBox="0 0 142 32" className="h-7 md:h-8 w-auto" fill="none" aria-label="Salesforce logo">
+      <path d="M26.5 7.5a7.8 7.8 0 0 1 12.1 3.2 8.7 8.7 0 0 1 4.9-1.4c4.8 0 8.7 3.8 8.7 8.5s-3.9 8.5-8.7 8.5c-.6 0-1.2-.1-1.8-.2a7.9 7.9 0 0 1-6.6 3.5 7.7 7.7 0 0 1-4.7-1.5 8 8 0 0 1-7.5 4.8c-4 0-7.4-2.8-8.4-6.5-.6.2-1.2.2-1.8.2-5 0-9.1-4-9.1-8.9 0-3.6 2.3-6.8 5.5-8.2-.2-.9-.3-1.8-.3-2.8 0-5.3 4.3-9.6 9.7-9.6 3.5 0 6.5 1.8 8 4.4Z" fill="#00A1E0"/>
+      <path d="M66 9.6h5v2.4h-5v-2.4Zm0 4.2h5v12H66v-12Zm8.4 0h4.8v1.7c1-.9 2.3-1.9 4.4-1.9 3.8 0 6.1 2.4 6.1 6.4v5.8h-4.9v-4.3c0-2.3-1-3.5-2.8-3.5-1.7 0-2.8 1.2-2.8 3.5v4.3h-4.8v-12Zm22.7 12.4c-4.5 0-7.8-3-7.8-6.3 0-3.6 2.8-6.3 6.8-6.3 4.6 0 6.8 3.2 6.8 6.6 0 .3 0 .6-.1.9h-8.7c.4 1.4 1.5 2.1 3 2.1 1.2 0 2.2-.5 3.2-1.4l2.7 2.2c-1.3 1.6-3.2 2.2-5.9 2.2Zm1.2-7.5c-.2-1.4-1-2.3-2.2-2.3-1.3 0-2.1.9-2.4 2.3h4.6Zm10.7 3.2c1.4 0 2.8-.5 4.2-1.5l2.2 3.3c-1.5 1.3-3.7 2.4-6.6 2.4-4.4 0-7.8-2.5-7.8-6.3 0-3.8 3.4-6.3 7.8-6.3 2.7 0 4.8.9 6.4 2.3l-2.1 3.4c-1.3-1-2.6-1.5-4-1.5-1.8 0-3.1 1.1-3.1 2.1 0 1.1 1.2 2.1 3 2.1Zm9.3-12.3h4.8v16.2h-4.8V9.6Zm12.2 16.5c-3.7 0-6.7-2.7-6.7-6.3s3-6.3 6.7-6.3c3.8 0 6.8 2.7 6.8 6.3s-3 6.3-6.8 6.3Zm0-4.1c1.3 0 2.2-1 2.2-2.2s-.9-2.2-2.2-2.2c-1.2 0-2.2 1-2.2 2.2s1 2.2 2.2 2.2Z" fill="currentColor"/>
+    </svg>
+  );
+}
+
+function LogoIntelliflo() {
+  return (
+    <svg viewBox="0 0 138 32" className="h-7 md:h-8 w-auto" fill="none" aria-label="Intelliflo logo">
+      <circle cx="10" cy="8" r="3" fill="#4FD1C5" />
+      <rect x="7.5" y="13" width="5" height="13" rx="2.5" fill="#4FD1C5" />
+      <path d="M20 14.5c2.8 0 4.6 2 4.6 4.6 0 2.6-1.8 4.6-4.6 4.6" stroke="#4FD1C5" strokeWidth="2" strokeLinecap="round" />
+      <path d="M1.8 14.5C-1 14.5-2.8 16.5-2.8 19.1-2.8 21.7-1 23.7 1.8 23.7" stroke="#4FD1C5" strokeWidth="2" strokeLinecap="round" transform="translate(7 0)" />
+      <text x="34" y="21.5" fill="currentColor" fontSize="14" fontWeight="500" fontFamily="inherit" letterSpacing="0.01em">intelliflo</text>
+    </svg>
+  );
+}
+
+function LogoXero() {
+  return (
+    <svg viewBox="0 0 112 32" className="h-7 md:h-8 w-auto" fill="none" aria-label="Xero logo">
+      <circle cx="13" cy="16" r="12" fill="#13B5EA" />
+      <path d="M8.6 11.5 17.4 20.5M17.4 11.5 8.6 20.5" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
+      <text x="31" y="21.5" fill="currentColor" fontSize="15" fontWeight="500" fontFamily="inherit">xero</text>
+    </svg>
+  );
+}
+
+function LogoHMRC() {
+  return (
+    <svg viewBox="0 0 120 32" className="h-7 md:h-8 w-auto" fill="none" aria-label="HMRC logo">
+      <rect x="1" y="3" width="28" height="26" rx="4" fill="#1D1D1B" />
+      <path d="m15 8-3 4h6l-3-4Zm-6 4 1.5-3 2.3 2.2L11.7 12H9Zm12 0-1.5-3-2.3 2.2 1.1.8H21Z" fill="#C8B568" />
+      <circle cx="15" cy="7" r="1.1" fill="#C8B568" />
+      <rect x="8.5" y="12" width="13" height="1.7" rx=".4" fill="#C8B568" />
+      <text x="15" y="22" textAnchor="middle" fill="white" fontSize="5.6" fontWeight="700" fontFamily="inherit" letterSpacing="0.06em">HMRC</text>
+      <text x="39" y="21.5" fill="currentColor" fontSize="14" fontWeight="600" fontFamily="inherit">HMRC APIs</text>
+    </svg>
+  );
+}
+
+function LogoMicrosoft() {
+  return (
+    <svg viewBox="0 0 158 32" className="h-7 md:h-8 w-auto" fill="none" aria-label="Microsoft logo">
+      <rect x="2" y="6" width="9" height="9" fill="#F25022" rx="1" />
+      <rect x="13" y="6" width="9" height="9" fill="#7FBA00" rx="1" />
+      <rect x="2" y="17" width="9" height="9" fill="#00A4EF" rx="1" />
+      <rect x="13" y="17" width="9" height="9" fill="#FFB900" rx="1" />
+      <text x="33" y="21.5" fill="currentColor" fontSize="14" fontWeight="500" fontFamily="inherit">Microsoft 365</text>
+    </svg>
+  );
+}
+
+function LogoGoogle() {
+  return (
+    <svg viewBox="0 0 170 32" className="h-7 md:h-8 w-auto" fill="none" aria-label="Google logo">
+      <path d="M20.4 16.3c0-.8-.1-1.5-.2-2.2H10v4h5.8c-.3 1.5-1.2 2.7-2.5 3.4v2.9h4.1c2.4-2.2 3.8-5.4 3.8-9.1Z" fill="#4285F4" />
+      <path d="M10 27c3 0 5.5-1 7.4-2.6l-4.1-2.9c-1.1.8-2.1 1.2-3.3 1.2-2.8 0-5.1-1.9-5.9-4.5H0v2.9A11.2 11.2 0 0 0 10 27Z" fill="#34A853" />
+      <path d="M4.1 18.2A6.8 6.8 0 0 1 3.8 16c0-.8.1-1.5.3-2.2v-2.9H0A11 11 0 0 0-1 16c0 1.8.4 3.5 1 5.1l4.1-2.9Z" fill="#FBBC05" transform="translate(1 0)" />
+      <path d="M10 9.3c1.6 0 3 .5 4.1 1.5l3.1-3.1A11.2 11.2 0 0 0 10 5c-4.4 0-8.4 2.5-10 6.1l4.1 2.9c.8-2.6 3.1-4.7 5.9-4.7Z" fill="#EA4335" />
+      <text x="33" y="21.5" fill="currentColor" fontSize="14" fontWeight="500" fontFamily="inherit">Google Workspace</text>
+    </svg>
+  );
+}
+
+function LogoMeetingNotes() {
+  return (
+    <svg viewBox="0 0 184 32" className="h-7 md:h-8 w-auto" fill="none" aria-label="Nora Notes integration logo">
+      <defs>
+        <linearGradient id="nora-note-grad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#4F46E5" />
+          <stop offset="100%" stopColor="#7C3AED" />
+        </linearGradient>
+      </defs>
+      <rect x="2" y="4" width="24" height="24" rx="6" fill="url(#nora-note-grad)" />
+      <path d="M8 20V11l3.5 4.5L15 11v9" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M19.3 8.8 20 10.3l1.5.7-1.5.7-.7 1.5-.7-1.5-1.5-.7 1.5-.7.7-1.5Z" fill="#C4B5FD" />
+      <text x="36" y="21.5" fill="currentColor" fontSize="14" fontWeight="600" fontFamily="inherit">Nora Notes</text>
+    </svg>
+  );
+}
+
+const LANDING_INTEGRATIONS = [
+  { name: "Salesforce", description: "CRM data and adviser timelines", logo: <LogoSalesforce /> },
+  { name: "Intelliflo", description: "Portfolio and valuation sync", logo: <LogoIntelliflo /> },
+  { name: "Xero", description: "Accounts and tax-return context", logo: <LogoXero /> },
+  { name: "HMRC APIs", description: "Tax records and submission workflows", logo: <LogoHMRC /> },
+  { name: "Microsoft 365", description: "Outlook calendar integration", logo: <LogoMicrosoft /> },
+  { name: "Google Workspace", description: "Calendar and Meet context", logo: <LogoGoogle /> },
+  {
+    name: "Nora Notes",
+    description: "Auto-capture adviser meetings into compliant, client-ready notes",
+    logo: <LogoMeetingNotes />,
+  },
+];
+
+function IntegrationsShowcase() {
+  const featuredIntegration = LANDING_INTEGRATIONS.find(
+    (integration) => integration.name === "Nora Notes"
+  );
+  const coreIntegrations = LANDING_INTEGRATIONS.filter(
+    (integration) => integration.name !== "Nora Notes"
+  );
+  const looped = [...coreIntegrations, ...coreIntegrations];
+
+  return (
+    <section id="integrations" className="relative py-24 md:py-32 overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_22%,rgba(92,124,250,0.18),transparent_42%),radial-gradient(circle_at_88%_15%,rgba(139,92,246,0.14),transparent_36%),linear-gradient(160deg,#f7f9ff_0%,#ffffff_52%,#f7f5ff_100%)] dark:bg-[radial-gradient(circle_at_12%_22%,rgba(116,143,252,0.2),transparent_42%),radial-gradient(circle_at_88%_15%,rgba(167,139,250,0.17),transparent_36%),linear-gradient(160deg,#0a0a0f_0%,#09090b_52%,#0d0d13_100%)]" />
+      <div className="absolute inset-0 bg-grid opacity-60 pointer-events-none" />
+      <div className="absolute top-8 left-[-8rem] w-[22rem] h-[22rem] rounded-full bg-brand-300/25 dark:bg-brand-700/20 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10rem] right-[-6rem] w-[21rem] h-[21rem] rounded-full bg-violet-300/25 dark:bg-violet-700/20 blur-[120px] pointer-events-none" />
+
+      <div className="relative max-w-7xl mx-auto px-6 md:px-12">
+        <FadeUp className="max-w-3xl">
+          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-brand-500 mb-4">
+            Integrations
+          </p>
+          <h2 className="text-3xl md:text-[2.7rem] font-extralight tracking-tight leading-tight text-slate-900 dark:text-white">
+            Your planning stack, connected.
+            <span className="block font-normal mt-1">Built for presentation and real workflow value.</span>
+          </h2>
+          <p className="mt-5 text-[15px] font-light leading-relaxed text-slate-600 dark:text-zinc-400 max-w-2xl">
+            Ovalens unifies CRM, back-office, accounting, compliance, calendar, and Nora meeting-note signals
+            so advisers can move from fragmented data to action quickly.
+          </p>
+        </FadeUp>
+
+        <div className="relative mt-14 md:mt-16">
+          <motion.div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 md:w-64 md:h-64 rounded-full border border-brand-200/70 dark:border-brand-700/40"
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 26, ease: "linear" }}
+            aria-hidden
+          />
+          <motion.div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-44 md:w-52 md:h-52 rounded-full border border-violet-200/70 dark:border-violet-700/40"
+            animate={{ rotate: -360 }}
+            transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
+            aria-hidden
+          />
+
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 text-center"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-emerald-200/80 dark:border-emerald-800/40 bg-emerald-50/80 dark:bg-emerald-950/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                7 live-ready integrations
+              </span>
+            </div>
+            <p className="mt-4 text-[12px] font-light text-slate-500 dark:text-zinc-500">
+              Activated from your account settings in one click.
+            </p>
+          </motion.div>
+
+          {featuredIntegration && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1], delay: 0.06 }}
+              className="relative mt-8 md:mt-10"
+            >
+              <div className="absolute -left-2 top-0 bottom-0 w-[3px] rounded-full bg-gradient-to-b from-brand-500 via-violet-500 to-brand-500/40" />
+              <div className="pl-5 md:pl-7">
+                <div className="grid md:grid-cols-12 gap-5 md:gap-6 items-start">
+                  <div className="md:col-span-7">
+                    <div className="inline-flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-brand-600 dark:text-brand-400 mb-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+                      Featured Integration
+                    </div>
+                    <div className="text-slate-900 dark:text-zinc-100">
+                      {featuredIntegration.logo}
+                    </div>
+                    <p className="mt-2.5 text-[14px] md:text-[15px] font-normal text-slate-800 dark:text-zinc-200 leading-relaxed max-w-xl">
+                      Nora turns adviser meetings into clean, compliant client notes, with
+                      auto-captured action points and planning-ready summaries.
+                    </p>
+                    <div className="mt-4 h-px bg-gradient-to-r from-brand-300/70 via-violet-300/60 to-transparent dark:from-brand-600/70 dark:via-violet-500/60" />
+                    <div className="mt-3 text-[10px] font-light text-slate-500 dark:text-zinc-500">
+                      Built specifically for UK financial adviser review meetings.
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-5">
+                    <div className="pt-0.5">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-zinc-400">
+                          Live Capture
+                        </span>
+                        <motion.span
+                          className="text-[9px] font-medium text-emerald-600 dark:text-emerald-400"
+                          animate={{ opacity: [0.35, 1, 0.35] }}
+                          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                          Recording
+                        </motion.span>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200/70 dark:border-zinc-800/70 bg-white/55 dark:bg-zinc-900/45 px-4 py-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              <motion.span
+                                className="absolute inset-0 rounded-full bg-rose-400/25 dark:bg-rose-500/20"
+                                animate={{ scale: [1, 1.45], opacity: [0.35, 0] }}
+                                transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut" }}
+                              />
+                              <span className="relative block w-2 h-2 rounded-full bg-rose-500/90" />
+                            </div>
+                            <span className="text-[10px] font-light text-slate-500 dark:text-zinc-400">
+                              Nora listening
+                            </span>
+                          </div>
+
+                          <div className="flex items-end gap-1 h-5">
+                            {[0, 1, 2, 3, 4, 5].map((bar) => (
+                              <motion.span
+                                key={bar}
+                                className="w-[2px] rounded-full bg-slate-400/65 dark:bg-zinc-400/55"
+                                animate={{ height: ["5px", "13px", "7px"] }}
+                                transition={{
+                                  duration: 1.2,
+                                  repeat: Infinity,
+                                  delay: bar * 0.1,
+                                  ease: "easeInOut",
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          {[
+                            "Client wants to reduce tax before year-end...",
+                            "Discussed pension carry-forward and ISA use...",
+                            "Need suitability summary and action list...",
+                          ].map((line) => (
+                            <div
+                              key={line}
+                              className="h-7 rounded-md border border-slate-200/70 dark:border-zinc-700/70 bg-slate-50/80 dark:bg-zinc-900/70 px-2.5 flex items-center"
+                            >
+                              <span className="text-[10px] font-light text-slate-500 dark:text-zinc-400 truncate">
+                                {line}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t border-slate-200/70 dark:border-zinc-800/70">
+                          <p className="text-[10px] font-light text-brand-700 dark:text-brand-300">
+                            Nora outputs structured actions, suitability notes, and follow-up tasks instantly.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          <div className="mt-10 md:mt-12 space-y-4">
+            <div className="relative overflow-hidden">
+              <div className="absolute inset-y-0 left-0 w-20 md:w-28 bg-gradient-to-r from-white dark:from-[#0a0a0f] to-transparent z-10 pointer-events-none" />
+              <div className="absolute inset-y-0 right-0 w-20 md:w-28 bg-gradient-to-l from-white dark:from-[#0a0a0f] to-transparent z-10 pointer-events-none" />
+              <motion.div
+                className="flex w-max gap-4"
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                animate={{ x: ["0%", "-50%"] }}
+                transition={{ x: { duration: 24, ease: "linear", repeat: Infinity }, opacity: { duration: 0.45 }, y: { duration: 0.45 } }}
+              >
+                {looped.map((integration, i) => (
+                  <div
+                    key={`moving-top-${integration.name}-${i}`}
+                    className="relative flex-shrink-0 min-w-[300px] md:min-w-[360px] px-5 py-4 rounded-2xl border border-slate-200/75 dark:border-zinc-800/75 bg-white/80 dark:bg-zinc-900/60 backdrop-blur-sm shadow-[0_10px_34px_-24px_rgba(15,23,42,0.7)] dark:shadow-[0_14px_38px_-26px_rgba(0,0,0,0.85)]"
+                  >
+                    <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-brand-300/65 dark:via-brand-600/50 to-transparent" />
+                    <div className="relative text-slate-900 dark:text-zinc-100">{integration.logo}</div>
+                    <p className="relative mt-2 text-[12px] font-light text-slate-500 dark:text-zinc-400 leading-relaxed">
+                      {integration.description}
+                    </p>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+
+            <div className="relative overflow-hidden">
+              <div className="absolute inset-y-0 left-0 w-20 md:w-28 bg-gradient-to-r from-white dark:from-[#0a0a0f] to-transparent z-10 pointer-events-none" />
+              <div className="absolute inset-y-0 right-0 w-20 md:w-28 bg-gradient-to-l from-white dark:from-[#0a0a0f] to-transparent z-10 pointer-events-none" />
+              <motion.div
+                className="flex w-max gap-4"
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                animate={{ x: ["-50%", "0%"] }}
+                transition={{ x: { duration: 20, ease: "linear", repeat: Infinity }, opacity: { duration: 0.45 }, y: { duration: 0.45 } }}
+              >
+                {looped.map((integration, i) => (
+                  <div
+                    key={`moving-bottom-${integration.name}-${i}`}
+                    className="relative flex-shrink-0 min-w-[300px] md:min-w-[360px] px-5 py-4 rounded-2xl border border-slate-200/75 dark:border-zinc-800/75 bg-white/80 dark:bg-zinc-900/60 backdrop-blur-sm shadow-[0_10px_34px_-24px_rgba(15,23,42,0.7)] dark:shadow-[0_14px_38px_-26px_rgba(0,0,0,0.85)]"
+                  >
+                    <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/65 dark:via-violet-500/50 to-transparent" />
+                    <div className="relative text-slate-900 dark:text-zinc-100">{integration.logo}</div>
+                    <p className="relative mt-2 text-[12px] font-light text-slate-500 dark:text-zinc-400 leading-relaxed">
+                      {integration.description}
+                    </p>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+          </div>
+        </div>
+
+        <FadeIn className="mt-10">
+          <p className="text-[11px] font-light text-slate-500 dark:text-zinc-500">
+            All integrations are available from the account settings integrations page.
+          </p>
+        </FadeIn>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
    HOW IT WORKS — interactive product walkthrough
    ═══════════════════════════════════════════════════ */
 
@@ -1247,6 +1590,7 @@ export default function Home() {
       <Hero />
       {/* <LogoCloud /> — Trusted by leading advisory firms */}
       <Features />
+      <IntegrationsShowcase />
       <HowItWorks />
       <Stats />
       <Testimonial />
