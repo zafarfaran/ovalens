@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     # Test: used only when environment=test (pytest). Default in-memory SQLite.
     test_database_url: str = "sqlite+aiosqlite:///:memory:"
 
+    @field_validator("database_url", "test_database_url")
+    @classmethod
+    def _strip_url(cls, v: str) -> str:
+        """Strip whitespace/newlines so env vars pasted with trailing newline don't break connection."""
+        return (v or "").strip()
+
     @model_validator(mode="after")
     def _require_postgres_in_production(self) -> "Settings":
         """In beta/production, DATABASE_URL must be a Postgres URL (no accidental SQLite).

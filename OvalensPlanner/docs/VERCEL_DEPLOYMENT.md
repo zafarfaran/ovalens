@@ -25,5 +25,29 @@ Push to your connected branch; Vercel will build and deploy. Preview deployments
 
 ## Backend (FastAPI) on Railway
 
-The **API** (`apps/api`) is a FastAPI app. Deploy it to **Railway** (recommended) so migrations run before traffic and the same image can run the API and the optional context-ingest worker. See **[Railway deployment](RAILWAY_DEPLOYMENT.md)** for Root Directory, env vars, and worker setup. After deploy, set **NEXT_PUBLIC_API_URL** (or **API_URL**) on Vercel to your Railway API URL (e.g. `https://your-api.up.railway.app`).  
-Alternatively you can host the API on Render, Fly.io, etc., and point Vercel at that URL.
+The **API** (`apps/api`) is a FastAPI app. Deploy it to **Railway** first (see **[Railway deployment](RAILWAY_DEPLOYMENT.md)**). Then connect the frontend as below.
+
+### Hook the frontend to your Railway backend
+
+1. **Get your API URL**  
+   In Railway, open your **API** service → **Settings** → **Networking** (or **Deployments**). Copy the public URL, e.g. `https://your-api-name.up.railway.app` (no trailing slash).
+
+2. **Set env vars on the Vercel project** (the **web** app, not the API):
+   - **Vercel** → your **web** project → **Settings** → **Environment Variables**.
+   - Add these for **Production** (and **Preview** if you want preview deploys to use the same API):
+
+   | Name | Value | Notes |
+   |------|--------|------|
+   | **NEXT_PUBLIC_API_URL** | `https://your-api-name.up.railway.app` | Used by Next.js rewrites and client; must match your Railway API URL. |
+   | **API_URL** | Same as above | Used at build time for rewrites; set so `/api/*` and `/metrics` proxy to Railway. |
+   | **BACKEND_URL** | Same as above | Used by server-side code (e.g. chat stream proxy). |
+
+   Use the **exact** Railway URL (no trailing slash). Leave other vars (Supabase, Sentry, etc.) as you already have them.
+
+3. **Redeploy the web app**  
+   Trigger a new deployment (e.g. **Deployments** → **Redeploy** on latest, or push a commit). The build will use the new API URL for rewrites; at runtime the browser and server will call your Railway API.
+
+4. **CORS**  
+   The API already allows `https://ovalens-web.vercel.app`, `https://www.ovalens.com`, and `https://ovalens.com`. If your Vercel URL is different (e.g. `https://your-project.vercel.app`), add it on **Railway** by setting **CORS_ORIGINS** on the API service (e.g. `["https://your-project.vercel.app","https://www.ovalens.com"]` or a comma-separated list).
+
+After this, the frontend will use your Railway backend for `/api/*` and chat streaming.
