@@ -6,7 +6,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.config import get_settings
-from app.core.ratelimit import check_rate_limit, clear_store_for_tests
+from app.core.ratelimit import check_rate_limit, clear_store_for_tests, reset_redis_client_for_tests
 from app.dependencies import get_current_user
 from app.main import app
 
@@ -70,10 +70,12 @@ async def test_context_ingest_returns_429_when_over_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """POST /api/context/ingest returns 429 after exceeding per-user limit."""
-    # Use low limit and ensure config is reloaded
+    # Use low limit and in-memory rate limit so test is deterministic (no Redis dependency)
     monkeypatch.setenv("RATE_LIMIT_CONTEXT_INGEST_PER_USER", "2")
     monkeypatch.setenv("RATE_LIMIT_CONTEXT_INGEST_PER_IP", "100")
+    monkeypatch.setenv("REDIS_URL", "")
     get_settings.cache_clear()
+    reset_redis_client_for_tests()
     clear_store_for_tests()
 
     try:

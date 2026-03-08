@@ -117,6 +117,16 @@ class Settings(BaseSettings):
         description="Use X-Forwarded-For for IP; only set True behind a trusted proxy",
     )
 
+    # Redis (optional). When set, rate limiting and context-ingest queue use Redis.
+    # When unset, rate limiting is in-memory and context ingest is synchronous.
+    redis_url: str | None = Field(
+        default=None,
+        description=(
+            "Redis URL (e.g. redis://localhost:6379/0). "
+            "Unset = in-memory rate limit, sync ingest."
+        ),
+    )
+
     # Input size limits (LLM cost / abuse). 0 = no limit (not recommended for chat).
     chat_max_message_length: int = Field(
         default=32_000, ge=0, description="Max chars per user message in chat; 0=unlimited"

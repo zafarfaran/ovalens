@@ -30,21 +30,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         release=settings.sentry_release or "ovalens-api@0.0.1",
     )
 
-    try:
-        from app.db.engine import get_session_factory, init_db, init_fts
-        from app.db.seed import seed_if_empty
-
-        await init_db()
-        async with get_session_factory()() as session:
-            await seed_if_empty(session)
-        await init_fts()
-    except Exception as e:  # noqa: BLE001
-        logger.exception(
-            "startup_failed",
-            error=str(e),
-            msg="DB or seed failed; API may return 500 for data routes",
-        )
-        # Continue so the app can still respond (e.g. CORS preflight, health)
+    # Schema and seed are managed by deploy-time migrations and explicit seed script only.
+    # See docs/plans/2026-03-07-backend-architecture-hardening-plan.md
+    logger.info("API started", environment=settings.environment)
 
     yield
 
