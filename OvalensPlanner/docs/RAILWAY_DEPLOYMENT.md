@@ -30,9 +30,9 @@ In the API service → **Variables**, set at least:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| **DATABASE_URL** | Yes (prod) | Supabase Postgres URI. Use **connection pooler** (port 6543) for serverless; direct (5432) is fine for long-lived containers. |
+| **DATABASE_URL** | Yes (prod) | Supabase Postgres URI. Must be set **on the API service** (Variables). Use pooler (port 6543) or direct (5432). If unset, the app uses SQLite. |
 | **SUPABASE_JWT_SECRET** | Yes (prod) | Supabase → Project Settings → API → JWT Secret. |
-| **ENVIRONMENT** | Recommended | `production` or `beta`. |
+| **ENVIRONMENT** | Yes (prod) | Set to **`production`** (or `beta`). If missing, the app may use SQLite and `/ready` will show `"database": "sqlite"`. |
 | **ANTHROPIC_API_KEY** | Yes (for chat) | Anthropic API key. |
 | **REDIS_URL** | No | When set: Redis-backed rate limiting and async context ingest (202 + worker). When unset: in-memory rate limit and sync ingest. |
 | **PORT** | Set by Railway | Do not override unless needed. |
@@ -72,3 +72,14 @@ In your **Vercel** project (web app), set **NEXT_PUBLIC_API_URL** or **API_URL**
 - **One API service:** Root Directory = path to `apps/api`, Dockerfile runs migrate then uvicorn. Set **DATABASE_URL**, **SUPABASE_JWT_SECRET**, **ENVIRONMENT**, **ANTHROPIC_API_KEY** (and optionally **REDIS_URL**).
 - **Optional worker:** Second service, same image, start command `python scripts/context_ingest_worker.py`, same env.
 - **Migrations:** Run automatically on every API container start before uvicorn; no separate migration job required.
+
+## Troubleshooting
+
+### `/ready` shows `"database": "sqlite"` but I use Supabase Postgres
+
+The API uses **DATABASE_URL** and **ENVIRONMENT** from the **API service** variables. If either is missing or wrong, it falls back to SQLite.
+
+1. Open your **API** service (not the web app) in Railway → **Variables**.
+2. Set **DATABASE_URL** to your Supabase Postgres connection string (Supabase → Project Settings → Database → Connection string; use **URI** and, for containers, direct connection on port **5432** or pooler on **6543**).
+3. Set **ENVIRONMENT** to **`production`** (or `beta`).
+4. Redeploy the API so the new variables are applied. Then `GET /ready` should show `"database": "postgresql"` and `"checks": { "database": "ok", ... }`.
