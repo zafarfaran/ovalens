@@ -49,7 +49,7 @@ def _postgres_url_force_ipv4(url: str) -> str:
 def get_sync_url() -> str:
     """Get sync database URL for Alembic (postgresql:// for psycopg2, sqlite:// for SQLite)."""
     settings = get_settings()
-    url = settings.database_url
+    url = (settings.database_url or "").strip()
     if "postgresql+asyncpg" in url:
         url = url.replace("postgresql+asyncpg://", "postgresql://", 1)
     if url.startswith("sqlite+aiosqlite"):
