@@ -1,10 +1,15 @@
-"""Seed the database with demo data if it is empty."""
+"""Seed the database with demo data if it is empty.
+
+For production: seeding is disabled. Use only in development or test.
+To seed locally, run: python -m app.db.seed (or use the script in scripts/).
+"""
 
 from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.logging import get_logger
 from app.db.models import (
     Client,
@@ -43,7 +48,15 @@ def _compute_sarah_position():
 
 
 async def seed_if_empty(session: AsyncSession) -> None:
-    """Insert demo data when the users table is empty."""
+    """Insert demo data when the users table is empty.
+
+    No-op in production and beta. Only runs in development or test.
+    """
+    settings = get_settings()
+    if settings.environment in ("production", "beta"):
+        logger.info("Seeding disabled in production/beta — skipping")
+        return
+
     result = await session.execute(select(User).limit(1))
     if result.scalars().first() is not None:
         logger.info("Database already seeded — skipping")

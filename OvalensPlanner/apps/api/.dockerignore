@@ -1,0 +1,32 @@
+# Dependencies and local dev
+.env
+.env.*
+!.env.example
+__pycache__
+*.py[cod]
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+.venv
+venv
+node_modules
+
+# Tests and docs (not needed in image)
+tests
+docs
+*.md
+
+# Git and IDE
+.git
+.gitignore
+.dockerignore
+.cursor
+.vscode
+*.code-workspace
+
+# Lock and package manager
+uv.lock
+package.json
+package-lock.json

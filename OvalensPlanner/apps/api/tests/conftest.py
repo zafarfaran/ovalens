@@ -31,3 +31,19 @@ async def async_client() -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         yield client
+
+
+@pytest.fixture
+async def redis_url() -> str:
+    """Redis URL for integration tests. Skips test if Redis is not available (e.g. no local Redis)."""
+    url = os.environ.get("REDIS_URL", "redis://localhost:6379/1")
+    try:
+        from redis.asyncio import from_url
+        client = from_url(url, decode_responses=True)
+        try:
+            await client.ping()
+        finally:
+            await client.aclose()
+        return url
+    except Exception as e:
+        pytest.skip(f"Redis not available at {url}: {e}")

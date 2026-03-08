@@ -63,7 +63,11 @@ async def get_db_session() -> AsyncIterator[AsyncSession]:
 
 
 async def init_db() -> None:
-    """Create all tables from ORM metadata."""
+    """Create all tables from ORM metadata.
+
+    Not used at API startup. Use for local dev, tests, or one-off setup.
+    Production schema must be applied via: alembic upgrade head
+    """
     from app.db.models import Base  # noqa: F811 — deferred to avoid circular imports
 
     # Mask password in logs
@@ -83,7 +87,10 @@ async def init_db() -> None:
 
 
 async def init_fts() -> None:
-    """Create full-text search index for meeting notes (FTS5 on SQLite, tsvector on PostgreSQL)."""
+    """Create full-text search index for meeting notes (FTS5 on SQLite, tsvector on PostgreSQL).
+
+    Not used at API startup. PostgreSQL FTS is applied via migrations; use this for local SQLite dev or tests.
+    """
     if settings.is_postgres:
         await _init_fts_postgres()
     else:

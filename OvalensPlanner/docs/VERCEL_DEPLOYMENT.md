@@ -23,6 +23,7 @@ This project uses a Turborepo monorepo. The Next.js app lives in `apps/web`.
 
 Push to your connected branch; Vercel will build and deploy. Preview deployments are created for other branches/PRs if configured.
 
-## Backend (FastAPI) not on Vercel
+## Backend (FastAPI) on Railway
 
-The **API** (`apps/api`) is a FastAPI app and is not deployed by this Vercel project. Deploy it elsewhere (e.g. Railway, Render, Fly.io) and set `API_URL` (or `NEXT_PUBLIC_API_URL`) on Vercel to that URL.
+The **API** (`apps/api`) is a FastAPI app. Deploy it to **Railway** (recommended) so migrations run before traffic and the same image can run the API and the optional context-ingest worker. See **[Railway deployment](RAILWAY_DEPLOYMENT.md)** for Root Directory, env vars, and worker setup. After deploy, set **NEXT_PUBLIC_API_URL** (or **API_URL**) on Vercel to your Railway API URL (e.g. `https://your-api.up.railway.app`).  
+Alternatively you can host the API on Render, Fly.io, etc., and point Vercel at that URL.
