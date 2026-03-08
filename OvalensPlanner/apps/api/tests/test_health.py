@@ -28,7 +28,9 @@ async def test_ready_returns_200_when_db_and_config_ok(async_client: AsyncClient
     assert data["database"] in ("sqlite", "postgresql")
     assert data["checks"]["database"] == "ok"
     assert data["checks"]["config"] == "ok"
-    assert "details" not in data or not data["details"]
+    # details may contain only "llm" (informational when ANTHROPIC_API_KEY unset); no error details
+    if "details" in data and data["details"]:
+        assert set(data["details"].keys()) <= {"llm"}
 
 
 async def test_ready_returns_503_when_db_unreachable(
