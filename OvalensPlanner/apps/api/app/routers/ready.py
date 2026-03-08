@@ -61,7 +61,7 @@ async def _check_redis() -> tuple[bool, str]:
 
 
 def _check_llm_config() -> tuple[bool, str]:
-    """Chat/LLM: ANTHROPIC_API_KEY set so chat can work. Informational only (does not fail readiness)."""
+    """Chat/LLM: ANTHROPIC_API_KEY set so chat can work. Informational only."""
     settings = get_settings()
     if (settings.anthropic_api_key or "").strip():
         return True, ""
