@@ -37,10 +37,17 @@ def _check_critical_config() -> tuple[bool, str]:
     return True, ""
 
 
+def _get_redis_url_safe() -> str:
+    """Return non-None redis URL string for checks (never call .strip() on None)."""
+    settings = get_settings()
+    url = getattr(settings, "redis_url", None)
+    return (url or "").strip() if isinstance(url, str) else ""
+
+
 async def _check_redis() -> tuple[bool, str]:
     """If REDIS_URL is set, ping Redis. Returns (ok, error_message)."""
-    settings = get_settings()
-    if not (settings.redis_url or settings.redis_url.strip()):
+    redis_url = _get_redis_url_safe()
+    if not redis_url:
         return True, ""  # Redis not configured — skip
     try:
         from app.core.ratelimit import _get_redis
@@ -66,6 +73,7 @@ async def ready() -> JSONResponse:
     """Readiness probe: DB, Redis (if configured), and critical config. Returns 503 if not."""
     settings = get_settings()
     database_type = "postgresql" if settings.is_postgres else "sqlite"
+    redis_url = _get_redis_url_safe()
 
     db_ok, db_error = await _check_database()
     config_ok, config_error = _check_critical_config()
@@ -83,14 +91,14 @@ async def ready() -> JSONResponse:
         "config": "ok" if config_ok else "error",
         "llm": "ok" if llm_ok else "error",
     }
-    if settings.redis_url and settings.redis_url.strip():
+    if redis_url:
         checks["redis"] = "ok" if redis_ok else "error"
     details: dict[str, str] = {}
     if not db_ok:
         details["database"] = safe_db_error
     if not config_ok:
         details["config"] = config_error
-    if (settings.redis_url and settings.redis_url.strip()) and not redis_ok:
+    if redis_url and not redis_ok:
         details["redis"] = redis_error or "Redis ping failed"
     if not llm_ok:
         details["llm"] = llm_error
