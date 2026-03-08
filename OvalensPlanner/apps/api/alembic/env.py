@@ -17,7 +17,11 @@ from app.db.models import Base
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    try:
+        fileConfig(config.config_file_name)
+    except Exception:
+        # alembic.ini may not define [formatters]/[handlers]/[loggers]; skip logging config
+        pass
 
 target_metadata = Base.metadata
 

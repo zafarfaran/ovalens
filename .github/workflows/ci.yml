@@ -78,35 +78,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'placeholder' }}
 
-  # Deployment: only on push to main (skipped on pull_request and other branches)
-  deploy-api:
-    name: Deploy API to Vercel
-    runs-on: ubuntu-latest
-    needs: [api, web]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    defaults:
-      run:
-        working-directory: .
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check deploy secrets
-        run: |
-          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
-            echo "::error::VERCEL_TOKEN is not set. Add it in GitHub: Repository → Settings → Secrets and variables → Actions → New repository secret (name: VERCEL_TOKEN, value: token from https://vercel.com/account/tokens)"
-            exit 1
-          fi
-
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
-      - name: Deploy API to Vercel
-        working-directory: OvalensPlanner/apps/api
-        run: vercel --prod --yes --name ovalens-api --token="${{ secrets.VERCEL_TOKEN }}"
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_API }}
-
+  # Deployment: only on push to main. API is deployed via Railway (see OvalensPlanner/docs/RAILWAY_DEPLOYMENT.md).
   deploy-web:
     name: Deploy Web to Vercel
     runs-on: ubuntu-latest

@@ -15,6 +15,36 @@ Use the `.env.example` files as templates. **Never commit real secrets.**
    `cp .env.example .env` → set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase → Project Settings → API).  
    **Beta/production:** set `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_API_URL`, and `BACKEND_URL` to your deployed URLs.
 
+## Redis (API: rate limiting + async context ingest)
+
+Redis is **optional**. When set, the API uses it for:
+
+- **Rate limiting** — shared across instances (important if you run multiple API replicas).
+- **Context ingest** — POST `/api/context/ingest` returns **202** and enqueues a job; a **worker** processes it. Without Redis, ingest runs synchronously (200).
+
+**Local**
+
+1. Install Redis:
+   - **Windows:** [WSL](https://docs.microsoft.com/en-us/windows/wsl/install) and `sudo apt install redis-server`, or [Memurai](https://www.memurai.com/) (Redis-compatible), or [Docker](https://docs.docker.com/get-docker/): `docker run -d -p 6379:6379 redis:7-alpine`.
+   - **macOS:** `brew install redis` then `brew services start redis` (or run `redis-server`).
+   - **Linux:** `sudo apt install redis-server` (or equivalent) and start the service.
+2. In **API** `.env` (OvalensPlanner/apps/api): set  
+   `REDIS_URL=redis://localhost:6379/0`  
+   Use database `0` for dev; use `1` (or another index) for tests if you run Redis tests: `REDIS_URL=redis://localhost:6379/1`.
+3. (Optional) Run the context ingest worker: from `apps/api`,  
+   `python scripts/context_ingest_worker.py`  
+   Requires `REDIS_URL` and `DATABASE_URL` (or default SQLite).
+
+**Production (e.g. Railway)**
+
+1. Add Redis to your backend project:
+   - **Railway:** New → Database → **Redis**, or use an external Redis (Upstash, Redis Cloud, etc.).
+   - Copy the Redis URL (e.g. `redis://default:PASSWORD@host:port` or `rediss://...` for TLS).
+2. In your **API** environment variables set **`REDIS_URL`** to that URL (same env as `DATABASE_URL`).
+3. Deploy the **worker** as a separate process (same codebase): run `python scripts/context_ingest_worker.py` with the same `REDIS_URL` and `DATABASE_URL`. On Railway you can add a second service that runs the worker command.
+
+If **REDIS_URL** is unset, the API still runs: rate limiting is in-memory (per process) and context ingest is synchronous.
+
 ## Where to get values
 
 - **DATABASE_URL:** Supabase → Project Settings → Database → Connection string (URI). Required for beta/prod.
