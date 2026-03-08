@@ -19,5 +19,7 @@ cryptography>=44.0.0
 sentry-sdk[fastapi]>=2.0.0
 prometheus-client>=0.21.0
 redis>=5.0.0
+# Alembic migrations (run at container start in production)
+alembic>=1.13.0
 # For Alembic migrations against PostgreSQL (sync driver; not used at runtime)
 psycopg2-binary>=2.9.0
