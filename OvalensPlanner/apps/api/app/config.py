@@ -121,7 +121,10 @@ class Settings(BaseSettings):
     # When unset, rate limiting is in-memory and context ingest is synchronous.
     redis_url: str | None = Field(
         default=None,
-        description="Redis URL (e.g. redis://localhost:6379/0). Unset = in-memory rate limit, sync ingest.",
+        description=(
+            "Redis URL (e.g. redis://localhost:6379/0). "
+            "Unset = in-memory rate limit, sync ingest."
+        ),
     )
 
     # Input size limits (LLM cost / abuse). 0 = no limit (not recommended for chat).

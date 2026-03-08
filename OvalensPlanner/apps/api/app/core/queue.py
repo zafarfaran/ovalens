@@ -19,7 +19,10 @@ def _get_redis():
 
 
 async def push_context_ingest_job(snippet_id: str) -> bool:
-    """Push snippet_id to the context ingest queue. Returns True if enqueued, False if Redis unavailable."""
+    """Push snippet_id to the context ingest queue.
+
+    Returns True if enqueued, False if Redis unavailable.
+    """
     client = _get_redis()
     if client is None:
         return False

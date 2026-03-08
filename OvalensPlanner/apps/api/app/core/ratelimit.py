@@ -48,7 +48,10 @@ def clear_store_for_tests() -> None:
 
 
 def reset_redis_client_for_tests() -> None:
-    """Drop the cached Redis client so next check uses fresh config. No-op unless ENVIRONMENT=test."""
+    """Drop the cached Redis client so next check uses fresh config.
+
+    No-op unless ENVIRONMENT=test.
+    """
     import os
 
     global _redis
@@ -57,7 +60,10 @@ def reset_redis_client_for_tests() -> None:
 
 
 async def clear_redis_rate_limit_for_tests() -> None:
-    """Flush Redis DB used for rate limit keys so tests start clean. No-op unless ENVIRONMENT=test."""
+    """Flush Redis DB used for rate limit keys so tests start clean.
+
+    No-op unless ENVIRONMENT=test.
+    """
     import os
 
     if os.environ.get("ENVIRONMENT") != "test":
@@ -139,7 +145,8 @@ async def check_rate_limit(
 ) -> tuple[bool, int, int, float]:
     """Check and consume one request for the given key.
 
-    Uses Redis when REDIS_URL is set; otherwise in-memory. On Redis errors, fails open (allows request).
+    Uses Redis when REDIS_URL is set; otherwise in-memory.
+    On Redis errors, fails open (allows request).
     Returns:
         (allowed, current_count, limit, retry_after_seconds).
         retry_after_seconds is 0 if allowed; else seconds until window resets.

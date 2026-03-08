@@ -63,7 +63,10 @@ async def ingest_context(
     user_id: str = Depends(get_current_user),
     _rate_limit: None = Depends(rate_limit_context_ingest),
 ):
-    """Receive raw web page content; when Redis is set, enqueue and return 202. Else clean inline and return 200."""
+    """Receive raw web page content; when Redis is set, enqueue and return 202.
+
+    Else clean inline and return 200.
+    """
     snippet_id = str(uuid.uuid4())
     raw = body.raw_content[:MAX_RAW_CONTENT_LENGTH]
 

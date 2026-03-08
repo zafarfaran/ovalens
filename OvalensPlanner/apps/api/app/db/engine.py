@@ -89,7 +89,8 @@ async def init_db() -> None:
 async def init_fts() -> None:
     """Create full-text search index for meeting notes (FTS5 on SQLite, tsvector on PostgreSQL).
 
-    Not used at API startup. PostgreSQL FTS is applied via migrations; use this for local SQLite dev or tests.
+    Not used at API startup. PostgreSQL FTS is applied via migrations;
+    use this for local SQLite dev or tests.
     """
     if settings.is_postgres:
         await _init_fts_postgres()
