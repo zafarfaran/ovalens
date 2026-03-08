@@ -38,7 +38,9 @@ class Settings(BaseSettings):
     @field_validator("database_url", "test_database_url")
     @classmethod
     def _strip_url(cls, v: str) -> str:
-        """Strip whitespace/newlines so env vars pasted with trailing newline don't break DB connection."""
+        """Strip whitespace/newlines so env vars pasted with trailing 
+        newline don't break DB URL connection.
+        """
         return (v or "").strip()
 
     @model_validator(mode="after")
