@@ -20,9 +20,9 @@ from app.core.queue import (
     push_nora_processing_job,
     stream_nora_updates,
 )
-from app.db.engine import get_db_session
+from app.db.engine import get_db_session, get_session_factory
 from app.db.models import Client, MeetingSession, TranscriptChunk
-from app.dependencies import get_current_user, get_request_logger
+from app.dependencies import get_current_user, get_current_user_id, get_request_logger
 from app.services.integrations.recall import RecallClient, verify_recall_webhook_signature
 from app.services.nora_ingestion import (
     NoraIngestionService,
@@ -255,15 +255,17 @@ async def create_nora_session(
 @router.get("/nora/events")
 async def nora_events_stream(
     client_id: str,
-    session: AsyncSession = Depends(get_db_session),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
 ):
     """SSE stream: emits 'session_updated' when a Recall webhook has been processed for this client.
     UI should refetch sessions/notes only on that event (no polling).
     Requires auth and client ownership.
     """
     _assert_nora_enabled()
-    await _ensure_client_owned(session, client_id=client_id, user_id=user_id)
+    # Use a short-lived session so we don't hold a DB connection for the entire stream.
+    factory = get_session_factory()
+    async with factory() as session:
+        await _ensure_client_owned(session, client_id=client_id, user_id=user_id)
 
     async def event_stream():
         async for event in stream_nora_updates(client_id):

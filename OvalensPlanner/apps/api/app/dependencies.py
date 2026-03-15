@@ -46,6 +46,15 @@ def get_request_logger(request: Request) -> structlog.stdlib.BoundLogger:
     return _get_logger(f"api.{section.value}", section=section)
 
 
+async def get_current_user_id(request: Request) -> str:
+    """Validate Supabase JWT and return user id. No DB access. Use for long-lived routes (e.g. SSE)."""
+    token = get_bearer_token(request)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    payload = verify_supabase_jwt(token)
+    return str(payload["sub"])
+
+
 async def get_current_user(
     request: Request,
     session: AsyncSession = Depends(get_db_session),
