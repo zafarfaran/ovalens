@@ -58,6 +58,34 @@ If **REDIS_URL** is set, you can run a **worker** that processes context ingest 
 
 The API and worker share **REDIS_URL** and **DATABASE_URL**; the API enqueues jobs, the worker pops and processes them.
 
+## Optional: Nora processing worker (when using Redis)
+
+If **REDIS_URL** is set, Nora webhooks push “generate meeting note” jobs to a queue. You must either:
+
+- **Run the Nora worker** (same image, different start command), or  
+- **Unset REDIS_URL** so note generation runs **inline** in the webhook (no worker needed).
+
+### Option A – Unset REDIS_URL (no worker)
+
+1. In Railway, open your **API** service → **Variables**.
+2. **Remove** the **REDIS_URL** variable (or leave it blank).
+3. **Redeploy** the API.
+4. Nora will process transcripts and create notes inside the webhook request; no separate worker.
+
+Rate limiting will use in-memory counters; context ingest will be synchronous. If you need Redis for other features, use Option B instead.
+
+### Option B – Run the Nora worker
+
+1. In the same Railway project, **Add service** → **From same repo** (or duplicate the API service).
+2. Set **Root Directory** to the same as the API (`OvalensPlanner/apps/api` or `apps/api`).
+3. **Build:** Same Dockerfile (same image).
+4. **Start command (override):**  
+   `python scripts/nora_processing_worker.py`  
+   (No uvicorn; worker only consumes the Nora queue.)
+5. **Variables:** Same as API (at least **DATABASE_URL**, **REDIS_URL**; **NORA_AUTO_PUBLISH_NOTES** if you use it). No need to expose a public URL.
+
+The API enqueues Nora jobs when it receives `transcript.done` webhooks; the worker pops jobs and creates meeting notes.
+
 ## Optional: Redis on Railway
 
 - In the project, **New** → **Database** → **Redis**. Railway will add **REDIS_URL** (or a reference). Attach it to the API (and worker) service so they receive the variable.
