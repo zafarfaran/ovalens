@@ -1,67 +1,53 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { IconFileText, IconMic, IconZap } from "@/components/icons";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { IconClock, IconMic } from "@/components/icons";
 import { NoraSession, useApi } from "@/hooks/use-api";
 
-const STATUS_STYLES: Record<string, string> = {
-  scheduled: "bg-slate-100 text-slate-700",
-  joining: "bg-blue-100 text-blue-700",
-  recording: "bg-violet-100 text-violet-700",
-  processing: "bg-amber-100 text-amber-700",
-  ready: "bg-emerald-100 text-emerald-700",
-  failed: "bg-red-100 text-red-700",
-};
-
-/** Progress 0–100 and label per status so the client sees where things are (e.g. stuck at processing = 80%). */
 const STATUS_PROGRESS: Record<string, { percent: number; label: string }> = {
   scheduled: { percent: 0, label: "Scheduled" },
   joining: { percent: 20, label: "Joining meeting" },
-  recording: { percent: 50, label: "Recording" },
-  processing: { percent: 80, label: "Processing transcript & generating note" },
-  ready: { percent: 100, label: "Ready" },
+  recording: { percent: 50, label: "Recording in progress" },
+  processing: { percent: 80, label: "Generating notes" },
+  ready: { percent: 100, label: "Notes ready" },
   failed: { percent: 0, label: "Failed" },
 };
-
-const POLL_INTERVAL_MS = 12_000;
-const POLL_WHEN_ACTIVE_MS = 8_000;
 
 export function NoraAIPanel({
   clientId,
   onNoteRefresh,
   onActiveChange,
+  onProgressChange,
 }: {
   clientId: string;
   onNoteRefresh?: () => void;
-  /** Called when any session is joining/recording/processing so parent can show progress in notes area */
   onActiveChange?: (active: boolean) => void;
+  onProgressChange?: (progress: {
+    status: string;
+    label: string;
+    percent: number;
+    agenda: string | null;
+  } | null) => void;
 }) {
   const {
     startNoraSession,
     listNoraSessions,
-    reprocessNoraSession,
-    fetchNoraTranscript,
-    getNoraDiagnostics,
     createNoraMeeting,
-    startNoraMeeting,
   } = useApi();
+
   const noraEnabled = process.env.NEXT_PUBLIC_NORA_ENABLED === "true";
+
   const [meetingUrl, setMeetingUrl] = useState("");
   const [agenda, setAgenda] = useState("");
+  const [scheduledFor, setScheduledFor] = useState("");
   const [sessions, setSessions] = useState<NoraSession[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [fetchingSessionId, setFetchingSessionId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [scheduledFor, setScheduledFor] = useState("");
   const [creating, setCreating] = useState(false);
-  const [startingMeetingId, setStartingMeetingId] = useState<string | null>(null);
-  const [diagnostics, setDiagnostics] = useState<Record<string, unknown> | null>(null);
-  const [loadingDiagnosticsId, setLoadingDiagnosticsId] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadSessions = useCallback(async () => {
-    if (!noraEnabled) return;
+    if (!noraEnabled || !clientId) return;
     setLoading(true);
     setError(null);
     try {
@@ -86,34 +72,35 @@ export function NoraAIPanel({
     [sessions]
   );
 
-  const activeProgress = useMemo(() => {
-    const active = sessions.find((s) =>
-      ["joining", "recording", "processing"].includes(s.status)
-    );
-    if (!active) return null;
-    const p = STATUS_PROGRESS[active.status] ?? { percent: 50, label: "In progress" };
-    return { percent: p.percent, label: p.label, status: active.status };
-  }, [sessions]);
-
   useEffect(() => {
     onActiveChange?.(hasActiveSession);
     return () => onActiveChange?.(false);
   }, [hasActiveSession, onActiveChange]);
 
-  useEffect(() => {
-    if (!noraEnabled || !clientId) return;
-    const interval = hasActiveSession ? POLL_WHEN_ACTIVE_MS : POLL_INTERVAL_MS;
-    pollRef.current = setInterval(() => {
-      void loadSessions();
-      onNoteRefresh?.();
-    }, interval);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-      pollRef.current = null;
-    };
-  }, [noraEnabled, clientId, hasActiveSession, loadSessions, onNoteRefresh]);
+  const activeProgress = useMemo(() => {
+    const active = [...sessions]
+      .sort((a, b) => {
+        const at = new Date(a.created_at || 0).getTime();
+        const bt = new Date(b.created_at || 0).getTime();
+        return bt - at;
+      })
+      .find((s) =>
+      ["joining", "recording", "processing"].includes(s.status)
+    );
+    if (!active) return null;
+    const p = STATUS_PROGRESS[active.status] ?? { percent: 50, label: "In progress" };
+    return { ...p, status: active.status, agenda: active.agenda ?? null };
+  }, [sessions]);
 
-  const latestSession = useMemo(() => sessions[0] ?? null, [sessions]);
+  useEffect(() => {
+    onProgressChange?.(activeProgress);
+    return () => onProgressChange?.(null);
+  }, [activeProgress, onProgressChange]);
+
+  const handleManualRefresh = useCallback(async () => {
+    await loadSessions();
+    onNoteRefresh?.();
+  }, [loadSessions, onNoteRefresh]);
 
   const handleStart = useCallback(async () => {
     if (!meetingUrl.trim()) return;
@@ -125,14 +112,13 @@ export function NoraAIPanel({
       });
       setMeetingUrl("");
       setAgenda("");
-      await loadSessions();
-      onNoteRefresh?.();
+      await handleManualRefresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start");
     } finally {
       setStarting(false);
     }
-  }, [agenda, clientId, meetingUrl, loadSessions, onNoteRefresh, startNoraSession]);
+  }, [agenda, clientId, meetingUrl, startNoraSession, handleManualRefresh]);
 
   const handleCreateMeeting = useCallback(async () => {
     if (!meetingUrl.trim()) return;
@@ -144,273 +130,102 @@ export function NoraAIPanel({
         agenda: agenda.trim() || undefined,
         scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
       });
-      await loadSessions();
+      await handleManualRefresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create meeting");
     } finally {
       setCreating(false);
     }
-  }, [agenda, clientId, createNoraMeeting, loadSessions, meetingUrl, scheduledFor]);
-
-  const handleStartScheduledMeeting = useCallback(
-    async (meetingId: string) => {
-      setStartingMeetingId(meetingId);
-      setError(null);
-      try {
-        await startNoraMeeting(clientId, meetingId);
-        await loadSessions();
-        onNoteRefresh?.();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to start");
-      } finally {
-        setStartingMeetingId(null);
-      }
-    },
-    [clientId, loadSessions, onNoteRefresh, startNoraMeeting]
-  );
-
-  const handleFetchTranscript = useCallback(
-    async (sessionId: string) => {
-      setError(null);
-      setFetchingSessionId(sessionId);
-      try {
-        await fetchNoraTranscript(clientId, sessionId);
-        await loadSessions();
-        onNoteRefresh?.();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch transcript");
-      } finally {
-        setFetchingSessionId(null);
-      }
-    },
-    [clientId, fetchNoraTranscript, loadSessions, onNoteRefresh]
-  );
-
-  const handleReprocess = useCallback(
-    async (sessionId: string) => {
-      setError(null);
-      try {
-        await reprocessNoraSession(clientId, sessionId);
-        await loadSessions();
-        onNoteRefresh?.();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to reprocess");
-      }
-    },
-    [clientId, loadSessions, onNoteRefresh, reprocessNoraSession]
-  );
-
-  const handleDiagnostics = useCallback(
-    async (sessionId: string) => {
-      setLoadingDiagnosticsId(sessionId);
-      setDiagnostics(null);
-      setError(null);
-      try {
-        const data = await getNoraDiagnostics(clientId, sessionId);
-        setDiagnostics(data as Record<string, unknown>);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load diagnostics");
-      } finally {
-        setLoadingDiagnosticsId(null);
-      }
-    },
-    [clientId, getNoraDiagnostics]
-  );
+  }, [
+    agenda,
+    clientId,
+    createNoraMeeting,
+    handleManualRefresh,
+    meetingUrl,
+    scheduledFor,
+  ]);
 
   if (!noraEnabled) return null;
 
   return (
-    <div className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass)] backdrop-blur-sm p-4 space-y-3">
-      <div className="flex items-center justify-between gap-2">
+    <div className="rounded-2xl border border-[var(--glass-border)] bg-[var(--glass)] backdrop-blur-sm p-4 sm:p-5 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <IconMic className="w-4 h-4 text-[var(--accent)]" />
-          <h3 className="text-[13px] font-semibold text-[var(--foreground)]">Nora AI</h3>
-        </div>
-        {latestSession && (
-          <span
-            className={`text-[10px] font-medium px-2 py-[2px] rounded ${
-              STATUS_STYLES[latestSession.status] || "bg-slate-100 text-slate-700"
-            }`}
-          >
-            {latestSession.status}
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent)]/15 text-[var(--accent)]">
+            <IconMic className="h-4 w-4" />
           </span>
-        )}
-      </div>
-
-      <p className="text-[11px] text-[var(--muted)]">
-        Paste a meeting link and start. When the meeting ends, notes will appear below automatically.
-      </p>
-
-      {hasActiveSession && activeProgress && (
-        <div className="space-y-1.5 rounded-lg bg-[var(--surface)]/80 px-3 py-2 border border-[var(--border-subtle)]">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] font-medium text-[var(--foreground)]">{activeProgress.label}</p>
-            <span className="text-[11px] font-mono tabular-nums text-[var(--muted)]">
-              {activeProgress.percent}%
-            </span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-subtle)]">
-            <div
-              className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-500 ease-out"
-              style={{ width: `${activeProgress.percent}%` }}
-            />
+          <div>
+            <h3 className="text-[13px] font-semibold tracking-wide text-[var(--foreground)]">
+              Meeting Assistant
+            </h3>
+            <p className="text-[11px] text-[var(--muted)]">
+            Start meetings and refresh manually when you want updated status.
+            </p>
           </div>
         </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
-        <input
-          value={meetingUrl}
-          onChange={(e) => setMeetingUrl(e.target.value)}
-          placeholder="Paste meeting URL (Zoom, Meet, Teams…)"
-          className="w-full px-3 py-2 rounded-lg text-[12px] bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--foreground)] placeholder:text-[var(--muted)]"
-        />
-        <button
-          onClick={() => void handleStart()}
-          disabled={starting || !meetingUrl.trim()}
-          className="px-4 py-2 rounded-lg text-[12px] font-medium bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] disabled:opacity-60 shrink-0"
-        >
-          {starting ? "Starting…" : "Start"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleManualRefresh()}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-1.5 text-[11px] font-medium text-[var(--foreground)] hover:border-[var(--accent)]/40 disabled:opacity-60"
+          >
+            <IconClock className="h-3.5 w-3.5" />
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
+
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)]/70 p-3 space-y-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+          <input
+            value={meetingUrl}
+            onChange={(e) => setMeetingUrl(e.target.value)}
+            placeholder="Paste meeting URL (Zoom, Meet, Teams...)"
+            className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--background)] px-3 py-2 text-[12px] text-[var(--foreground)] placeholder:text-[var(--muted)]"
+          />
+          <button
+            onClick={() => void handleStart()}
+            disabled={starting || !meetingUrl.trim()}
+            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-[12px] font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
+          >
+            {starting ? "Starting..." : "Start now"}
+          </button>
+        </div>
         <input
           value={agenda}
           onChange={(e) => setAgenda(e.target.value)}
-          placeholder="Optional: meeting title or agenda"
-          className="flex-1 min-w-0 px-3 py-2 rounded-lg text-[12px] bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--foreground)] placeholder:text-[var(--muted)]"
+          placeholder="Optional title or agenda"
+          className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--background)] px-3 py-2 text-[12px] text-[var(--foreground)] placeholder:text-[var(--muted)]"
         />
-      </div>
-
-      <details className="text-[11px] text-[var(--muted)]">
-        <summary className="cursor-pointer hover:text-[var(--foreground)]">Schedule for later</summary>
-        <div className="mt-2 space-y-2">
-          <input
-            type="datetime-local"
-            value={scheduledFor}
-            onChange={(e) => setScheduledFor(e.target.value)}
-            className="w-full px-2 py-1.5 rounded text-[11px] bg-[var(--surface)] border border-[var(--border-subtle)]"
-          />
-          <button
-            onClick={() => void handleCreateMeeting()}
-            disabled={creating || !meetingUrl.trim()}
-            className="text-[11px] font-medium text-[var(--accent)] hover:underline disabled:opacity-60"
-          >
-            {creating ? "Creating…" : "Create scheduled meeting"}
-          </button>
-        </div>
-      </details>
-
-      {error && <p className="text-[11px] text-red-500">{error}</p>}
-
-      {sessions.length > 0 && (
-        <div className="space-y-2 pt-1 border-t border-[var(--border-subtle)]">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted)]">
-            Recent sessions
-          </p>
-          {sessions.slice(0, 5).map((s) => (
-            <div
-              key={s.id}
-              className="flex flex-col gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-[var(--foreground)] truncate">
-                    {s.agenda || "Meeting"}
-                  </p>
-                  <p className="text-[10px] text-[var(--muted)]">
-                    {s.created_at ? new Date(s.created_at).toLocaleString("en-GB") : "—"}
-                    {s.scheduled_for && ` · Scheduled ${new Date(s.scheduled_for).toLocaleString("en-GB")}`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span
-                    className={`text-[10px] font-medium px-2 py-[2px] rounded ${
-                      STATUS_STYLES[s.status] || "bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    {s.status}
-                  </span>
-                {s.status === "scheduled" && !s.provider_bot_id && (
-                  <button
-                    onClick={() => void handleStartScheduledMeeting(s.id)}
-                    disabled={startingMeetingId === s.id}
-                    className="text-[10px] font-medium px-2 py-[2px] rounded bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
-                  >
-                    {startingMeetingId === s.id ? "…" : "Start"}
-                  </button>
-                )}
-                {(s.status === "failed" || s.status === "processing") && (
-                  <button
-                    onClick={() => void handleReprocess(s.id)}
-                    className="text-[10px] font-medium px-2 py-[2px] rounded bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/20"
-                    title="Retry processing"
-                  >
-                    <IconZap className="w-3 h-3" />
-                  </button>
-                )}
-                {s.provider_bot_id && !["ready", "failed"].includes(s.status) && (
-                  <button
-                    onClick={() => void handleFetchTranscript(s.id)}
-                    disabled={fetchingSessionId === s.id}
-                    className="text-[10px] font-medium px-2 py-[2px] rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 flex items-center gap-1"
-                    title="Fetch transcript and create note now (e.g. if webhooks are not set up)"
-                  >
-                    <IconFileText className="w-3 h-3" />
-                    {fetchingSessionId === s.id ? "…" : "Fetch"}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => void handleDiagnostics(s.id)}
-                  disabled={loadingDiagnosticsId === s.id}
-                  className="text-[10px] font-medium px-2 py-[2px] rounded bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-60"
-                  title="View session diagnostics (for stuck processing)"
-                >
-                  {loadingDiagnosticsId === s.id ? "…" : "Diagnostics"}
-                </button>
-              </div>
-            </div>
-              {["joining", "recording", "processing"].includes(s.status) && (() => {
-                const p = STATUS_PROGRESS[s.status] ?? { percent: 50 };
-                return (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-[var(--border-subtle)]">
-                      <div
-                        className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-500 ease-out"
-                        style={{ width: `${p.percent}%` }}
-                      />
-                    </div>
-                    <span className="text-[10px] font-mono tabular-nums text-[var(--muted)] w-8 text-right">
-                      {p.percent}%
-                    </span>
-                  </div>
-                );
-              })()}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {diagnostics && (
-        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] p-3 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-medium text-[var(--foreground)]">
-              Session diagnostics
-            </span>
+        <details className="text-[11px] text-[var(--muted)]">
+          <summary className="cursor-pointer hover:text-[var(--foreground)]">
+            Schedule for later
+          </summary>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <input
+              type="datetime-local"
+              value={scheduledFor}
+              onChange={(e) => setScheduledFor(e.target.value)}
+              className="rounded-md border border-[var(--border-subtle)] bg-[var(--background)] px-2 py-1.5 text-[11px]"
+            />
             <button
-              type="button"
-              onClick={() => setDiagnostics(null)}
-              className="text-[10px] text-[var(--muted)] hover:text-[var(--foreground)]"
+              onClick={() => void handleCreateMeeting()}
+              disabled={creating || !meetingUrl.trim()}
+              className="rounded-md border border-[var(--accent)]/40 px-2.5 py-1.5 text-[11px] font-medium text-[var(--accent)] hover:bg-[var(--accent)]/10 disabled:opacity-60"
             >
-              Close
+              {creating ? "Creating..." : "Create schedule"}
             </button>
           </div>
-          <pre className="text-[10px] text-[var(--muted)] overflow-x-auto whitespace-pre-wrap break-words max-h-48 overflow-y-auto rounded bg-[var(--background)] p-2">
-            {JSON.stringify(diagnostics, null, 2)}
-          </pre>
-        </div>
+        </details>
+      </div>
+
+      {error && (
+        <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-[11px] text-red-500">
+          {error}
+        </p>
       )}
+
     </div>
   );
 }
