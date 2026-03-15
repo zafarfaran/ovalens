@@ -132,9 +132,16 @@ class NoraIngestionService:
                 session.add(
                     TranscriptChunk(
                         session_id=meeting_session.id,
-                        speaker=(transcript.get("speaker") or transcript.get("participant") or None),
+                        speaker=(
+                            transcript.get("speaker")
+                            or transcript.get("participant")
+                            or None
+                        ),
                         text=text,
-                        ts_start=_parse_dt(transcript.get("start_at") or transcript.get("start_time")),
+                        ts_start=_parse_dt(
+                            transcript.get("start_at")
+                            or transcript.get("start_time")
+                        ),
                         ts_end=_parse_dt(transcript.get("end_at") or transcript.get("end_time")),
                         provider_event_id=provider_event_id,
                     )

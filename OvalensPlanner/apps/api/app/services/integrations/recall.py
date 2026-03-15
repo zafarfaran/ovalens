@@ -310,13 +310,31 @@ def _parse_transcript_to_chunks(data: Any) -> list[dict[str, Any]]:
     if not paragraphs and "words" in data:
         words = data["words"]
         if words and isinstance(words, list):
-            texts = [w.get("text") or w.get("word") or "" for w in words if w.get("text") or w.get("word")]
+            texts = [
+                w.get("text") or w.get("word") or ""
+                for w in words
+                if w.get("text") or w.get("word")
+            ]
             if texts:
                 chunks.append({
-                    "speaker": (words[0].get("speaker") or words[0].get("speaker_name")) if words else None,
+                    "speaker": (
+                        words[0].get("speaker") or words[0].get("speaker_name")
+                        if words
+                        else None
+                    ),
                     "text": " ".join(texts),
-                    "ts_start": words[0].get("start") or words[0].get("start_time") or words[0].get("start_time_seconds"),
-                    "ts_end": words[-1].get("end") or words[-1].get("end_time") or words[-1].get("end_time_seconds") if words else None,
+                    "ts_start": (
+                        words[0].get("start")
+                        or words[0].get("start_time")
+                        or words[0].get("start_time_seconds")
+                    ),
+                    "ts_end": (
+                        words[-1].get("end")
+                        or words[-1].get("end_time")
+                        or words[-1].get("end_time_seconds")
+                        if words
+                        else None
+                    ),
                 })
     for para in paragraphs:
         if not isinstance(para, dict):
@@ -327,9 +345,22 @@ def _parse_transcript_to_chunks(data: Any) -> list[dict[str, Any]]:
             text = " ".join(str(w.get("text") or w.get("word") or "") for w in wlist).strip()
         if not text:
             continue
-        speaker = para.get("speaker") or para.get("speaker_name") or para.get("participant") or para.get("name")
-        ts_start = para.get("start") or para.get("start_time") or para.get("start_time_seconds")
-        ts_end = para.get("end") or para.get("end_time") or para.get("end_time_seconds")
+        speaker = (
+            para.get("speaker")
+            or para.get("speaker_name")
+            or para.get("participant")
+            or para.get("name")
+        )
+        ts_start = (
+            para.get("start")
+            or para.get("start_time")
+            or para.get("start_time_seconds")
+        )
+        ts_end = (
+            para.get("end")
+            or para.get("end_time")
+            or para.get("end_time_seconds")
+        )
         chunks.append({"speaker": speaker, "text": text, "ts_start": ts_start, "ts_end": ts_end})
     if not chunks and data.get("text"):
         chunks.append({"speaker": None, "text": data["text"], "ts_start": None, "ts_end": None})
