@@ -160,6 +160,32 @@ export function useApi() {
     [api]
   );
 
+  const getNoraDiagnostics = useCallback(
+    async (
+      clientId: string,
+      sessionId: string
+    ): Promise<{
+      session_id: string;
+      status: string;
+      error_message: string | null;
+      transcript_chunk_count: number;
+      redis_configured: boolean;
+      nora_processing_queue_length: number | null;
+      hint: string;
+    }> => {
+      const res = await api(
+        `/api/clients/${clientId}/nora/sessions/${sessionId}/diagnostics`
+      );
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        const msg = errBody?.detail ?? `Failed to load diagnostics (${res.status})`;
+        throw new Error(typeof msg === "string" ? msg : "Failed to load diagnostics");
+      }
+      return res.json();
+    },
+    [api]
+  );
+
   return {
     api,
     token: accessToken,
@@ -167,6 +193,7 @@ export function useApi() {
     listNoraSessions,
     reprocessNoraSession,
     fetchNoraTranscript,
+    getNoraDiagnostics,
     createNoraMeeting,
     startNoraMeeting,
   };

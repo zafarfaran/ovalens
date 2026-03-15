@@ -41,6 +41,7 @@ export function NoraAIPanel({
     listNoraSessions,
     reprocessNoraSession,
     fetchNoraTranscript,
+    getNoraDiagnostics,
     createNoraMeeting,
     startNoraMeeting,
   } = useApi();
@@ -55,6 +56,8 @@ export function NoraAIPanel({
   const [scheduledFor, setScheduledFor] = useState("");
   const [creating, setCreating] = useState(false);
   const [startingMeetingId, setStartingMeetingId] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<Record<string, unknown> | null>(null);
+  const [loadingDiagnosticsId, setLoadingDiagnosticsId] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadSessions = useCallback(async () => {
@@ -195,6 +198,23 @@ export function NoraAIPanel({
       }
     },
     [clientId, loadSessions, onNoteRefresh, reprocessNoraSession]
+  );
+
+  const handleDiagnostics = useCallback(
+    async (sessionId: string) => {
+      setLoadingDiagnosticsId(sessionId);
+      setDiagnostics(null);
+      setError(null);
+      try {
+        const data = await getNoraDiagnostics(clientId, sessionId);
+        setDiagnostics(data as Record<string, unknown>);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load diagnostics");
+      } finally {
+        setLoadingDiagnosticsId(null);
+      }
+    },
+    [clientId, getNoraDiagnostics]
   );
 
   if (!noraEnabled) return null;
@@ -340,6 +360,15 @@ export function NoraAIPanel({
                     {fetchingSessionId === s.id ? "…" : "Fetch"}
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => void handleDiagnostics(s.id)}
+                  disabled={loadingDiagnosticsId === s.id}
+                  className="text-[10px] font-medium px-2 py-[2px] rounded bg-[var(--surface)] border border-[var(--border-subtle)] text-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-60"
+                  title="View session diagnostics (for stuck processing)"
+                >
+                  {loadingDiagnosticsId === s.id ? "…" : "Diagnostics"}
+                </button>
               </div>
             </div>
               {["joining", "recording", "processing"].includes(s.status) && (() => {
@@ -360,6 +389,26 @@ export function NoraAIPanel({
               })()}
             </div>
           ))}
+        </div>
+      )}
+
+      {diagnostics && (
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-[var(--foreground)]">
+              Session diagnostics
+            </span>
+            <button
+              type="button"
+              onClick={() => setDiagnostics(null)}
+              className="text-[10px] text-[var(--muted)] hover:text-[var(--foreground)]"
+            >
+              Close
+            </button>
+          </div>
+          <pre className="text-[10px] text-[var(--muted)] overflow-x-auto whitespace-pre-wrap break-words max-h-48 overflow-y-auto rounded bg-[var(--background)] p-2">
+            {JSON.stringify(diagnostics, null, 2)}
+          </pre>
         </div>
       )}
     </div>
