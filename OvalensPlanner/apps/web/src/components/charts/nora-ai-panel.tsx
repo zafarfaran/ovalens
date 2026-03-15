@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconClock, IconMic } from "@/components/icons";
 import { NoraSession, useApi } from "@/hooks/use-api";
 
+/** Only treat a session as "active" (show In progress) if it was created this recently (ms). */
+const ACTIVE_SESSION_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
+
 const STATUS_PROGRESS: Record<string, { percent: number; label: string }> = {
   scheduled: { percent: 0, label: "Scheduled" },
   joining: { percent: 20, label: "Joining meeting" },
@@ -12,6 +15,12 @@ const STATUS_PROGRESS: Record<string, { percent: number; label: string }> = {
   ready: { percent: 100, label: "Notes ready" },
   failed: { percent: 0, label: "Failed" },
 };
+
+function isRecentlyActive(s: { status: string; created_at: string | null }): boolean {
+  if (!["joining", "recording", "processing"].includes(s.status)) return false;
+  const created = s.created_at ? new Date(s.created_at).getTime() : 0;
+  return Date.now() - created < ACTIVE_SESSION_MAX_AGE_MS;
+}
 
 export function NoraAIPanel({
   clientId,
@@ -74,10 +83,7 @@ export function NoraAIPanel({
   }, [clientId]);
 
   const hasActiveSession = useMemo(
-    () =>
-      sessions.some((s) =>
-        ["joining", "recording", "processing"].includes(s.status)
-      ),
+    () => sessions.some(isRecentlyActive),
     [sessions]
   );
 
@@ -143,9 +149,7 @@ export function NoraAIPanel({
         const bt = new Date(b.created_at || 0).getTime();
         return bt - at;
       })
-      .find((s) =>
-      ["joining", "recording", "processing"].includes(s.status)
-    );
+      .find(isRecentlyActive);
     if (!active) return null;
     const p = STATUS_PROGRESS[active.status] ?? { percent: 50, label: "In progress" };
     return { ...p, status: active.status, agenda: active.agenda ?? null };
