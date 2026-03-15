@@ -896,6 +896,7 @@ export default function ClientsPage() {
   const [householdsLoading, setHouseholdsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
+  const [noraActive, setNoraActive] = useState(false);
 
   const handleClientAdded = (newClient: ClientSummary) => {
     setClients((prev) => [newClient, ...prev]);
@@ -1673,10 +1674,12 @@ export default function ClientsPage() {
                               <NoraAIPanel
                                 clientId={detail.id}
                                 onNoteRefresh={() => setNotesRefreshKey((k) => k + 1)}
+                                onActiveChange={setNoraActive}
                               />
                               <MeetingNotesTimeline
                                 clientId={detail.id}
                                 refreshKey={notesRefreshKey}
+                                expectingNotes={noraActive}
                               />
                             </div>
                           </motion.div>

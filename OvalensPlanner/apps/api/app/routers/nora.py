@@ -8,12 +8,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, desc, select
+from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from structlog.stdlib import BoundLogger
 
 from app.config import get_settings
-from app.core.queue import push_nora_processing_job
+from app.core.queue import nora_processing_queue_length, push_nora_processing_job
 from app.db.engine import get_db_session
 from app.db.models import Client, MeetingSession, TranscriptChunk
 from app.dependencies import get_current_user, get_request_logger
@@ -233,6 +233,8 @@ async def create_nora_session(
         nora_session=nora_session,
         metadata=body.metadata,
     )
+    await session.commit()
+    # Commit so webhooks (which can arrive immediately) see provider_bot_id in other requests
 
     logger.info(
         "nora_session_created",
@@ -280,6 +282,54 @@ async def list_nora_meetings(
     )
     rows = list(result.scalars().all())
     return {"meetings": [_serialize_session(s) for s in rows]}
+
+
+@router.get("/clients/{client_id}/nora/sessions/{session_id}/diagnostics")
+async def nora_session_diagnostics(
+    client_id: str,
+    session_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    user_id: str = Depends(get_current_user),
+):
+    """Return diagnostics for a Nora session to debug stuck processing.
+    Use when status stays 'processing' and no note is generated.
+    Auth: same as other Nora endpoints (user must own the client). Returns no secrets."""
+    _assert_nora_enabled()
+    await _ensure_client_owned(session, client_id=client_id, user_id=user_id)
+    result = await session.execute(
+        select(MeetingSession)
+        .where(MeetingSession.id == session_id)
+        .where(MeetingSession.client_id == client_id)
+        .where(MeetingSession.user_id == user_id)
+    )
+    nora_session = result.scalar_one_or_none()
+    if nora_session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    chunk_count_result = await session.execute(
+        select(func.count(TranscriptChunk.id)).where(
+            TranscriptChunk.session_id == session_id
+        )
+    )
+    transcript_chunk_count = chunk_count_result.scalar_one() or 0
+
+    settings = get_settings()
+    redis_configured = bool(settings.redis_url and settings.redis_url.strip())
+    queue_length: int | None = await nora_processing_queue_length()
+
+    return {
+        "session_id": nora_session.id,
+        "status": nora_session.status,
+        "error_message": nora_session.error_message,
+        "transcript_chunk_count": transcript_chunk_count,
+        "redis_configured": redis_configured,
+        "nora_processing_queue_length": queue_length,
+        "hint": (
+            "If redis_configured is true and queue_length is null, Redis is unreachable. "
+            "If redis_configured is true and no worker is running, jobs are queued but never processed. "
+            "If transcript_chunk_count is 0 and status is processing, transcript.done webhook may not have been received or transcript fetch failed."
+        ),
+    }
 
 
 @router.post("/clients/{client_id}/nora/sessions/{session_id}/process")
