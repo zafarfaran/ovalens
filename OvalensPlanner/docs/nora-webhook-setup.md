@@ -100,3 +100,29 @@ No extra real-time setup is required for the note to appear; polling is enough.
 | 5 | If your Recall project uses account-level webhooks: add URL and subscribe to `recording.done`, `transcript.done`. |
 
 After this, when the bot leaves, the transcript is created automatically and the new note shows up in the client panel on the next refresh.
+
+---
+
+## Production: "Invalid webhook signature" (401)
+
+If Recall’s webhooks work locally but **production returns 401**, signature verification is failing. Common causes:
+
+1. **Wrong or missing secret in production**
+   - **RECALL_WEBHOOK_SECRET** in Railway (or your host) must be the **exact** value from the **Recall dashboard** (Settings → API / Webhooks → Webhook secret). Recall signs with that value; your API must verify with the same one.
+   - Do **not** copy from another environment unless it’s the same Recall project/secret. If you regenerated the secret in Recall, update production and redeploy.
+   - In Railway: Variables → `RECALL_WEBHOOK_SECRET` → paste the value with **no extra spaces, quotes, or newlines**. Save and redeploy.
+
+2. **See why it failed**
+   - In Railway logs, look for: `nora_webhook_signature_rejected reason=...`
+   - `missing_webhook_secret` → RECALL_WEBHOOK_SECRET not set in production.
+   - `missing_signature` / `missing_timestamp` → Recall didn’t send the expected headers (unusual; check Recall docs).
+   - `timestamp_out_of_window` → Request too old or server time skew; increase `RECALL_WEBHOOK_TOLERANCE_SECONDS` if needed.
+   - `signature_mismatch` → Secret in production does not match the secret Recall uses to sign (most common).
+
+3. **Verify production with the same secret**
+   - From `apps/api`, run the manual test script against production, using the **same** secret as in Railway:
+     ```bash
+     set RECALL_WEBHOOK_SECRET=<value_from_railway_or_recall_dashboard>
+     python scripts/test_recall_webhook.py https://ovalens-production.up.railway.app
+     ```
+   - If you get **200** here but real Recall webhooks still get 401, then Recall is signing with a **different** secret than the one in Railway → set Railway’s `RECALL_WEBHOOK_SECRET` to the value shown in the Recall dashboard and redeploy.
