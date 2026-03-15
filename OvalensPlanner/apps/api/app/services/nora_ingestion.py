@@ -25,7 +25,7 @@ def _parse_dt(value: str | None) -> datetime | None:
 
 
 def _extract_bot_id(payload: dict[str, Any]) -> str | None:
-    """Extract Recall bot id from webhook payload. Recall sends data.bot.id; Svix may wrap in data."""
+    """Extract Recall bot id from webhook payload. Recall sends data.bot.id; Svix may wrap."""
     data = payload.get("data") or {}
     inner = data.get("payload") or data.get("event_payload") or data
     if not isinstance(inner, dict):
@@ -121,7 +121,10 @@ class NoraIngestionService:
                 "nora_unknown_bot",
                 bot_id_prefix=prefix,
                 bot_id_length=len(bot_id),
-                hint="Ensure the session was saved with provider_bot_id from create_bot; webhook payload may use data.bot.id",
+                hint=(
+                    "Session must have provider_bot_id from create_bot; "
+                    "webhook uses data.bot.id"
+                ),
             )
             return {"ok": False, "reason": "unknown_bot"}
 

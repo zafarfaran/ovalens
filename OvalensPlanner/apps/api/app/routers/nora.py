@@ -326,8 +326,9 @@ async def nora_session_diagnostics(
         "nora_processing_queue_length": queue_length,
         "hint": (
             "If redis_configured is true and queue_length is null, Redis is unreachable. "
-            "If redis_configured is true and no worker is running, jobs are queued but never processed. "
-            "If transcript_chunk_count is 0 and status is processing, transcript.done webhook may not have been received or transcript fetch failed."
+            "If redis_configured is true and no worker is running, jobs are queued but "
+            "never processed. If transcript_chunk_count is 0 and status is processing, "
+            "transcript.done webhook may not have been received or transcript fetch failed."
         ),
     }
 
