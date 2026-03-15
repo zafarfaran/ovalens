@@ -1,436 +1,300 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import { motion } from "framer-motion";
-
-/* ═══════════════════════════════════════════════════
-   HELIO MARKDOWN RENDERER
-   Custom zero-dependency markdown → JSX renderer
-   designed for LLM chat output in a financial context.
-   ═══════════════════════════════════════════════════ */
+import type { Components } from "react-markdown";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 
 interface MarkdownRendererProps {
   content: string;
 }
 
-/* ─── Block types ─── */
+function isPipeTableRow(line: string): boolean {
+  const cleaned = line.trim().replace(/^[-*+]\s+/, "").trim();
+  const pipes = (cleaned.match(/\|/g) || []).length;
+  return pipes >= 2;
+}
 
-type Block =
-  | { type: "heading"; level: 1 | 2 | 3 | 4; content: string }
-  | { type: "paragraph"; content: string }
-  | { type: "bullet-list"; items: string[] }
-  | { type: "numbered-list"; items: string[] }
-  | { type: "code-block"; lang: string; code: string }
-  | { type: "blockquote"; content: string }
-  | { type: "hr" }
-  | { type: "kv-row"; label: string; value: string }
-  | { type: "table"; headers: string[]; rows: string[][] }
-  | { type: "empty" };
+function normalisePipeRow(raw: string): string {
+  let line = raw.trim();
+  line = line.replace(/^[-*+]\s+/, "").trim();
+  if (!line.startsWith("|")) line = `| ${line}`;
+  if (!line.endsWith("|")) line = `${line} |`;
+  return line;
+}
 
-/* ─── Parse markdown string into blocks ─── */
+function rowToCells(row: string): string[] {
+  return row
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((c) => c.trim());
+}
 
-function parseBlocks(text: string): Block[] {
+function cellsToRow(cells: string[]): string {
+  return `| ${cells.join(" | ")} |`;
+}
+
+function isSeparatorRow(row: string): boolean {
+  return /^\|\s*:?[-—]{3,}:?\s*(\|\s*:?[-—]{3,}:?\s*)+\|?$/.test(row.trim());
+}
+
+function isPipeNoiseBullet(line: string): boolean {
+  return /^\s*[-*+]\s*\|+\s*$/.test(line.trim());
+}
+
+function repairPipeTables(text: string): string {
   const lines = text.split("\n");
-  const blocks: Block[] = [];
-  let i = 0;
+  const out: string[] = [];
 
-  while (i < lines.length) {
-    const line = lines[i];
+  for (let i = 0; i < lines.length; i++) {
+    const current = lines[i].trim();
 
-    // Empty line
-    if (!line.trim()) {
-      blocks.push({ type: "empty" });
-      i++;
+    // Drop stray stream artefact lines that are just pipes.
+    if (/^\|+\s*$/.test(current)) {
+      continue;
+    }
+    // Drop list artefacts like "- |" produced by chunking.
+    if (isPipeNoiseBullet(current)) {
       continue;
     }
 
-    // Code block (``` fenced)
-    if (line.trim().startsWith("```")) {
-      const lang = line.trim().slice(3).trim();
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i].trim().startsWith("```")) {
-        codeLines.push(lines[i]);
+    if (!isPipeTableRow(current)) {
+      out.push(lines[i]);
+      continue;
+    }
+
+    const block: string[] = [];
+    while (i < lines.length) {
+      const candidate = lines[i].trim();
+      if (/^\|+\s*$/.test(candidate)) {
         i++;
+        continue;
       }
-      i++; // skip closing ```
-      blocks.push({ type: "code-block", lang, code: codeLines.join("\n") });
-      continue;
-    }
-
-    // Heading (# ## ### ####)
-    const headingMatch = line.match(/^(#{1,4})\s+(.+)/);
-    if (headingMatch) {
-      blocks.push({
-        type: "heading",
-        level: headingMatch[1].length as 1 | 2 | 3 | 4,
-        content: headingMatch[2],
-      });
+      if (isPipeNoiseBullet(candidate)) {
+        i++;
+        continue;
+      }
+      if (!isPipeTableRow(candidate)) break;
+      block.push(normalisePipeRow(candidate));
       i++;
+    }
+    i--; // compensate for outer loop increment
+
+    if (block.length < 2) {
+      out.push(...block);
       continue;
     }
 
-    // Horizontal rule
-    if (/^(\*{3,}|-{3,}|_{3,})\s*$/.test(line.trim())) {
-      blocks.push({ type: "hr" });
-      i++;
-      continue;
-    }
+    const rows = block.map(rowToCells);
+    const maxCols = Math.max(...rows.map((r) => r.length), 2);
+    const padded = rows.map((r) =>
+      r.length >= maxCols ? r.slice(0, maxCols) : [...r, ...Array(maxCols - r.length).fill("")]
+    );
 
-    // Table (| header | header |)
-    if (line.trim().startsWith("|") && line.trim().endsWith("|")) {
-      const tableLines: string[] = [];
-      while (i < lines.length && lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|")) {
-        tableLines.push(lines[i]);
-        i++;
+    const header = cellsToRow(padded[0]);
+    const hasSeparator = block.length >= 2 && isSeparatorRow(block[1]);
+    // Make sure tables are isolated from surrounding list/paragraph context.
+    if (out.length > 0 && out[out.length - 1].trim() !== "") {
+      out.push("");
+    }
+    out.push(header);
+
+    if (hasSeparator) {
+      out.push(cellsToRow(Array(maxCols).fill("---")));
+      for (let r = 2; r < padded.length; r++) {
+        out.push(cellsToRow(padded[r]));
       }
-      if (tableLines.length >= 2) {
-        const parseRow = (row: string) =>
-          row.split("|").slice(1, -1).map((c) => c.trim());
-        const headers = parseRow(tableLines[0]);
-        // Skip separator row (| --- | --- |)
-        const startRow = tableLines[1].includes("---") ? 2 : 1;
-        const rows = tableLines.slice(startRow).map(parseRow);
-        blocks.push({ type: "table", headers, rows });
+    } else {
+      out.push(cellsToRow(Array(maxCols).fill("---")));
+      for (let r = 1; r < padded.length; r++) {
+        out.push(cellsToRow(padded[r]));
       }
-      continue;
     }
-
-    // Blockquote
-    if (line.startsWith(">")) {
-      const quoteLines: string[] = [];
-      while (i < lines.length && lines[i].startsWith(">")) {
-        quoteLines.push(lines[i].replace(/^>\s?/, ""));
-        i++;
-      }
-      blocks.push({ type: "blockquote", content: quoteLines.join("\n") });
-      continue;
+    if (out.length > 0 && out[out.length - 1].trim() !== "") {
+      out.push("");
     }
-
-    // Bullet list (- or * or +)
-    if (/^\s*[-*+]\s+/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*[-*+]\s+/, ""));
-        i++;
-      }
-      blocks.push({ type: "bullet-list", items });
-      continue;
-    }
-
-    // Numbered list (1. 2. 3.)
-    if (/^\s*\d+\.\s+/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*\d+\.\s+/, ""));
-        i++;
-      }
-      blocks.push({ type: "numbered-list", items });
-      continue;
-    }
-
-    // Key-value row (Label: £123 or Label: 27%)
-    const kvMatch = line.match(/^(.+?):\s*(£[\d,.]+(?:\.\d+)?|[\d.]+%?)$/);
-    if (kvMatch) {
-      blocks.push({ type: "kv-row", label: kvMatch[1], value: kvMatch[2] });
-      i++;
-      continue;
-    }
-
-    // Paragraph (default)
-    blocks.push({ type: "paragraph", content: line });
-    i++;
   }
 
-  return blocks;
+  return out.join("\n");
 }
 
-/* ─── Inline markdown → JSX ─── */
+function fixUnbalancedBoldMarkers(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => {
+      const count = (line.match(/\*\*/g) || []).length;
+      if (count % 2 === 0) return line;
+      const trimmed = line.trim();
 
-function renderInline(text: string): React.ReactNode[] {
-  // Order matters — process most specific patterns first
-  // Pattern: **bold**, *italic*, `code`, £amounts, percentages, [links](url)
-  const regex =
-    /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|£[\d,]+(?:\.\d+)?|\d+(?:\.\d+)?%)/g;
+      // Trailing dangling bold marker, e.g. "Key Findings**"
+      if (/\*\*$/.test(trimmed) && !/^\*\*/.test(trimmed)) {
+        return line.replace(/\*\*\s*$/, "");
+      }
+      // Leading dangling bold marker, e.g. "**Mitchell Household..."
+      if (/^\*\*/.test(trimmed) && !/\*\*$/.test(trimmed)) {
+        return `${line}**`;
+      }
+      // Fallback: remove one dangling marker.
+      return line.replace(/\*\*/, "");
+    })
+    .join("\n");
+}
 
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let key = 0;
+function normalizeMarkdown(input: string): string {
+  let text = input.replace(/\r\n?/g, "\n").replace(/\u00A0/g, " ");
 
-  while ((match = regex.exec(text)) !== null) {
-    // Text before match
-    if (match.index > lastIndex) {
-      parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
-    }
+  // Normalise quadruple/double-bold so it renders as bold (**** or ****** -> **).
+  text = text.replace(/\*\*\*\*\*?/g, "**");
 
-    const full = match[0];
+  // Break bold-numbered list items onto their own lines so they don't render as one blob.
+  // e.g. "**1. X** ****2. Y****" -> "**1. X**\n**2. Y**" (after **** -> ** above).
+  text = text.replace(/([^\n])(\*\*+\s*\d+\.)/g, "$1\n$2");
+  // Convert bold-wrapped numbered items into plain markdown list items.
+  text = text.replace(/^\s*\*\*\s*(\d+\.\s.*)\s*\*\*\s*$/gm, "$1");
+  text = text.replace(/^\s*\*\*\s*(\d+\.\s+)/gm, "$1");
 
-    if (match[2]) {
-      // ***bold italic***
-      parts.push(
-        <strong key={key++} className="font-semibold italic text-slate-900 dark:text-white">
-          {match[2]}
-        </strong>
-      );
-    } else if (match[3]) {
-      // **bold**
-      parts.push(
-        <strong key={key++} className="font-semibold text-slate-900 dark:text-white">
-          {match[3]}
-        </strong>
-      );
-    } else if (match[4]) {
-      // *italic*
-      parts.push(
-        <em key={key++} className="italic text-slate-600 dark:text-zinc-300">
-          {match[4]}
-        </em>
-      );
-    } else if (match[5]) {
-      // `inline code`
-      parts.push(
-        <code
-          key={key++}
-          className="px-1.5 py-0.5 rounded-md text-[11.5px] font-mono bg-slate-100 dark:bg-zinc-800 text-brand-600 dark:text-brand-400 border border-slate-200/60 dark:border-zinc-700/60"
-        >
-          {match[5]}
-        </code>
-      );
-    } else if (match[6] && match[7]) {
-      // [link](url)
-      parts.push(
-        <a
-          key={key++}
-          href={match[7]}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-brand-600 dark:text-brand-400 underline decoration-brand-300/40 dark:decoration-brand-600/40 underline-offset-2 hover:decoration-brand-500 transition-colors"
-        >
-          {match[6]}
-        </a>
-      );
-    } else if (full.startsWith("£")) {
-      // Currency
-      parts.push(
-        <span key={key++} className="font-mono font-medium text-slate-900 dark:text-white">
-          {full}
-        </span>
-      );
-    } else if (/\d+(?:\.\d+)?%$/.test(full)) {
-      // Percentage
-      parts.push(
-        <span key={key++} className="font-mono font-medium text-slate-900 dark:text-white">
-          {full}
-        </span>
-      );
-    }
+  // Put headings on their own lines and ensure heading marker spacing.
+  text = text.replace(/([^\n])([ \t]*#{1,6}[ \t]+)/g, "$1\n$2");
+  text = text.replace(/^([ \t]*#{1,6})([^\s#])/gm, "$1 $2");
 
-    lastIndex = match.index + full.length;
+  // Break ordered / bullet lists when they are glued to previous text.
+  text = text.replace(/([^\n])([ \t]+\d{1,3}\.[ \t]+)/g, "$1\n$2");
+  text = text.replace(/([^\n])([ \t]+[-*+][ \t]+)/g, "$1\n$2");
+
+  // Ensure blockquotes and horizontal rules start on new lines.
+  text = text.replace(/([^\n])([ \t]*>[ \t]+)/g, "$1\n$2");
+  text = text.replace(/([^\n])([ \t]*(?:\*{3,}|-{3,}|_{3,})[ \t]*$)/gm, "$1\n$2");
+
+  // Convert "###Title### 2. Next" style collapse into separate lines.
+  text = text.replace(/(#{1,6}[^\n#]+?)\s*(?=#{1,6}\s)/g, "$1\n");
+  // Fix sentence boundaries collapsed by token streaming: "...:Now" -> "...: Now"
+  text = text.replace(/([:.;!?])([A-Z])/g, "$1 $2");
+
+  text = fixUnbalancedBoldMarkers(text);
+
+  // If stream chunk ends with an unclosed fenced block, close it for stable rendering.
+  const fenceCount = (text.match(/```/g) || []).length;
+  if (fenceCount % 2 === 1) {
+    text += "\n```";
   }
 
-  // Remaining text
-  if (lastIndex < text.length) {
-    parts.push(<span key={key++}>{text.slice(lastIndex)}</span>);
-  }
+  text = repairPipeTables(text);
 
-  return parts.length > 0 ? parts : [<span key={0}>{text}</span>];
+  return text.trimEnd();
 }
 
-/* ─── Block → JSX renderers ─── */
-
-function HeadingBlock({ level, content }: { level: 1 | 2 | 3 | 4; content: string }) {
-  const styles: Record<number, string> = {
-    1: "text-[16px] font-semibold text-slate-900 dark:text-white mt-4 mb-2 tracking-tight",
-    2: "text-[14.5px] font-semibold text-slate-900 dark:text-white mt-3.5 mb-1.5 tracking-tight",
-    3: "text-[13.5px] font-medium text-slate-800 dark:text-zinc-100 mt-3 mb-1",
-    4: "text-[13px] font-medium text-slate-700 dark:text-zinc-200 mt-2.5 mb-1 uppercase tracking-wide text-[11px]",
-  };
-
-  return (
-    <div className={styles[level]}>
-      <span className="inline-flex items-center gap-2">
-        {level <= 2 && (
-          <span className="w-0.5 h-4 rounded-full bg-gradient-to-b from-brand-400 to-violet-400 flex-shrink-0" />
-        )}
-        {renderInline(content)}
-      </span>
+const markdownComponents: Components = {
+  h1: ({ children }) => (
+    <h1 className="text-[16px] font-semibold text-slate-900 dark:text-white mt-4 mb-2 tracking-tight">
+      {children}
+    </h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="text-[14.5px] font-semibold text-slate-900 dark:text-white mt-3.5 mb-1.5 tracking-tight">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-[13.5px] font-medium text-slate-800 dark:text-zinc-100 mt-3 mb-1">
+      {children}
+    </h3>
+  ),
+  h4: ({ children }) => (
+    <h4 className="text-[13px] font-medium text-slate-700 dark:text-zinc-200 mt-2.5 mb-1">
+      {children}
+    </h4>
+  ),
+  p: ({ children }) => <p className="leading-relaxed mb-2">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc pl-5 space-y-1.5 my-2">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1.5 my-2">{children}</ol>,
+  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  blockquote: ({ children }) => (
+    <blockquote className="my-2.5 pl-3.5 border-l-2 border-brand-300 dark:border-brand-700 bg-brand-50/30 dark:bg-brand-950/10 rounded-r-lg py-2 pr-3 italic text-slate-600 dark:text-zinc-400">
+      {children}
+    </blockquote>
+  ),
+  hr: () => (
+    <div className="my-4 flex items-center gap-2">
+      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-zinc-700 to-transparent" />
     </div>
-  );
-}
-
-function BulletListBlock({ items }: { items: string[] }) {
-  return (
-    <div className="space-y-1.5 my-2">
-      {items.map((item, i) => (
-        <div key={i} className="flex gap-2.5 items-start">
-          <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-brand-400/60 dark:bg-brand-500/50 mt-[7px]" />
-          <span className="flex-1 leading-relaxed">{renderInline(item)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function NumberedListBlock({ items }: { items: string[] }) {
-  return (
-    <div className="space-y-2 my-2">
-      {items.map((item, i) => (
-        <div key={i} className="flex gap-2.5 items-start">
-          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-brand-50 dark:bg-brand-950/30 text-brand-600 dark:text-brand-400 flex items-center justify-center text-[10px] font-medium mt-0.5">
-            {i + 1}
-          </span>
-          <span className="flex-1 leading-relaxed">{renderInline(item)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function CodeBlockElement({ lang, code }: { lang: string; code: string }) {
-  return (
+  ),
+  pre: ({ children }) => (
     <div className="my-3 rounded-lg overflow-hidden border border-slate-200/70 dark:border-zinc-800/70">
-      {lang && (
-        <div className="flex items-center justify-between px-3 py-1.5 bg-slate-100/80 dark:bg-zinc-800/80 border-b border-slate-200/50 dark:border-zinc-700/50">
-          <span className="text-[9px] font-mono font-medium uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-            {lang}
-          </span>
-          <span className="flex gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-600" />
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-600" />
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-600" />
-          </span>
-        </div>
-      )}
       <pre className="px-4 py-3 overflow-x-auto bg-slate-50 dark:bg-zinc-900/80">
-        <code className="text-[12px] font-mono leading-relaxed text-slate-700 dark:text-zinc-300">
-          {code}
-        </code>
+        {children}
       </pre>
     </div>
-  );
-}
-
-function BlockquoteBlock({ content }: { content: string }) {
-  return (
-    <div className="my-2.5 pl-3.5 border-l-2 border-brand-300 dark:border-brand-700 bg-brand-50/30 dark:bg-brand-950/10 rounded-r-lg py-2 pr-3">
-      <div className="text-slate-600 dark:text-zinc-400 italic leading-relaxed">
-        {renderInline(content)}
-      </div>
+  ),
+  code: ({ className, children }) => {
+    const lang = className?.replace("language-", "") || "";
+    if (!className) {
+      return (
+        <code className="px-1.5 py-0.5 rounded-md text-[11.5px] font-mono bg-slate-100 dark:bg-zinc-800 text-brand-600 dark:text-brand-400 border border-slate-200/60 dark:border-zinc-700/60">
+          {children}
+        </code>
+      );
+    }
+    return (
+      <code
+        className="text-[12px] font-mono leading-relaxed text-slate-700 dark:text-zinc-300"
+        data-language={lang || undefined}
+      >
+        {children}
+      </code>
+    );
+  },
+  table: ({ children }) => (
+    <div className="my-3 rounded-lg border border-slate-200/70 dark:border-zinc-800/70 overflow-x-auto">
+      <table className="w-full text-[12px]">{children}</table>
     </div>
-  );
-}
-
-function KVRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between py-1 border-b border-dashed border-slate-150 dark:border-zinc-800/50 last:border-0">
-      <span className="text-slate-500 dark:text-zinc-400">{renderInline(label)}</span>
-      <span className="font-mono font-medium text-slate-900 dark:text-white text-[12px] tabular-nums">
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function TableBlock({ headers, rows }: { headers: string[]; rows: string[][] }) {
-  return (
-    <div className="my-3 rounded-lg border border-slate-200/70 dark:border-zinc-800/70 overflow-hidden">
-      <table className="w-full text-[12px]">
-        <thead>
-          <tr className="bg-slate-50/80 dark:bg-zinc-800/50">
-            {headers.map((h, i) => (
-              <th
-                key={i}
-                className="px-3 py-2 text-left font-medium text-slate-600 dark:text-zinc-300 border-b border-slate-200/70 dark:border-zinc-700/50"
-              >
-                {renderInline(h)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, ri) => (
-            <tr
-              key={ri}
-              className="border-b border-slate-100/80 dark:border-zinc-800/30 last:border-0 hover:bg-slate-50/40 dark:hover:bg-zinc-800/20 transition-colors"
-            >
-              {row.map((cell, ci) => (
-                <td
-                  key={ci}
-                  className="px-3 py-2 text-slate-700 dark:text-zinc-300 font-light"
-                >
-                  {renderInline(cell)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/* ─── Main renderer ─── */
+  ),
+  thead: ({ children }) => (
+    <thead className="bg-slate-50/80 dark:bg-zinc-800/50">{children}</thead>
+  ),
+  th: ({ children }) => (
+    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-zinc-300 border-b border-slate-200/70 dark:border-zinc-700/50">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="px-3 py-2 text-slate-700 dark:text-zinc-300 font-light border-b border-slate-100/80 dark:border-zinc-800/30">
+      {children}
+    </td>
+  ),
+  a: ({ href, children }) => (
+    <a
+      href={href || "#"}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-brand-600 dark:text-brand-400 underline decoration-brand-300/40 dark:decoration-brand-600/40 underline-offset-2 hover:decoration-brand-500 transition-colors"
+    >
+      {children}
+    </a>
+  ),
+  strong: ({ children }) => (
+    <strong className="font-semibold text-slate-900 dark:text-white">{children}</strong>
+  ),
+  em: ({ children }) => (
+    <em className="italic text-slate-600 dark:text-zinc-300">{children}</em>
+  ),
+};
 
 export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
 }: MarkdownRendererProps) {
-  const blocks = useMemo(() => parseBlocks(content), [content]);
-
-  // Collapse consecutive empty blocks
-  const rendered = blocks.reduce<React.ReactNode[]>((acc, block, i) => {
-    if (block.type === "empty") {
-      // Only add spacer if previous wasn't also empty
-      const prevBlock = blocks[i - 1];
-      if (prevBlock && prevBlock.type !== "empty") {
-        acc.push(<div key={i} className="h-1.5" />);
-      }
-      return acc;
-    }
-
-    switch (block.type) {
-      case "heading":
-        acc.push(<HeadingBlock key={i} level={block.level} content={block.content} />);
-        break;
-      case "paragraph":
-        acc.push(
-          <p key={i} className="leading-relaxed">
-            {renderInline(block.content)}
-          </p>
-        );
-        break;
-      case "bullet-list":
-        acc.push(<BulletListBlock key={i} items={block.items} />);
-        break;
-      case "numbered-list":
-        acc.push(<NumberedListBlock key={i} items={block.items} />);
-        break;
-      case "code-block":
-        acc.push(<CodeBlockElement key={i} lang={block.lang} code={block.code} />);
-        break;
-      case "blockquote":
-        acc.push(<BlockquoteBlock key={i} content={block.content} />);
-        break;
-      case "kv-row":
-        acc.push(<KVRow key={i} label={block.label} value={block.value} />);
-        break;
-      case "table":
-        acc.push(<TableBlock key={i} headers={block.headers} rows={block.rows} />);
-        break;
-      case "hr":
-        acc.push(
-          <div key={i} className="my-4 flex items-center gap-2">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-zinc-700 to-transparent" />
-          </div>
-        );
-        break;
-    }
-    return acc;
-  }, []);
+  const normalized = useMemo(() => normalizeMarkdown(content), [content]);
 
   return (
     <div className="text-[13px] font-light text-slate-700 dark:text-zinc-300 leading-[1.7]">
-      {rendered}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkBreaks]}
+        components={markdownComponents}
+      >
+        {normalized}
+      </ReactMarkdown>
     </div>
   );
 });

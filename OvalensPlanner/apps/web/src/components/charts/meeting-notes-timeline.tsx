@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { IconFileText } from "@/components/icons";
 
@@ -12,31 +12,56 @@ interface MeetingNote {
   subject: string;
   attendees: string | null;
   summary: string | null;
-  action_items: string | null;
-  tags: string | null;
+  action_items: string[] | null;
+  tags: string[] | null;
+  source?: string | null;
+  session_id?: string | null;
+  is_draft?: boolean | null;
+  processing_confidence?: number | null;
+  processing_duration_ms?: number | null;
   created_at: string | null;
 }
 
 const ease = [0.16, 1, 0.3, 1] as const;
+const POLL_INTERVAL_MS = 15_000;
 
-export function MeetingNotesTimeline({ clientId }: { clientId: string }) {
+export function MeetingNotesTimeline({
+  clientId,
+  refreshKey = 0,
+}: {
+  clientId: string;
+  refreshKey?: number;
+}) {
   const { api } = useApi();
   const [notes, setNotes] = useState<MeetingNote[]>([]);
   const [loading, setLoading] = useState(true);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchNotes = useCallback(async () => {
+    try {
+      const res = await api(`/api/clients/${clientId}/meeting-notes`);
+      const data = await res.json();
+      setNotes(Array.isArray(data?.meeting_notes) ? data.meeting_notes : []);
+    } catch {
+      /* noop */
+    } finally {
+      setLoading(false);
+    }
+  }, [clientId, api]);
 
   useEffect(() => {
-    let cancelled = false;
     setLoading(true);
-    (async () => {
-      try {
-        const res = await api(`/api/clients/${clientId}/meeting-notes`);
-        const data = await res.json();
-        if (!cancelled) setNotes(data.meeting_notes || []);
-      } catch { /* noop */ }
-      finally { if (!cancelled) setLoading(false); }
-    })();
-    return () => { cancelled = true; };
-  }, [clientId, api]);
+    void fetchNotes();
+  }, [fetchNotes, refreshKey]);
+
+  useEffect(() => {
+    if (!clientId) return;
+    pollRef.current = setInterval(() => void fetchNotes(), POLL_INTERVAL_MS);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = null;
+    };
+  }, [clientId, fetchNotes]);
 
   if (loading) {
     return (
@@ -93,9 +118,19 @@ export function MeetingNotesTimeline({ clientId }: { clientId: string }) {
               <div className="glass-card rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-[10px] font-mono text-[var(--muted)]">{dateStr}</span>
-                  {note.tags && (
-                    <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-[1px] rounded bg-[var(--surface)] text-[var(--muted)]">
-                      {note.tags}
+                  {note.source === "nora" && (
+                    <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-[1px] rounded bg-violet-100 text-violet-700">
+                      Nora AI
+                    </span>
+                  )}
+                  {note.is_draft && (
+                    <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-[1px] rounded bg-amber-100 text-amber-700">
+                      Draft
+                    </span>
+                  )}
+                  {typeof note.processing_confidence === "number" && (
+                    <span className="text-[9px] font-medium px-1.5 py-[1px] rounded bg-[var(--surface)] text-[var(--muted)]">
+                      {(note.processing_confidence * 100).toFixed(0)}% confidence
                     </span>
                   )}
                 </div>
@@ -103,11 +138,34 @@ export function MeetingNotesTimeline({ clientId }: { clientId: string }) {
                 {note.summary && (
                   <p className="text-[12px] text-[var(--muted)] leading-relaxed">{note.summary}</p>
                 )}
-                {note.action_items && (
+                {note.tags && note.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {note.tags.map((tag) => (
+                      <span
+                        key={`${note.id}-${tag}`}
+                        className="text-[10px] px-1.5 py-[1px] rounded bg-[var(--surface)] text-[var(--muted)]"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {note.action_items && note.action_items.length > 0 && (
                   <div className="mt-2 pt-2 border-t border-[var(--border-subtle)]">
                     <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--muted)] mb-1">Action Items</p>
-                    <p className="text-[11px] text-[var(--foreground)]/80 leading-relaxed">{note.action_items}</p>
+                    <ul className="space-y-1">
+                      {note.action_items.map((item, idx) => (
+                        <li key={`${note.id}-action-${idx}`} className="text-[11px] text-[var(--foreground)]/80 leading-relaxed">
+                          - {item}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
+                )}
+                {typeof note.processing_duration_ms === "number" && (
+                  <p className="text-[10px] text-[var(--muted)] mt-2">
+                    Processed in {(note.processing_duration_ms / 1000).toFixed(1)}s
+                  </p>
                 )}
               </div>
             </motion.div>

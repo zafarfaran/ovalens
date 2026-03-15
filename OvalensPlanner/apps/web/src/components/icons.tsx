@@ -3,20 +3,8 @@ const f = { fill: "currentColor", opacity: 0.1 }; // subtle fill accent
 
 export function OvalensLogo({ className = "h-7" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 190 32" className={className} aria-label="Ovalens">
-      {/* Sun mark — filled center with rays */}
-      <circle cx="16" cy="16" r="5.5" fill="currentColor" opacity="0.12" />
-      <circle cx="16" cy="16" r="7" stroke="currentColor" {...s} />
-      <line x1="16" y1="3" x2="16" y2="7" stroke="currentColor" {...s} />
-      <line x1="16" y1="25" x2="16" y2="29" stroke="currentColor" {...s} />
-      <line x1="3" y1="16" x2="7" y2="16" stroke="currentColor" {...s} />
-      <line x1="25" y1="16" x2="29" y2="16" stroke="currentColor" {...s} />
-      <line x1="6.8" y1="6.8" x2="9.6" y2="9.6" stroke="currentColor" {...s} />
-      <line x1="22.4" y1="22.4" x2="25.2" y2="25.2" stroke="currentColor" {...s} />
-      <line x1="6.8" y1="25.2" x2="9.6" y2="22.4" stroke="currentColor" {...s} />
-      <line x1="22.4" y1="9.6" x2="25.2" y2="6.8" stroke="currentColor" {...s} />
-      {/* "ovalens" */}
-      <text x="38" y="22" fontFamily="inherit" fontWeight="500" fontSize="18" fill="currentColor" letterSpacing="-0.02em">ovalens</text>
+    <svg viewBox="0 0 95 32" className={className} aria-label="Ovalens">
+      <text x="0" y="22" fontFamily="inherit" fontWeight="500" fontSize="18" fill="currentColor" letterSpacing="-0.02em">ovalens</text>
     </svg>
   );
 }

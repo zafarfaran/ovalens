@@ -26,12 +26,17 @@ from app.db.models import (
 )
 from app.services.llm.factory import get_llm_provider
 from app.services.llm.types import (
+    DashboardUpdateEvent,
     DoneEvent,
     ErrorEvent,
+    ToolCallEvent,
     StreamEvent,
+    StatusEvent,
+    StatusPhase,
     TokenEvent,
     ToolResultEvent,
 )
+from app.services.tools import execute_tool
 from app.services.system_prompt import build_system_prompt
 
 logger = get_logger(__name__)
@@ -262,13 +267,54 @@ class ChatService:
         # 6. Format messages for LLM
         llm_messages = [{"role": m.role, "content": m.content} for m in history]
 
-        # 7. Call LLM provider
+        # 7. Build tool context and optionally precompute the tax position.
+        pension_contributions_by_year = None
+        if tax_profile_obj and tax_profile_obj.pension_data:
+            ch = tax_profile_obj.pension_data.get("contributions_history", {})
+            if ch:
+                pension_contributions_by_year = {
+                    year: float(vals.get("personal", 0)) + float(vals.get("employer", 0))
+                    for year, vals in ch.items()
+                }
+
+        tool_context = {
+            "client_id": client_id or "",
+            "pension_contributions_by_year": pension_contributions_by_year,
+        }
+
+        # 8. Call LLM provider
         provider = get_llm_provider()
         full_response = ""
         assistant_message_id = str(uuid.uuid4())
         dashboard_data: dict | None = None
 
-        # 8. Iterate the async generator
+        # If we have client tax inputs, precompute once so the UI always gets
+        # deterministic tax cards even when the model skips the tool call.
+        if client_context and tax_profile_obj and (tax_profile_obj.income_sources or []):
+            client_info = client_context.get("client", {})
+            precompute_input = {
+                "income_sources": tax_profile_obj.income_sources or [],
+                "region": client_info.get("region", "england"),
+                "number_of_children": client_info.get("number_of_children", 0),
+                "claims_child_benefit": client_info.get("claims_child_benefit", False),
+                "tax_year": tax_profile_obj.tax_year,
+            }
+            yield StatusEvent(phase=StatusPhase.COMPUTING_TAX)
+            yield ToolCallEvent(tool="compute_tax_position", tool_input=precompute_input)
+            precomputed = await execute_tool(
+                "compute_tax_position", precompute_input, context=tool_context
+            )
+            yield ToolResultEvent(tool="compute_tax_position", result=precomputed)
+            if precomputed.get("success") and precomputed.get("dashboardData"):
+                dashboard_data = precomputed.get("dashboardData")
+                yield DashboardUpdateEvent(
+                    data=precomputed["dashboardData"],
+                    mode="reset",
+                )
+            # Move back to general "understanding" phase before model response.
+            yield StatusEvent(phase=StatusPhase.UNDERSTANDING)
+
+        # 9. Iterate the async generator
         logger.info(
             "llm_stream_started",
             conversation_id=conversation_id,
@@ -289,19 +335,6 @@ class ChatService:
         tools.extend(DASHBOARD_TOOLS)
         tools.extend(OBSERVATION_TOOLS)
 
-        pension_contributions_by_year = None
-        if tax_profile_obj and tax_profile_obj.pension_data:
-            ch = tax_profile_obj.pension_data.get("contributions_history", {})
-            if ch:
-                pension_contributions_by_year = {
-                    year: float(vals.get("personal", 0)) + float(vals.get("employer", 0))
-                    for year, vals in ch.items()
-                }
-
-        tool_context = {
-            "client_id": client_id or "",
-            "pension_contributions_by_year": pension_contributions_by_year,
-        }
         async for event in provider.stream_chat(
             llm_messages, system_prompt, tools=tools, tool_context=tool_context
         ):

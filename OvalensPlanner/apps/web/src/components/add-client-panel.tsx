@@ -406,7 +406,7 @@ export function AddClientPanel({ isOpen, onClose, onClientAdded }: AddClientPane
                       <input
                         id="ac-email"
                         type="email"
-                        placeholder="e.g. sarah@example.com"
+                        placeholder="e.g. sarah.chen@btinternet.com"
                         value={form.email}
                         onChange={(e) => set("email", e.target.value)}
                         onBlur={() => blur("email")}

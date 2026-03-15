@@ -1,0 +1,316 @@
+[
+  {
+    "participant": {
+      "id": 100,
+      "name": "Faran Zafar",
+      "is_host": true,
+      "platform": "desktop",
+      "email": null,
+      "extra_data": {
+        "google_meet": {
+          "static_participant_id": "vjMLW3pw1kejzkUkRGNZ9_x-P1JZECit8m0BqpIxTjI="
+        }
+      }
+    },
+    "words": [
+      {
+        "text": "I",
+        "start_timestamp": {
+          "relative": 5.346457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 5.626457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "want",
+        "start_timestamp": {
+          "relative": 5.626457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 5.976457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "you",
+        "start_timestamp": {
+          "relative": 5.976457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 6.1864572110000005,
+          "absolute": null
+        }
+      },
+      {
+        "text": "to",
+        "start_timestamp": {
+          "relative": 6.1864572110000005,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 6.3964572109999995,
+          "absolute": null
+        }
+      },
+      {
+        "text": "talk",
+        "start_timestamp": {
+          "relative": 6.3964572109999995,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 6.606457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "about",
+        "start_timestamp": {
+          "relative": 6.606457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 6.746457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "James",
+        "start_timestamp": {
+          "relative": 6.746457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 7.166457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "financial",
+        "start_timestamp": {
+          "relative": 7.166457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 7.726457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "bonus",
+        "start_timestamp": {
+          "relative": 7.726457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 8.496457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "that",
+        "start_timestamp": {
+          "relative": 8.496457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 8.706457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "he",
+        "start_timestamp": {
+          "relative": 8.706457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 8.846457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "sent",
+        "start_timestamp": {
+          "relative": 8.846457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 8.986457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "to",
+        "start_timestamp": {
+          "relative": 8.986457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 9.126457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "receive",
+        "start_timestamp": {
+          "relative": 9.126457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 9.406457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "an",
+        "start_timestamp": {
+          "relative": 9.406457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 9.616457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "effort",
+        "start_timestamp": {
+          "relative": 9.616457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 10.036457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "for",
+        "start_timestamp": {
+          "relative": 10.036457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 10.246457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "$60,000.",
+        "start_timestamp": {
+          "relative": 10.246457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 11.852957211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "$60,000?",
+        "start_timestamp": {
+          "relative": 12.329957211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 13.936457210999999,
+          "absolute": null
+        }
+      },
+      {
+        "text": "Yeah,",
+        "start_timestamp": {
+          "relative": 13.936457210999999,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 14.566457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "so",
+        "start_timestamp": {
+          "relative": 15.186457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 15.676457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "make",
+        "start_timestamp": {
+          "relative": 15.676457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 15.956457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "sure",
+        "start_timestamp": {
+          "relative": 15.956457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 16.446457211000002,
+          "absolute": null
+        }
+      },
+      {
+        "text": "we",
+        "start_timestamp": {
+          "relative": 16.446457211000002,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 17.006457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "plan",
+        "start_timestamp": {
+          "relative": 17.006457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 17.426457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "for",
+        "start_timestamp": {
+          "relative": 17.426457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 17.706457211,
+          "absolute": null
+        }
+      },
+      {
+        "text": "that.",
+        "start_timestamp": {
+          "relative": 17.706457211,
+          "absolute": null
+        },
+        "end_timestamp": {
+          "relative": 18.126457211,
+          "absolute": null
+        }
+      }
+    ],
+    "language_code": "en-US"
+  }
+]
