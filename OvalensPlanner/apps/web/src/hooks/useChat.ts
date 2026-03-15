@@ -47,6 +47,15 @@ export interface ChatMessage {
   timestamp: string;
   insights?: { label: string; value: string; color: string }[];
   computationData?: TaxComputationData;
+  activityEvents?: ChatActivityEvent[];
+}
+
+export interface ChatActivityEvent {
+  id: string;
+  type: "scenario" | "observation" | "tax_sync";
+  title: string;
+  detail: string;
+  status: "in_progress" | "done";
 }
 
 export type StatusPhase =
@@ -171,6 +180,67 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
         timestamp: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, assistantMsg]);
+      const latestActivityByTool: Record<string, string> = {};
+      let pendingTokenText = "";
+      let tokenFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const flushPendingTokens = () => {
+        if (!pendingTokenText) return;
+        const chunk = pendingTokenText;
+        pendingTokenText = "";
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content: m.content + chunk } : m
+          )
+        );
+      };
+
+      const scheduleTokenFlush = (forceNow: boolean = false) => {
+        if (forceNow) {
+          if (tokenFlushTimer) {
+            clearTimeout(tokenFlushTimer);
+            tokenFlushTimer = null;
+          }
+          flushPendingTokens();
+          return;
+        }
+        if (tokenFlushTimer) return;
+        tokenFlushTimer = setTimeout(() => {
+          tokenFlushTimer = null;
+          flushPendingTokens();
+        }, 40);
+      };
+
+      const appendActivityEvent = (activity: ChatActivityEvent) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? {
+                  ...m,
+                  activityEvents: [...(m.activityEvents || []), activity],
+                }
+              : m
+          )
+        );
+      };
+
+      const updateActivityEvent = (
+        activityId: string,
+        updates: Partial<ChatActivityEvent>
+      ) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? {
+                  ...m,
+                  activityEvents: (m.activityEvents || []).map((evt) =>
+                    evt.id === activityId ? { ...evt, ...updates } : evt
+                  ),
+                }
+              : m
+          )
+        );
+      };
 
       // Start SSE stream
       const controller = new AbortController();
@@ -214,12 +284,18 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
               const data = JSON.parse(line.slice(6));
 
               if (eventType === "token") {
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantId ? { ...m, content: m.content + data.content } : m
-                  )
-                );
+                const token = String(data.content || "");
+                pendingTokenText += token;
+                // Flush early at natural boundaries for smoother "word by word" feel.
+                const endsAtBoundary = /[\s,.!?;:\n]$/.test(token);
+                if (endsAtBoundary || pendingTokenText.length >= 140) {
+                  scheduleTokenFlush();
+                } else {
+                  // Still schedule periodic flushes so short chunks don't stall.
+                  scheduleTokenFlush();
+                }
               } else if (eventType === "status") {
+                scheduleTokenFlush(true);
                 const phase = data.phase as StatusPhase;
                 setStatus(phase);
                 setStatusMessage(data.message || STATUS_MESSAGES[phase] || "");
@@ -237,6 +313,7 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
                   setIsScenarioGenerating(true);
                 }
               } else if (eventType === "tool_call") {
+                scheduleTokenFlush(true);
                 if (data.tool === "compute_tax_position") {
                   setIsDashboardGenerating(true);
                   setStatus("computing_tax");
@@ -245,10 +322,28 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
                   setStatus("modelling_scenario");
                   setStatusMessage("Modelling salary sacrifice scenario...");
                   setIsScenarioGenerating(true);
+                  const activityId = crypto.randomUUID();
+                  latestActivityByTool.model_salary_sacrifice = activityId;
+                  appendActivityEvent({
+                    id: activityId,
+                    type: "scenario",
+                    title: "Generating scenario",
+                    detail: "Building salary sacrifice comparison.",
+                    status: "in_progress",
+                  });
                 } else if (data.tool === "model_personal_pension") {
                   setStatus("modelling_scenario");
                   setStatusMessage("Modelling pension contribution scenario...");
                   setIsScenarioGenerating(true);
+                  const activityId = crypto.randomUUID();
+                  latestActivityByTool.model_personal_pension = activityId;
+                  appendActivityEvent({
+                    id: activityId,
+                    type: "scenario",
+                    title: "Generating scenario",
+                    detail: "Building personal pension contribution model.",
+                    status: "in_progress",
+                  });
                 } else if (data.tool === "generate_dashboard") {
                   setIsDashboardGenerating(true);
                   setStatus("building_dashboard");
@@ -256,8 +351,18 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
                 } else if (data.tool === "save_observation") {
                   setStatus("saving_observation");
                   setStatusMessage("Generating observations...");
+                  const activityId = crypto.randomUUID();
+                  latestActivityByTool.save_observation = activityId;
+                  appendActivityEvent({
+                    id: activityId,
+                    type: "observation",
+                    title: "Generating observation",
+                    detail: "Saving insight to the client record.",
+                    status: "in_progress",
+                  });
                 }
               } else if (eventType === "tool_result") {
+                scheduleTokenFlush(true);
                 // Capture tax engine computation data and attach to assistant message
                 if (
                   data.tool === "compute_tax_position" &&
@@ -289,6 +394,24 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
                   };
                   setScenarios((prev) => [...prev, newScenario]);
                   setIsScenarioGenerating(false);
+                  const activityId = latestActivityByTool.model_salary_sacrifice;
+                  const sacrifice = Number(result.proposed?.sacrifice || 0);
+                  const saving = Number(result.savings?.total || 0);
+                  if (activityId) {
+                    updateActivityEvent(activityId, {
+                      title: "Generated scenario",
+                      detail: `Salary sacrifice £${sacrifice.toLocaleString()} modelled; estimated annual saving £${saving.toLocaleString()}.`,
+                      status: "done",
+                    });
+                  } else {
+                    appendActivityEvent({
+                      id: crypto.randomUUID(),
+                      type: "scenario",
+                      title: "Generated scenario",
+                      detail: `Salary sacrifice £${sacrifice.toLocaleString()} modelled; estimated annual saving £${saving.toLocaleString()}.`,
+                      status: "done",
+                    });
+                  }
                 }
                 // Capture personal pension contribution result as a scenario
                 if (data.tool === "model_personal_pension" && data.result?.success) {
@@ -311,6 +434,24 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
                   };
                   setScenarios((prev) => [...prev, newScenario]);
                   setIsScenarioGenerating(false);
+                  const activityId = latestActivityByTool.model_personal_pension;
+                  const contribution = Number(result.proposed?.pension_contribution || 0);
+                  const saving = Number(result.savings?.total || 0);
+                  if (activityId) {
+                    updateActivityEvent(activityId, {
+                      title: "Generated scenario",
+                      detail: `Pension contribution £${contribution.toLocaleString()} modelled; estimated annual saving £${saving.toLocaleString()}.`,
+                      status: "done",
+                    });
+                  } else {
+                    appendActivityEvent({
+                      id: crypto.randomUUID(),
+                      type: "scenario",
+                      title: "Generated scenario",
+                      detail: `Pension contribution £${contribution.toLocaleString()} modelled; estimated annual saving £${saving.toLocaleString()}.`,
+                      status: "done",
+                    });
+                  }
                 }
                 // Extract dashboard data from tool_result (fallback)
                 if (data.tool === "generate_dashboard" && data.result?.dashboardData) {
@@ -319,11 +460,31 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
                 // Notify when an AI observation is saved
                 if (data.tool === "save_observation" && data.result?.success) {
                   onObservationSaved?.();
+                  const activityId = latestActivityByTool.save_observation;
+                  const detail = String(
+                    data.result?.message || "Insight saved to the client record."
+                  );
+                  if (activityId) {
+                    updateActivityEvent(activityId, {
+                      title: "Generated observation",
+                      detail,
+                      status: "done",
+                    });
+                  } else {
+                    appendActivityEvent({
+                      id: crypto.randomUUID(),
+                      type: "observation",
+                      title: "Generated observation",
+                      detail,
+                      status: "done",
+                    });
+                  }
                 }
                 // NOTE: Do NOT clear isDashboardGenerating here — tool_call,
                 // tool_result, and dashboard_update arrive in the same chunk.
                 // React batches them, so clearing here cancels the true we just set.
               } else if (eventType === "dashboard_update") {
+                scheduleTokenFlush(true);
                 setDashboardData(data.data);
                 // Delay clearing isDashboardGenerating so the animation plays
                 // for a visible duration even though data arrived instantly.
@@ -333,10 +494,12 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
                   dashboardTimerRef.current = null;
                 }, 2000);
               } else if (eventType === "done") {
+                scheduleTokenFlush(true);
                 if (data.conversation_id) {
                   setConversationId(data.conversation_id);
                 }
               } else if (eventType === "error") {
+                scheduleTokenFlush(true);
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantId
@@ -349,6 +512,7 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
           }
         }
       } catch (err: any) {
+        scheduleTokenFlush(true);
         if (err.name !== "AbortError") {
           console.error("Stream error:", err);
           setMessages((prev) =>
@@ -360,6 +524,7 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
           );
         }
       } finally {
+        scheduleTokenFlush(true);
         setIsStreaming(false);
         setIsScenarioGenerating(false);
         // Only force-clear isDashboardGenerating if no timer is pending

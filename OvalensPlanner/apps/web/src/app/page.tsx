@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
 import {
   motion,
   AnimatePresence,
@@ -72,6 +71,8 @@ function useLandingPerformance() {
    ═══════════════════════════════════════════════════ */
 
 function Navbar() {
+  const { user } = useAuth();
+
   return (
     <motion.nav
       initial={{ y: -20, opacity: 0 }}
@@ -104,9 +105,13 @@ function Navbar() {
           <ThemeToggle />
           <Link
             href="/chat"
-            className="hidden sm:block text-[13px] font-light text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors px-3 py-2"
+            className={`hidden sm:block text-[13px] px-3 py-2 transition-colors ${
+              user
+                ? "font-normal bg-brand-500 text-white rounded-lg hover:bg-brand-600"
+                : "font-light text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
           >
-            Sign in
+            {user ? "View Dashboard" : "Sign in"}
           </Link>
           <a
             href={CALENDLY_URL}
@@ -128,6 +133,7 @@ function Navbar() {
 
 function Hero() {
   const sectionRef = useRef(null);
+  const { user } = useAuth();
   const { isMobile, isTouch } = useLandingPerformance();
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -263,15 +269,24 @@ function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-10 flex items-center gap-4"
+              className="mt-10 flex items-center gap-4 flex-wrap"
             >
+              {user ? (
+                <Link
+                  href="/chat"
+                  className="group relative inline-flex items-center gap-2.5 bg-brand-500 text-white text-[13px] font-normal px-6 py-3 rounded-lg transition-all duration-300 hover:bg-brand-600 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-brand-500/30 overflow-hidden"
+                >
+                  <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                  <span className="relative">View Dashboard</span>
+                  <IconArrowRight className="relative w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              ) : null}
               <a
                 href={CALENDLY_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group relative inline-flex items-center gap-2.5 bg-slate-900 dark:bg-white text-white dark:text-zinc-900 text-[13px] font-normal px-6 py-3 rounded-lg transition-all duration-300 hover:bg-slate-800 dark:hover:bg-zinc-100 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-300/30 dark:hover:shadow-black/30 overflow-hidden"
               >
-                {/* Subtle shimmer on hover */}
                 <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 dark:via-black/10 to-transparent" />
                 <span className="relative">Book a call</span>
                 <IconArrowRight className="relative w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -1576,20 +1591,6 @@ const Footer = memo(function Footer() {
    ═══════════════════════════════════════════════════ */
 
 export default function Home() {
-  const { user, isLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isLoading) return;
-    if (user) {
-      router.replace("/chat");
-    }
-  }, [user, isLoading, router]);
-
-  if (!isLoading && user) {
-    return null; // redirecting to /chat
-  }
-
   return (
     <main>
       <Navbar />

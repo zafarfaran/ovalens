@@ -18,6 +18,7 @@ import { NIDonutChart } from "@/components/charts/ni-donut-chart";
 import { AllowancesRadialChart } from "@/components/charts/allowances-radial-chart";
 import { SavingsBanner } from "@/components/charts/savings-banner";
 import { MeetingNotesTimeline } from "@/components/charts/meeting-notes-timeline";
+import { NoraAIPanel } from "@/components/charts/nora-ai-panel";
 import {
   OvalensLogo,
   IconUser,
@@ -164,7 +165,9 @@ interface ClientDetail {
     employment_status?: string;
     region?: string;
   } | null;
-  // Household
+  // Household (for merged view when multiple members)
+  household_id?: string | null;
+  household_name?: string | null;
   household_members?: { id: string; first_name: string; last_name: string }[];
   // Professional
   employer_name?: string;
@@ -892,6 +895,7 @@ export default function ClientsPage() {
   const [selectedHouseholdId, setSelectedHouseholdId] = useState<string | null>(null);
   const [householdsLoading, setHouseholdsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notesRefreshKey, setNotesRefreshKey] = useState(0);
 
   const handleClientAdded = (newClient: ClientSummary) => {
     setClients((prev) => [newClient, ...prev]);
@@ -1234,6 +1238,29 @@ export default function ClientsPage() {
                   </button>
                 </motion.div>
               ) : (
+                (() => {
+                  const householdForMerge =
+                    detail.household_id && detail.household_members && detail.household_members.length >= 1
+                      ? households.find((h) => h.id === detail.household_id)
+                      : null;
+                  if (householdForMerge) {
+                    return (
+                      <motion.div
+                        key={`hh-${householdForMerge.id}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <HouseholdDetail
+                          household={householdForMerge}
+                          onViewMember={viewMemberProfile}
+                          onUpdated={refetchHouseholds}
+                        />
+                      </motion.div>
+                    );
+                  }
+                  return (
                 <motion.div
                   key={detail.id}
                   initial={{ opacity: 0 }}
@@ -1642,7 +1669,16 @@ export default function ClientsPage() {
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.15 }}
                           >
-                            <MeetingNotesTimeline clientId={detail.id} />
+                            <div className="space-y-4">
+                              <NoraAIPanel
+                                clientId={detail.id}
+                                onNoteRefresh={() => setNotesRefreshKey((k) => k + 1)}
+                              />
+                              <MeetingNotesTimeline
+                                clientId={detail.id}
+                                refreshKey={notesRefreshKey}
+                              />
+                            </div>
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -1650,6 +1686,8 @@ export default function ClientsPage() {
                   )}
 
                 </motion.div>
+                  );
+                })()
               )}
             </AnimatePresence>
           ) : (

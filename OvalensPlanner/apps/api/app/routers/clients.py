@@ -201,12 +201,25 @@ async def list_households(
                 rate_sum += eff_rate
                 rate_count += 1
 
+        member_count = len(members)
+        # Skip empty households (e.g. after merging clients into one household)
+        if member_count == 0:
+            continue
+
+        # For merged households (2+ members), name as "Client1 + Client2" (and " + Client3" etc.)
+        if member_count >= 2:
+            display_name = " + ".join(
+                f"{m['first_name']} {m['last_name']}" for m in members
+            )
+        else:
+            display_name = hh.name
+
         households_out.append(
             {
                 "id": hh.id,
-                "name": hh.name,
+                "name": display_name,
                 "notes": hh.notes,
-                "member_count": len(members),
+                "member_count": member_count,
                 "members": members,
                 "total_income": total_income,
                 "total_tax": total_tax,
@@ -254,6 +267,15 @@ async def _get_client_detail(
                 "region": sp.region,
             }
 
+    # Load household (for merged view when multiple members)
+    household_id = client.household_id
+    household_name: str | None = None
+    if household_id:
+        hh_row = await session.execute(select(Household).where(Household.id == household_id))
+        hh = hh_row.scalar_one_or_none()
+        if hh:
+            household_name = hh.name
+
     # Load household members (other clients in the same household)
     hh_result = await session.execute(
         select(Client)
@@ -264,6 +286,12 @@ async def _get_client_detail(
         {"id": m.id, "first_name": m.first_name, "last_name": m.last_name}
         for m in hh_result.scalars().all()
     ]
+    # For merged households (2+ members), use "Client1 + Client2" style name
+    if len(household_members_out) >= 1:
+        all_names = [f"{client.first_name} {client.last_name}"] + [
+            f"{m['first_name']} {m['last_name']}" for m in household_members_out
+        ]
+        household_name = " + ".join(all_names)
 
     # Load latest tax profile
     tp_result = await session.execute(
@@ -358,6 +386,8 @@ async def _get_client_detail(
         "claims_child_benefit": client.claims_child_benefit,
         # Spouse (resolved from FK)
         "spouse": spouse_out,
+        "household_id": household_id,
+        "household_name": household_name,
         "household_members": household_members_out,
         # Professional
         "employer_name": client.employer_name,
@@ -957,8 +987,14 @@ async def list_meeting_notes(
                 "subject": note.subject,
                 "attendees": note.attendees,
                 "summary": note.summary,
-                "action_items": note.action_items,
-                "tags": note.tags,
+                "action_items": note.action_items or [],
+                "tags": note.tags or [],
+                "source": note.source,
+                "source_id": note.source_id,
+                "session_id": note.session_id,
+                "is_draft": note.is_draft,
+                "processing_confidence": note.processing_confidence,
+                "processing_duration_ms": note.processing_duration_ms,
                 "created_at": note.created_at.isoformat() if note.created_at else None,
             }
             for note in notes

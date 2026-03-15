@@ -83,6 +83,15 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     openai_api_key: str | None = None
     ai_model: str = "claude-sonnet-4-20250514"
+    nora_enabled: bool = False
+    nora_auto_publish_notes: bool = False
+    recall_api_key: str | None = None
+    recall_api_base_url: str = "https://us-west-2.recall.ai/api/v1"
+    recall_webhook_secret: str | None = None
+    recall_webhook_tolerance_seconds: int = 300
+    # Public base URL for Nora webhooks (e.g. https://ovalens-api.vercel.app or ngrok URL).
+    # When unset and request is localhost, webhook is omitted so Recall doesn't block (403).
+    nora_webhook_base_url: str | None = None
 
     # App
     environment: str = "development"
