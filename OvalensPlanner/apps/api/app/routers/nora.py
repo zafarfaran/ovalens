@@ -82,7 +82,12 @@ def _serialize_session(s: MeetingSession) -> dict[str, Any]:
 
 def _is_localhost_url(url: str) -> bool:
     base = (url or "").strip().lower()
-    return base.startswith("http://127.0.0.1/") or base.startswith("http://localhost") or "localhost" in base or "127.0.0.1" in base
+    return (
+        base.startswith("http://127.0.0.1/")
+        or base.startswith("http://localhost")
+        or "localhost" in base
+        or "127.0.0.1" in base
+    )
 
 
 async def _start_recall_bot_for_session(
@@ -154,7 +159,11 @@ async def create_nora_meeting(
         session_id=nora_meeting.id,
         client_id=client_id,
         user_id=user_id,
-        scheduled_for=nora_meeting.scheduled_for.isoformat() if nora_meeting.scheduled_for else None,
+        scheduled_for=(
+            nora_meeting.scheduled_for.isoformat()
+            if nora_meeting.scheduled_for
+            else None
+        ),
     )
     return _serialize_session(nora_meeting)
 
@@ -360,7 +369,10 @@ async def fetch_transcript_and_process(
     if not chunks:
         raise HTTPException(
             status_code=404,
-            detail="Transcript not ready yet. Wait a few minutes after the meeting ends and try again.",
+            detail=(
+                "Transcript not ready yet. Wait a few minutes after the meeting ends "
+                "and try again."
+            ),
         )
 
     # Replace any existing chunks for this session (from a previous fetch or partial webhook)
@@ -498,9 +510,13 @@ async def recall_webhook(
                         base_ts = nora_session.started_at or datetime.now(UTC)
                         for i, c in enumerate(chunks):
                             ts_start = ts_end = None
-                            if c.get("ts_start") is not None and isinstance(c["ts_start"], (int, float)):
+                            if c.get("ts_start") is not None and isinstance(
+                                c["ts_start"], (int, float)
+                            ):
                                 ts_start = base_ts + timedelta(seconds=float(c["ts_start"]))
-                            if c.get("ts_end") is not None and isinstance(c["ts_end"], (int, float)):
+                            if c.get("ts_end") is not None and isinstance(
+                                c["ts_end"], (int, float)
+                            ):
                                 ts_end = base_ts + timedelta(seconds=float(c["ts_end"]))
                             session.add(
                                 TranscriptChunk(
