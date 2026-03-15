@@ -904,6 +904,12 @@ export default function ClientsPage() {
     agenda: string | null;
   } | null>(null);
 
+  // Reset Nora progress when switching clients so we don't show "In progress" for the wrong client.
+  useEffect(() => {
+    setNoraActive(false);
+    setNoraProgress(null);
+  }, [selectedId]);
+
   const handleClientAdded = (newClient: ClientSummary) => {
     setClients((prev) => [newClient, ...prev]);
     setSelectedId(newClient.id);

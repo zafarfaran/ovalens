@@ -68,6 +68,11 @@ export function NoraAIPanel({
     void loadSessions();
   }, [loadSessions]);
 
+  // Clear sessions when client changes so we don't show previous client's "In progress" state.
+  useEffect(() => {
+    setSessions([]);
+  }, [clientId]);
+
   const hasActiveSession = useMemo(
     () =>
       sessions.some((s) =>

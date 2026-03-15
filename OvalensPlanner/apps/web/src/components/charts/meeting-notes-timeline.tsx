@@ -100,13 +100,13 @@ export function MeetingNotesTimeline({
             </p>
           </>
         )}
-        {expectingNotes && (
+        {expectingNotes && progress && (
           <div className="mx-auto max-w-[520px] text-left">
             <p className="text-[13px] font-medium text-[var(--foreground)] mb-1">
-              {progress?.label || "Generating your meeting note..."}
+              {progress.label || "Generating your meeting note..."}
             </p>
             <p className="text-[11px] text-[var(--muted)] mb-4">
-              {progress?.agenda
+              {progress.agenda
                 ? `${progress.agenda} is in progress. This section updates after you refresh.`
                 : "Transcript is processing. This section updates after you refresh."}
             </p>
@@ -135,7 +135,7 @@ export function MeetingNotesTimeline({
       <div className="absolute left-[5px] top-2 bottom-2 w-[2px] bg-[var(--border-subtle)]" />
 
       <div className="space-y-6">
-        {expectingNotes && (
+        {expectingNotes && progress && (
           <motion.div
             key="note-processing-placeholder"
             initial={{ opacity: 0, x: -10 }}
@@ -150,13 +150,13 @@ export function MeetingNotesTimeline({
                   In progress
                 </span>
                 <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-[1px] rounded bg-amber-100 text-amber-700">
-                  {(progress?.status || "generating").replaceAll("_", " ")}
+                  {(progress.status || "generating").replaceAll("_", " ")}
                 </span>
               </div>
               <p className="text-[12px] text-[var(--muted)] mb-3">
-                {progress?.label || "Meeting ended. Nora is generating the note."}
+                {progress.label || "Meeting ended. Nora is generating the note."}
               </p>
-              {typeof progress?.percent === "number" && (
+              {typeof progress.percent === "number" && (
                 <div className="mb-3 flex items-center gap-2">
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--border-subtle)]">
                     <div
