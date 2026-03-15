@@ -144,8 +144,9 @@ async def stream_nora_updates(
     *,
     keepalive_seconds: int = 15,
 ) -> AsyncIterator[Literal["session_updated", "keepalive"]]:
-    """Async generator for SSE: yields 'session_updated' when a webhook was processed for this client,
-    or 'keepalive' on timeout so the connection stays open. Caller should close the stream when done.
+    """Async generator for SSE: yields 'session_updated' when a webhook was processed for this
+    client, or 'keepalive' on timeout so the connection stays open.
+    Caller should close the stream when done.
     """
     client = _get_redis()
     if client is None:

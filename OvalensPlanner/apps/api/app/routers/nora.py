@@ -259,7 +259,8 @@ async def nora_events_stream(
     user_id: str = Depends(get_current_user),
 ):
     """SSE stream: emits 'session_updated' when a Recall webhook has been processed for this client.
-    UI should refetch sessions/notes only on that event (no polling). Requires auth and client ownership.
+    UI should refetch sessions/notes only on that event (no polling).
+    Requires auth and client ownership.
     """
     _assert_nora_enabled()
     await _ensure_client_owned(session, client_id=client_id, user_id=user_id)
