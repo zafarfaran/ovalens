@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -367,48 +368,73 @@ def _parse_transcript_to_chunks(data: Any) -> list[dict[str, Any]]:
     return chunks
 
 
+def _get_header(headers: dict[str, str], *keys: str) -> str:
+    """Get first present header value (case-insensitive)."""
+    lower = {k.lower(): v for k, v in headers.items()}
+    for key in keys:
+        v = lower.get(key.lower(), "").strip()
+        if v:
+            return v
+    return ""
+
+
 def verify_recall_webhook_signature(raw_body: bytes, headers: dict[str, str]) -> tuple[bool, str]:
-    """Verify Recall webhook signature using HMAC SHA-256.
+    """Verify Recall webhook signature (workspace / Svix-style).
 
-    Expected headers:
-    - x-recall-signature: hex digest or "v1=<hex>"
-    - x-recall-timestamp: unix seconds (optional but recommended)
+    Recall sends:
+    - webhook-id (or svix-id)
+    - webhook-timestamp (or svix-timestamp)
+    - webhook-signature (or svix-signature), value like "v1,<base64>"
+
+    Secret must be the workspace verification secret (whsec_...) from Recall dashboard.
+    Signed payload: msg_id + "." + timestamp + "." + raw_body_utf8.
     """
-
     settings = get_settings()
     secret = (settings.recall_webhook_secret or "").strip()
     if not secret:
         return False, "missing_webhook_secret"
 
-    signature = (
-        headers.get("x-recall-signature")
-        or headers.get("X-Recall-Signature")
-        or headers.get("recall-signature")
-        or ""
-    ).strip()
-    timestamp = (
-        headers.get("x-recall-timestamp")
-        or headers.get("X-Recall-Timestamp")
-        or headers.get("recall-timestamp")
-        or ""
-    ).strip()
-    if not signature:
+    msg_id = _get_header(headers, "webhook-id", "svix-id")
+    msg_timestamp = _get_header(headers, "webhook-timestamp", "svix-timestamp")
+    msg_signature = _get_header(headers, "webhook-signature", "svix-signature")
+
+    if not msg_signature:
         return False, "missing_signature"
-    if signature.startswith("v1="):
-        signature = signature[3:]
+    if not msg_id:
+        return False, "missing_webhook_id"
+    if not msg_timestamp:
+        return False, "missing_timestamp"
 
     tolerance = max(30, int(settings.recall_webhook_tolerance_seconds))
-    if not timestamp:
-        return False, "missing_timestamp"
     try:
-        ts_value = int(timestamp)
+        ts_value = int(msg_timestamp)
     except ValueError:
         return False, "invalid_timestamp"
     if abs(int(time.time()) - ts_value) > tolerance:
         return False, "timestamp_out_of_window"
 
-    signed_payload = raw_body if not timestamp else f"{timestamp}.".encode() + raw_body
-    expected = hmac.new(secret.encode(), signed_payload, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, signature):
-        return False, "signature_mismatch"
-    return True, "ok"
+    if not secret.startswith("whsec_"):
+        return False, "invalid_secret_format"
+    try:
+        key = base64.b64decode(secret.removeprefix("whsec_"))
+    except Exception:
+        return False, "invalid_secret_decode"
+
+    payload_str = raw_body.decode("utf-8")
+    to_sign = f"{msg_id}.{msg_timestamp}.{payload_str}"
+    expected_b64 = base64.b64encode(
+        hmac.new(key, to_sign.encode(), hashlib.sha256).digest()
+    ).decode()
+
+    for part in msg_signature.split():
+        part = part.strip()
+        if "," not in part:
+            continue
+        version, sig = part.split(",", 1)
+        if version.strip() != "v1":
+            continue
+        sig = sig.strip()
+        if hmac.compare_digest(expected_b64, sig):
+            return True, "ok"
+
+    return False, "signature_mismatch"

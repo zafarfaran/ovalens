@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -41,7 +42,11 @@ async def nora_client(monkeypatch: pytest.MonkeyPatch, init_test_db: None):
     monkeypatch.setenv("NORA_ENABLED", "true")
     monkeypatch.setenv("NORA_AUTO_PUBLISH_NOTES", "true")
     monkeypatch.setenv("RECALL_API_KEY", "test-recall-key")
-    monkeypatch.setenv("RECALL_WEBHOOK_SECRET", "test-webhook-secret")
+    # Recall workspace secret format: whsec_<base64(key)>
+    monkeypatch.setenv(
+        "RECALL_WEBHOOK_SECRET",
+        "whsec_" + base64.b64encode(b"test-webhook-secret").decode(),
+    )
     monkeypatch.delenv("REDIS_URL", raising=False)
     get_settings.cache_clear()
     try:
@@ -100,9 +105,16 @@ async def test_nora_webhook_signature_and_idempotency(nora_client: AsyncClient) 
         },
     }
     body = json.dumps(payload).encode()
+    msg_id = "msg_test_evt_nora_1"
     ts = str(int(time.time()))
-    signature = hmac.new(b"test-webhook-secret", f"{ts}.".encode() + body, hashlib.sha256).hexdigest()
-    headers = {"x-recall-timestamp": ts, "x-recall-signature": signature}
+    key = b"test-webhook-secret"
+    to_sign = f"{msg_id}.{ts}.{body.decode()}"
+    sig_b64 = base64.b64encode(hmac.new(key, to_sign.encode(), hashlib.sha256).digest()).decode()
+    headers = {
+        "webhook-id": msg_id,
+        "webhook-timestamp": ts,
+        "webhook-signature": f"v1,{sig_b64}",
+    }
 
     first = await nora_client.post("/api/nora/webhooks/recall", content=body, headers=headers)
     second = await nora_client.post("/api/nora/webhooks/recall", content=body, headers=headers)
