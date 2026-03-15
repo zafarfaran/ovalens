@@ -380,9 +380,13 @@ async def fetch_transcript_and_process(
     base_ts = nora_session.started_at or datetime.now(UTC)
     for i, c in enumerate(chunks):
         ts_start = ts_end = None
-        if c.get("ts_start") is not None and isinstance(c["ts_start"], (int, float)):
+        if c.get("ts_start") is not None and isinstance(
+            c["ts_start"], (int, float)
+        ):
             ts_start = base_ts + timedelta(seconds=float(c["ts_start"]))
-        if c.get("ts_end") is not None and isinstance(c["ts_end"], (int, float)):
+        if c.get("ts_end") is not None and isinstance(
+            c["ts_end"], (int, float)
+        ):
             ts_end = base_ts + timedelta(seconds=float(c["ts_end"]))
         session.add(
             TranscriptChunk(
