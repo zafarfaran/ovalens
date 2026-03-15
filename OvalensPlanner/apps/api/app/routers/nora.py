@@ -464,7 +464,7 @@ async def recall_webhook(
     payload = await request.json()
     logger.info(
         "nora_webhook_received",
-        event=str(payload.get("event") or payload.get("type") or "unknown"),
+        recall_event=str(payload.get("event") or payload.get("type") or "unknown"),
     )
     ingestor = NoraIngestionService()
     result = await ingestor.ingest_event(session=session, payload=payload)
