@@ -8,5 +8,5 @@ repos:
     rev: v0.8.4
     hooks:
       - id: ruff
-        args: [--config, apps/api/pyproject.toml, --fix]
-        files: ^apps/api/
+        args: [--config, OvalensPlanner/apps/api/pyproject.toml, --fix]
+        files: ^OvalensPlanner/apps/api/
