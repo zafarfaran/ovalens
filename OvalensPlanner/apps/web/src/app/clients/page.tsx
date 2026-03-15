@@ -897,6 +897,12 @@ export default function ClientsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
   const [noraActive, setNoraActive] = useState(false);
+  const [noraProgress, setNoraProgress] = useState<{
+    status: string;
+    label: string;
+    percent: number;
+    agenda: string | null;
+  } | null>(null);
 
   const handleClientAdded = (newClient: ClientSummary) => {
     setClients((prev) => [newClient, ...prev]);
@@ -1675,11 +1681,13 @@ export default function ClientsPage() {
                                 clientId={detail.id}
                                 onNoteRefresh={() => setNotesRefreshKey((k) => k + 1)}
                                 onActiveChange={setNoraActive}
+                                onProgressChange={setNoraProgress}
                               />
                               <MeetingNotesTimeline
                                 clientId={detail.id}
                                 refreshKey={notesRefreshKey}
                                 expectingNotes={noraActive}
+                                progress={noraProgress}
                               />
                             </div>
                           </motion.div>
