@@ -28,9 +28,12 @@ const POLL_INTERVAL_MS = 15_000;
 export function MeetingNotesTimeline({
   clientId,
   refreshKey = 0,
+  expectingNotes = false,
 }: {
   clientId: string;
   refreshKey?: number;
+  /** When true and there are no notes, show a progress bar and "Generating notes…" */
+  expectingNotes?: boolean;
 }) {
   const { api } = useApi();
   const [notes, setNotes] = useState<MeetingNote[]>([]);
@@ -83,8 +86,28 @@ export function MeetingNotesTimeline({
     return (
       <div className="rounded-xl border border-dashed border-[var(--glass-border)] bg-[var(--glass)] backdrop-blur-sm p-10 text-center">
         <IconFileText className="w-6 h-6 mx-auto text-[var(--muted)] mb-2" />
-        <p className="text-[13px] font-medium text-[var(--muted)]">No meeting notes yet</p>
-        <p className="text-[11px] text-[var(--muted-foreground)] mt-1">Meeting notes will appear here as they are added.</p>
+        <p className="text-[13px] font-medium text-[var(--muted)]">
+          {expectingNotes ? "Processing transcript & generating note" : "No meeting notes yet"}
+        </p>
+        <p className="text-[11px] text-[var(--muted-foreground)] mt-1">
+          {expectingNotes
+            ? "Notes will appear here when processing is complete."
+            : "Meeting notes will appear here as they are added."}
+        </p>
+        {expectingNotes && (
+          <div className="mt-4 mx-auto max-w-[240px] space-y-1">
+            <div className="flex justify-between text-[10px] font-mono text-[var(--muted)]">
+              <span>Progress</span>
+              <span>80%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-subtle)]">
+              <div
+                className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-500 ease-out"
+                style={{ width: "80%" }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   }

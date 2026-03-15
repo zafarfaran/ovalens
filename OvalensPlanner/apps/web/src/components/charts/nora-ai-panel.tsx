@@ -13,15 +13,28 @@ const STATUS_STYLES: Record<string, string> = {
   failed: "bg-red-100 text-red-700",
 };
 
+/** Progress 0–100 and label per status so the client sees where things are (e.g. stuck at processing = 80%). */
+const STATUS_PROGRESS: Record<string, { percent: number; label: string }> = {
+  scheduled: { percent: 0, label: "Scheduled" },
+  joining: { percent: 20, label: "Joining meeting" },
+  recording: { percent: 50, label: "Recording" },
+  processing: { percent: 80, label: "Processing transcript & generating note" },
+  ready: { percent: 100, label: "Ready" },
+  failed: { percent: 0, label: "Failed" },
+};
+
 const POLL_INTERVAL_MS = 12_000;
 const POLL_WHEN_ACTIVE_MS = 8_000;
 
 export function NoraAIPanel({
   clientId,
   onNoteRefresh,
+  onActiveChange,
 }: {
   clientId: string;
   onNoteRefresh?: () => void;
+  /** Called when any session is joining/recording/processing so parent can show progress in notes area */
+  onActiveChange?: (active: boolean) => void;
 }) {
   const {
     startNoraSession,
@@ -69,6 +82,20 @@ export function NoraAIPanel({
       ),
     [sessions]
   );
+
+  const activeProgress = useMemo(() => {
+    const active = sessions.find((s) =>
+      ["joining", "recording", "processing"].includes(s.status)
+    );
+    if (!active) return null;
+    const p = STATUS_PROGRESS[active.status] ?? { percent: 50, label: "In progress" };
+    return { percent: p.percent, label: p.label, status: active.status };
+  }, [sessions]);
+
+  useEffect(() => {
+    onActiveChange?.(hasActiveSession);
+    return () => onActiveChange?.(false);
+  }, [hasActiveSession, onActiveChange]);
 
   useEffect(() => {
     if (!noraEnabled || !clientId) return;
@@ -194,6 +221,23 @@ export function NoraAIPanel({
         Paste a meeting link and start. When the meeting ends, notes will appear below automatically.
       </p>
 
+      {hasActiveSession && activeProgress && (
+        <div className="space-y-1.5 rounded-lg bg-[var(--surface)]/80 px-3 py-2 border border-[var(--border-subtle)]">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-medium text-[var(--foreground)]">{activeProgress.label}</p>
+            <span className="text-[11px] font-mono tabular-nums text-[var(--muted)]">
+              {activeProgress.percent}%
+            </span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-subtle)]">
+            <div
+              className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-500 ease-out"
+              style={{ width: `${activeProgress.percent}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
         <input
           value={meetingUrl}
@@ -247,25 +291,26 @@ export function NoraAIPanel({
           {sessions.slice(0, 5).map((s) => (
             <div
               key={s.id}
-              className="flex items-center justify-between gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2"
+              className="flex flex-col gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2"
             >
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-[var(--foreground)] truncate">
-                  {s.agenda || "Meeting"}
-                </p>
-                <p className="text-[10px] text-[var(--muted)]">
-                  {s.created_at ? new Date(s.created_at).toLocaleString("en-GB") : "—"}
-                  {s.scheduled_for && ` · Scheduled ${new Date(s.scheduled_for).toLocaleString("en-GB")}`}
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span
-                  className={`text-[10px] font-medium px-2 py-[2px] rounded ${
-                    STATUS_STYLES[s.status] || "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  {s.status}
-                </span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium text-[var(--foreground)] truncate">
+                    {s.agenda || "Meeting"}
+                  </p>
+                  <p className="text-[10px] text-[var(--muted)]">
+                    {s.created_at ? new Date(s.created_at).toLocaleString("en-GB") : "—"}
+                    {s.scheduled_for && ` · Scheduled ${new Date(s.scheduled_for).toLocaleString("en-GB")}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span
+                    className={`text-[10px] font-medium px-2 py-[2px] rounded ${
+                      STATUS_STYLES[s.status] || "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {s.status}
+                  </span>
                 {s.status === "scheduled" && !s.provider_bot_id && (
                   <button
                     onClick={() => void handleStartScheduledMeeting(s.id)}
@@ -296,6 +341,23 @@ export function NoraAIPanel({
                   </button>
                 )}
               </div>
+            </div>
+              {["joining", "recording", "processing"].includes(s.status) && (() => {
+                const p = STATUS_PROGRESS[s.status] ?? { percent: 50 };
+                return (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-[var(--border-subtle)]">
+                      <div
+                        className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-500 ease-out"
+                        style={{ width: `${p.percent}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-mono tabular-nums text-[var(--muted)] w-8 text-right">
+                      {p.percent}%
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           ))}
         </div>
