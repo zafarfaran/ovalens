@@ -1,0 +1,12 @@
+# Lint runs automatically before each commit.
+# One-time setup (from repo root):  pip install pre-commit && pre-commit install
+# Or with uv:  uv tool install pre-commit && pre-commit install
+# See https://pre-commit.com/
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--config, apps/api/pyproject.toml, --fix]
+        files: ^apps/api/
