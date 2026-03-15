@@ -472,6 +472,22 @@ function IntegrationsSection() {
     }));
   });
   const loadingMessageIndexRef = useRef(0);
+  const syncMessageIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const syncTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (syncMessageIntervalRef.current !== null) {
+        clearInterval(syncMessageIntervalRef.current);
+        syncMessageIntervalRef.current = null;
+      }
+      syncTimeoutsRef.current.forEach((id) => clearTimeout(id));
+      syncTimeoutsRef.current = [];
+    };
+  }, []);
 
   const handleConnect = useCallback(
     async (item: IntegrationItem) => {
@@ -483,7 +499,11 @@ function IntegrationsSection() {
           i.id === item.id ? { ...i, loading: true, status: LOADING_MESSAGES[0] } : i
         )
       );
+      if (syncMessageIntervalRef.current !== null) {
+        clearInterval(syncMessageIntervalRef.current);
+      }
       const messageInterval = setInterval(() => {
+        if (!isMountedRef.current) return;
         loadingMessageIndexRef.current += 1;
         const idx = loadingMessageIndexRef.current % LOADING_MESSAGES.length;
         setIntegrations((p) =>
@@ -492,8 +512,13 @@ function IntegrationsSection() {
           )
         );
       }, 2200);
+      syncMessageIntervalRef.current = messageInterval;
       const finishLoading = (updates: (prev: IntegrationItem[]) => IntegrationItem[]) => {
         clearInterval(messageInterval);
+        if (syncMessageIntervalRef.current === messageInterval) {
+          syncMessageIntervalRef.current = null;
+        }
+        if (!isMountedRef.current) return;
         setIntegrations((prev) => {
           const next = updates(prev);
           persistIntegrations(next);
@@ -509,7 +534,7 @@ function IntegrationsSection() {
           const err = await res.json().catch(() => ({}));
           const errMessage = (err as { detail?: string }).detail ?? "Sync failed";
           if (waitMs > 0) {
-            setTimeout(
+            const timeoutId = setTimeout(
               () =>
                 finishLoading((prev) =>
                   prev.map((i) =>
@@ -520,6 +545,7 @@ function IntegrationsSection() {
                 ),
               waitMs
             );
+            syncTimeoutsRef.current.push(timeoutId);
           } else {
             finishLoading((prev) =>
               prev.map((i) =>
@@ -545,7 +571,7 @@ function IntegrationsSection() {
               : "Connected");
 
         if (waitMs > 0) {
-          setTimeout(
+          const timeoutId = setTimeout(
             () =>
               finishLoading((prev) =>
                 prev.map((i) =>
@@ -556,6 +582,7 @@ function IntegrationsSection() {
               ),
             waitMs
           );
+          syncTimeoutsRef.current.push(timeoutId);
         } else {
           finishLoading((prev) =>
             prev.map((i) =>
@@ -570,7 +597,7 @@ function IntegrationsSection() {
         const waitMs = Math.max(0, SYNC_MIN_DURATION_MS - elapsed);
         const errMessage = e instanceof Error ? e.message : "Connection failed";
         if (waitMs > 0) {
-          setTimeout(
+          const timeoutId = setTimeout(
             () =>
               finishLoading((prev) =>
                 prev.map((i) =>
@@ -581,6 +608,7 @@ function IntegrationsSection() {
               ),
             waitMs
           );
+          syncTimeoutsRef.current.push(timeoutId);
         } else {
           finishLoading((prev) =>
             prev.map((i) =>
@@ -682,8 +710,18 @@ function IntegrationsSection() {
               }}
               role="button"
               tabIndex={0}
-              onClick={() => handleConnect(integration)}
-              onKeyDown={(e) => e.key === "Enter" && handleConnect(integration)}
+              aria-disabled={integration.loading}
+              onClick={() => {
+                if (integration.loading) return;
+                handleConnect(integration);
+              }}
+              onKeyDown={(e) => {
+                if (integration.loading) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  if (e.key === " ") e.preventDefault();
+                  handleConnect(integration);
+                }
+              }}
               className="group flex items-center gap-4 p-4 rounded-xl border border-dashed border-slate-200/70 dark:border-zinc-800/70 bg-white/50 dark:bg-zinc-900/30 hover:border-brand-400 dark:hover:border-brand-700 hover:bg-brand-50/30 dark:hover:bg-brand-950/10 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <div className="flex-shrink-0 rounded-xl overflow-hidden shadow-sm">

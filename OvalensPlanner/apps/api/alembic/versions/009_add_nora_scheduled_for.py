@@ -21,7 +21,7 @@ def upgrade() -> None:
     inspector = inspect(bind)
     meeting_session_columns = {col["name"] for col in inspector.get_columns("meeting_sessions")}
     if "scheduled_for" not in meeting_session_columns:
-        op.execute("ALTER TABLE meeting_sessions ADD COLUMN scheduled_for TIMESTAMP NULL")
+        op.execute("ALTER TABLE meeting_sessions ADD COLUMN scheduled_for TIMESTAMPTZ NULL")
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_meeting_sessions_client_scheduled_for "
         "ON meeting_sessions (client_id, scheduled_for)"

@@ -33,13 +33,13 @@ def upgrade() -> None:
             status VARCHAR NOT NULL DEFAULT 'scheduled',
             meeting_url TEXT NULL,
             agenda TEXT NULL,
-            started_at TIMESTAMP NULL,
-            ended_at TIMESTAMP NULL,
-            processing_started_at TIMESTAMP NULL,
-            processing_completed_at TIMESTAMP NULL,
+            started_at TIMESTAMPTZ NULL,
+            ended_at TIMESTAMPTZ NULL,
+            processing_started_at TIMESTAMPTZ NULL,
+            processing_completed_at TIMESTAMPTZ NULL,
             error_message TEXT NULL,
-            created_at TIMESTAMP NOT NULL,
-            updated_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL,
+            updated_at TIMESTAMPTZ NOT NULL,
             FOREIGN KEY(client_id) REFERENCES clients (id),
             FOREIGN KEY(user_id) REFERENCES users (id)
         )
@@ -61,10 +61,10 @@ def upgrade() -> None:
             session_id VARCHAR NOT NULL,
             speaker VARCHAR NULL,
             text TEXT NOT NULL,
-            ts_start TIMESTAMP NULL,
-            ts_end TIMESTAMP NULL,
+            ts_start TIMESTAMPTZ NULL,
+            ts_end TIMESTAMPTZ NULL,
             provider_event_id VARCHAR NULL,
-            created_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL,
             FOREIGN KEY(session_id) REFERENCES meeting_sessions (id)
         )
         """
