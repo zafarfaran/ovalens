@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { IconFileText } from "@/components/icons";
 
@@ -23,22 +23,37 @@ interface MeetingNote {
 }
 
 const ease = [0.16, 1, 0.3, 1] as const;
-const POLL_INTERVAL_MS = 15_000;
 
 export function MeetingNotesTimeline({
   clientId,
   refreshKey = 0,
   expectingNotes = false,
+  progress = null,
 }: {
   clientId: string;
   refreshKey?: number;
   /** When true and there are no notes, show a progress bar and "Generating notes…" */
   expectingNotes?: boolean;
+  progress?: {
+    status: string;
+    label: string;
+    percent: number;
+    agenda: string | null;
+  } | null;
 }) {
   const { api } = useApi();
   const [notes, setNotes] = useState<MeetingNote[]>([]);
   const [loading, setLoading] = useState(true);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const sortedNotes = useMemo(
+    () =>
+      [...notes].sort((a, b) => {
+        const aTs = new Date(a.meeting_date || a.created_at || 0).getTime();
+        const bTs = new Date(b.meeting_date || b.created_at || 0).getTime();
+        return bTs - aTs;
+      }),
+    [notes]
+  );
 
   const fetchNotes = useCallback(async () => {
     try {
@@ -56,15 +71,6 @@ export function MeetingNotesTimeline({
     setLoading(true);
     void fetchNotes();
   }, [fetchNotes, refreshKey]);
-
-  useEffect(() => {
-    if (!clientId) return;
-    pollRef.current = setInterval(() => void fetchNotes(), POLL_INTERVAL_MS);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-      pollRef.current = null;
-    };
-  }, [clientId, fetchNotes]);
 
   if (loading) {
     return (
@@ -85,26 +91,37 @@ export function MeetingNotesTimeline({
   if (notes.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-[var(--glass-border)] bg-[var(--glass)] backdrop-blur-sm p-10 text-center">
-        <IconFileText className="w-6 h-6 mx-auto text-[var(--muted)] mb-2" />
-        <p className="text-[13px] font-medium text-[var(--muted)]">
-          {expectingNotes ? "Processing transcript & generating note" : "No meeting notes yet"}
-        </p>
-        <p className="text-[11px] text-[var(--muted-foreground)] mt-1">
-          {expectingNotes
-            ? "Notes will appear here when processing is complete."
-            : "Meeting notes will appear here as they are added."}
-        </p>
+        {!expectingNotes && (
+          <>
+            <IconFileText className="w-6 h-6 mx-auto text-[var(--muted)] mb-2" />
+            <p className="text-[13px] font-medium text-[var(--muted)]">No meeting notes yet</p>
+            <p className="text-[11px] text-[var(--muted-foreground)] mt-1">
+              Meeting notes will appear here as they are added.
+            </p>
+          </>
+        )}
         {expectingNotes && (
-          <div className="mt-4 mx-auto max-w-[240px] space-y-1">
-            <div className="flex justify-between text-[10px] font-mono text-[var(--muted)]">
-              <span>Progress</span>
-              <span>80%</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--border-subtle)]">
-              <div
-                className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-500 ease-out"
-                style={{ width: "80%" }}
-              />
+          <div className="mx-auto max-w-[520px] text-left">
+            <p className="text-[13px] font-medium text-[var(--foreground)] mb-1">
+              {progress?.label || "Generating your meeting note..."}
+            </p>
+            <p className="text-[11px] text-[var(--muted)] mb-4">
+              {progress?.agenda
+                ? `${progress.agenda} is in progress. This section updates after you refresh.`
+                : "Transcript is processing. This section updates after you refresh."}
+            </p>
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+              <div className="animate-pulse space-y-3">
+                <div className="h-3 w-28 rounded bg-[var(--border-subtle)]" />
+                <div className="h-4 w-3/5 rounded bg-[var(--border-subtle)]" />
+                <div className="h-3 w-full rounded bg-[var(--border-subtle)]" />
+                <div className="h-3 w-11/12 rounded bg-[var(--border-subtle)]" />
+                <div className="h-3 w-4/5 rounded bg-[var(--border-subtle)]" />
+                <div className="pt-2 border-t border-[var(--border-subtle)]">
+                  <div className="h-3 w-24 rounded bg-[var(--border-subtle)] mb-2" />
+                  <div className="h-3 w-10/12 rounded bg-[var(--border-subtle)]" />
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -118,7 +135,51 @@ export function MeetingNotesTimeline({
       <div className="absolute left-[5px] top-2 bottom-2 w-[2px] bg-[var(--border-subtle)]" />
 
       <div className="space-y-6">
-        {notes.map((note, i) => {
+        {expectingNotes && (
+          <motion.div
+            key="note-processing-placeholder"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.35, ease }}
+            className="relative"
+          >
+            <div className="absolute -left-6 top-1.5 w-[10px] h-[10px] rounded-full border-2 border-[var(--accent)] bg-[var(--background)]" />
+            <div className="glass-card rounded-xl p-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[10px] font-mono text-[var(--muted)]">
+                  In progress
+                </span>
+                <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-[1px] rounded bg-amber-100 text-amber-700">
+                  {(progress?.status || "generating").replaceAll("_", " ")}
+                </span>
+              </div>
+              <p className="text-[12px] text-[var(--muted)] mb-3">
+                {progress?.label || "Meeting ended. Nora is generating the note."}
+              </p>
+              {typeof progress?.percent === "number" && (
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--border-subtle)]">
+                    <div
+                      className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-500 ease-out"
+                      style={{ width: `${progress.percent}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-mono text-[var(--muted)]">
+                    {progress.percent}%
+                  </span>
+                </div>
+              )}
+              <div className="animate-pulse space-y-2">
+                <div className="h-3 w-3/5 rounded bg-[var(--border-subtle)]" />
+                <div className="h-3 w-full rounded bg-[var(--border-subtle)]" />
+                <div className="h-3 w-11/12 rounded bg-[var(--border-subtle)]" />
+                <div className="h-3 w-4/5 rounded bg-[var(--border-subtle)]" />
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {sortedNotes.map((note, i) => {
           const dateStr = note.meeting_date
             ? new Date(note.meeting_date).toLocaleDateString("en-GB", {
                 day: "numeric",
@@ -194,6 +255,7 @@ export function MeetingNotesTimeline({
             </motion.div>
           );
         })}
+
       </div>
     </div>
   );
