@@ -52,7 +52,9 @@ def _client(
         "company_number": None,
         "notes": None,
         "tax": {
-            "income_sources": [{"type": "employment", "gross_amount": employment_gross, "label": "Employment"}],
+            "income_sources": [
+                {"type": "employment", "gross_amount": employment_gross, "label": "Employment"},
+            ],
             "pension_contributions": pension,
             "gift_aid": 0.0,
         },
@@ -177,7 +179,12 @@ INTEGRATION_CLIENTS: dict[str, list[dict]] = {
             "notes": None,
             "tax": {
                 "income_sources": [
-                    {"type": "self_employment", "gross_amount": 48000.0, "label": "Consulting", "expenses": 4000.0},
+                    {
+                        "type": "self_employment",
+                        "gross_amount": 48000.0,
+                        "label": "Consulting",
+                        "expenses": 4000.0,
+                    },
                 ],
                 "pension_contributions": 8000.0,
                 "gift_aid": 0.0,
@@ -232,7 +239,10 @@ INTEGRATION_CLIENTS: dict[str, list[dict]] = {
             "employer_name": "Harrison Capital Partners",
             "company_name": None,
             "company_number": None,
-            "notes": "High earner, minimal pension to date. PA taper and HICBC. Interested in salary sacrifice and SIPP.",
+            "notes": (
+                "High earner, minimal pension to date. PA taper and HICBC. "
+                "Interested in salary sacrifice and SIPP."
+            ),
             "tax": {
                 "income_sources": [
                     {"type": "employment", "gross_amount": 185000.0, "label": "Salary + bonus"},
@@ -246,26 +256,62 @@ INTEGRATION_CLIENTS: dict[str, list[dict]] = {
         },
     ],
     "xero": [
-        _client("Rachel", "Green", "rachel.green@gmail.com", "1985-04-20", "JK678901H", "6789012345", 38000.0, 2000.0),
-        _client("Michael", "Scott", "michael.scott@outlook.com", "1978-12-05", "KL789012I", "7890123456", 75000.0, 8000.0),
-        _client("Lisa", "Thompson", "lisa.thompson@btinternet.com", "1992-06-18", "LM890123J", "8901234567", 41000.0, 4000.0),
+        _client(
+            "Rachel", "Green", "rachel.green@gmail.com", "1985-04-20",
+            "JK678901H", "6789012345", 38000.0, 2000.0,
+        ),
+        _client(
+            "Michael", "Scott", "michael.scott@outlook.com", "1978-12-05",
+            "KL789012I", "7890123456", 75000.0, 8000.0,
+        ),
+        _client(
+            "Lisa", "Thompson", "lisa.thompson@btinternet.com", "1992-06-18",
+            "LM890123J", "8901234567", 41000.0, 4000.0,
+        ),
     ],
     "hmrc_apis": [
-        _client("Andrew", "Taylor", "andrew.taylor@gmail.com", "1980-02-28", "MN901234K", "9012345678", 55000.0, 5000.0),
-        _client("Helen", "Clark", "helen.clark@sky.com", "1975-10-11", "NO012345L", "0123456789", 68000.0, 7000.0),
-        _client("Peter", "Wright", "peter.wright@yahoo.co.uk", "1965-08-03", "OP123456M", "1123456789", 32000.0, 2000.0),
+        _client(
+            "Andrew", "Taylor", "andrew.taylor@gmail.com", "1980-02-28",
+            "MN901234K", "9012345678", 55000.0, 5000.0,
+        ),
+        _client(
+            "Helen", "Clark", "helen.clark@sky.com", "1975-10-11",
+            "NO012345L", "0123456789", 68000.0, 7000.0,
+        ),
+        _client(
+            "Peter", "Wright", "peter.wright@yahoo.co.uk", "1965-08-03",
+            "OP123456M", "1123456789", 32000.0, 2000.0,
+        ),
     ],
     "microsoft_365": [
-        _client("Sophie", "Martinez", "sophie.martinez@outlook.com", "1988-05-25", "PQ234567N", "2123456789", 47000.0, 3500.0),
-        _client("Chris", "Lee", "chris.lee@gmail.com", "1991-11-09", "QR345678P", "3123456789", 53000.0, 6000.0),
+        _client(
+            "Sophie", "Martinez", "sophie.martinez@outlook.com", "1988-05-25",
+            "PQ234567N", "2123456789", 47000.0, 3500.0,
+        ),
+        _client(
+            "Chris", "Lee", "chris.lee@gmail.com", "1991-11-09",
+            "QR345678P", "3123456789", 53000.0, 6000.0,
+        ),
     ],
     "google_workspace": [
-        _client("Nina", "Patel", "nina.patel@icloud.com", "1987-07-14", "RS456789Q", "4123456789", 49000.0, 4500.0),
-        _client("Mark", "Roberts", "mark.roberts@btinternet.com", "1979-03-01", "ST567890R", "5123456789", 61000.0, 5500.0),
+        _client(
+            "Nina", "Patel", "nina.patel@icloud.com", "1987-07-14",
+            "RS456789Q", "4123456789", 49000.0, 4500.0,
+        ),
+        _client(
+            "Mark", "Roberts", "mark.roberts@btinternet.com", "1979-03-01",
+            "ST567890R", "5123456789", 61000.0, 5500.0,
+        ),
     ],
     "salesforce": [
-        _client("Julia", "Adams", "julia.adams@outlook.com", "1983-09-17", "TU678901S", "6123456789", 44000.0, 3000.0),
-        _client("Steven", "Hall", "steven.hall@sky.com", "1970-12-22", "UV789012T", "7123456789", 72000.0, 10000.0),
+        _client(
+            "Julia", "Adams", "julia.adams@outlook.com", "1983-09-17",
+            "TU678901S", "6123456789", 44000.0, 3000.0,
+        ),
+        _client(
+            "Steven", "Hall", "steven.hall@sky.com", "1970-12-22",
+            "UV789012T", "7123456789", 72000.0, 10000.0,
+        ),
     ],
 }
 
@@ -327,7 +373,11 @@ def _save_tax_profile_and_observations(
             "label": "Pension Annual Allowance",
             "annual_limit": 60000,
             "used": pension,
-            "remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else max(0, 60000 - pension),
+            "remaining": (
+                pos.pension_aa_result.remaining
+                if pos.pension_aa_result
+                else max(0, 60000 - pension)
+            ),
         },
         {
             "type": "dividend",
@@ -336,8 +386,20 @@ def _save_tax_profile_and_observations(
             "used": pos.income_tax_result.dividend_allowance_used,
             "remaining": 500 - pos.income_tax_result.dividend_allowance_used,
         },
-        {"type": "isa", "label": "ISA Allowance", "annual_limit": 20000, "used": 0, "remaining": 20000},
-        {"type": "cgt_aea", "label": "CGT Annual Exemption", "annual_limit": 3000, "used": 0, "remaining": 3000},
+        {
+            "type": "isa",
+            "label": "ISA Allowance",
+            "annual_limit": 20000,
+            "used": 0,
+            "remaining": 20000,
+        },
+        {
+            "type": "cgt_aea",
+            "label": "CGT Annual Exemption",
+            "annual_limit": 3000,
+            "used": 0,
+            "remaining": 3000,
+        },
     ]
 
     tax_profile = TaxProfile(
@@ -367,14 +429,24 @@ def _save_tax_profile_and_observations(
         ],
         pension_data={
             "contributions": pension,
-            "aa_remaining": pos.pension_aa_result.remaining if pos.pension_aa_result else max(0, 60000 - pension),
-            "annual_allowance": pos.pension_aa_result.annual_allowance if pos.pension_aa_result else 60000,
+            "aa_remaining": (
+                pos.pension_aa_result.remaining
+                if pos.pension_aa_result
+                else max(0, 60000 - pension)
+            ),
+            "annual_allowance": (
+                pos.pension_aa_result.annual_allowance
+                if pos.pension_aa_result
+                else 60000
+            ),
         },
         allowances=allowances,
         hicbc={
             "number_of_children": client_children,
             "claims_child_benefit": client_claims_cb,
-            "child_benefit_amount": pos.hicbc_result.child_benefit_annual if pos.hicbc_result else 0,
+            "child_benefit_amount": (
+                pos.hicbc_result.child_benefit_annual if pos.hicbc_result else 0
+            ),
             "clawback_percentage": pos.hicbc_result.clawback_percentage if pos.hicbc_result else 0,
             "hicbc_charge": pos.hicbc_result.hicbc_charge if pos.hicbc_result else 0,
         },
@@ -384,7 +456,11 @@ def _save_tax_profile_and_observations(
         ],
         ni_breakdown={
             "class1": {
-                "total_employee_ni": pos.ni_result.class_1.total_employee_ni if pos.ni_result.class_1 else 0,
+                "total_employee_ni": (
+                    pos.ni_result.class_1.total_employee_ni
+                    if pos.ni_result.class_1
+                    else 0
+                ),
             },
             "class2": {
                 "annual_ni": pos.ni_result.class_2.annual_ni if pos.ni_result.class_2 else 0,
@@ -428,7 +504,13 @@ DEMO_MEETING_NOTES: list[dict] = [
     {
         "subject": "Annual review 2025",
         "attendees": "Client, Adviser, Paraplanner",
-        "summary": "Full annual review with {client}. Discussed current tax position, pension contributions, and ISA usage. {client} confirmed no change in employment. We ran through the allowance tracker and noted personal allowance is fully used. Agreed to revisit before year end for any last-minute planning and to confirm bonus expectations with employer.",
+        "summary": (
+            "Full annual review with {client}. Discussed current tax position, pension "
+            "contributions, and ISA usage. {client} confirmed no change in employment. "
+            "We ran through the allowance tracker and noted personal allowance is fully used. "
+            "Agreed to revisit before year end for any last-minute planning and to confirm "
+            "bonus expectations with employer."
+        ),
         "action_items": [
             "Send P60 and annual tax summary by 31 May",
             "Review pension contributions before 5 April for annual allowance",
@@ -440,7 +522,12 @@ DEMO_MEETING_NOTES: list[dict] = [
     {
         "subject": "Tax planning session",
         "attendees": "Client, Adviser",
-        "summary": "Focused on income tax and allowances with {client}. Reviewed personal allowance position and discussed gift aid. Agreed to maximise pension contributions within budget. No HICBC issues for this year. {client} asked about salary sacrifice — we agreed to model a scenario at next meeting.",
+        "summary": (
+            "Focused on income tax and allowances with {client}. Reviewed personal allowance "
+            "position and discussed gift aid. Agreed to maximise pension contributions within "
+            "budget. No HICBC issues for this year. {client} asked about salary sacrifice — we "
+            "agreed to model a scenario at next meeting."
+        ),
         "action_items": [
             "Client to confirm pension contribution amount by next week",
             "Submit gift aid declaration if not already on file",
@@ -452,7 +539,12 @@ DEMO_MEETING_NOTES: list[dict] = [
     {
         "subject": "Pre-year-end checklist",
         "attendees": "Client, Adviser",
-        "summary": "Ran through year-end checklist with {client}: ISA allowance, pension annual allowance, CGT exemption. Client on track. Noted one observation on pension taper to monitor for next year. Discussed use of CGT annual exemption if planning to rebalance investments.",
+        "summary": (
+            "Ran through year-end checklist with {client}: ISA allowance, pension annual "
+            "allowance, CGT exemption. Client on track. Noted one observation on pension taper "
+            "to monitor for next year. Discussed use of CGT annual exemption if planning to "
+            "rebalance investments."
+        ),
         "action_items": [
             "Use remaining ISA allowance before 5 April",
             "Confirm final pension contribution figure",
@@ -464,7 +556,12 @@ DEMO_MEETING_NOTES: list[dict] = [
     {
         "subject": "Pension review and drawdown",
         "attendees": "Client, Adviser",
-        "summary": "Pension review meeting with {client}. Discussed current drawdown strategy and sustainability. Reviewed taxable income from pension and interaction with state pension timing. {client} is in flexible drawdown; we agreed to cap at basic rate where possible. No MPAA triggered this year.",
+        "summary": (
+            "Pension review meeting with {client}. Discussed current drawdown strategy and "
+            "sustainability. Reviewed taxable income from pension and interaction with state "
+            "pension timing. {client} is in flexible drawdown; we agreed to cap at basic rate "
+            "where possible. No MPAA triggered this year."
+        ),
         "action_items": [
             "Provide drawdown projection for next three tax years",
             "Review UFPLS vs annuity quote when {client} is ready",
@@ -475,7 +572,12 @@ DEMO_MEETING_NOTES: list[dict] = [
     {
         "subject": "IHT and estate planning discussion",
         "attendees": "Client, Adviser, Client's spouse",
-        "summary": "Initial IHT discussion with {client}. Covered nil-rate band and residence nil-rate band, current estate estimate, and gift allowances. {client} is considering regular gifts out of income — we agreed to document and review annually. Will follow up with a simple spreadsheet of exempt transfers.",
+        "summary": (
+            "Initial IHT discussion with {client}. Covered nil-rate band and residence nil-rate "
+            "band, current estate estimate, and gift allowances. {client} is considering "
+            "regular gifts out of income — we agreed to document and review annually. Will "
+            "follow up with a simple spreadsheet of exempt transfers."
+        ),
         "action_items": [
             "Send IHT fact sheet and current thresholds",
             "Client to list intended gifts for next year",
@@ -487,7 +589,13 @@ DEMO_MEETING_NOTES: list[dict] = [
     {
         "subject": "Mid-year check-in",
         "attendees": "Client, Adviser",
-        "summary": "Mid-year check-in with {client}. No major changes to report. Confirmed employment income on track and that P60 will be available in May. Discussed interest received to date — we will include in tax summary. {client} asked about side income from consultancy; we noted to declare and may need to register for self-assessment if over threshold.",
+        "summary": (
+            "Mid-year check-in with {client}. No major changes to report. Confirmed employment "
+            "income on track and that P60 will be available in May. Discussed interest received "
+            "to date — we will include in tax summary. {client} asked about side income from "
+            "consultancy; we noted to declare and may need to register for self-assessment if "
+            "over threshold."
+        ),
         "action_items": [
             "Add consultancy income to next tax projection",
             "Remind client of SA registration deadline if side income continues",
@@ -498,7 +606,12 @@ DEMO_MEETING_NOTES: list[dict] = [
     {
         "subject": "Discovery and fact-find",
         "attendees": "Client, Adviser",
-        "summary": "Initial discovery meeting with {client}. Gathered employment details, pension arrangements, savings and investments, and family circumstances. {client} has two children and claims child benefit — we flagged HICBC and will run full tax calc to see if charge applies. Next step: full fact-find and recommendation report.",
+        "summary": (
+            "Initial discovery meeting with {client}. Gathered employment details, pension "
+            "arrangements, savings and investments, and family circumstances. {client} has two "
+            "children and claims child benefit — we flagged HICBC and will run full tax calc to "
+            "see if charge applies. Next step: full fact-find and recommendation report."
+        ),
         "action_items": [
             "Complete full fact-find document and send for sign-off",
             "Run full tax position including HICBC and pension relief",
@@ -510,7 +623,12 @@ DEMO_MEETING_NOTES: list[dict] = [
     {
         "subject": "CGT and investment rebalance",
         "attendees": "Client, Adviser",
-        "summary": "Discussion with {client} on planned sale of shares and use of CGT annual exemption. We modelled the gain and confirmed within exemption for this year. Discussed bed-and-ISA and timing of sale vs new tax year. {client} will instruct broker after we confirm figures in writing.",
+        "summary": (
+            "Discussion with {client} on planned sale of shares and use of CGT annual exemption. "
+            "We modelled the gain and confirmed within exemption for this year. Discussed "
+            "bed-and-ISA and timing of sale vs new tax year. {client} will instruct broker after "
+            "we confirm figures in writing."
+        ),
         "action_items": [
             "Send written confirmation of CGT estimate and exemption usage",
             "Client to confirm sale date and consider bed-and-ISA for remainder",
@@ -521,7 +639,13 @@ DEMO_MEETING_NOTES: list[dict] = [
     {
         "subject": "HICBC and child benefit review",
         "attendees": "Client, Adviser",
-        "summary": "HICBC review with {client}. Adjusted net income is above the £60k threshold; we calculated the charge and the effective marginal rate on the taper. Discussed options: reduce ANI via pension contributions or accept the charge. {client} will increase pension to bring ANI below threshold — we agreed to model exact contribution needed.",
+        "summary": (
+            "HICBC review with {client}. Adjusted net income is above the £60k threshold; we "
+            "calculated the charge and the effective marginal rate on the taper. Discussed "
+            "options: reduce ANI via pension contributions or accept the charge. {client} will "
+            "increase pension to bring ANI below threshold — we agreed to model exact "
+            "contribution needed."
+        ),
         "action_items": [
             "Model pension contribution to bring ANI below £60k",
             "Client to confirm child benefit claim status with HMRC",
@@ -532,7 +656,12 @@ DEMO_MEETING_NOTES: list[dict] = [
     {
         "subject": "Director remuneration and dividends",
         "attendees": "Client, Adviser",
-        "summary": "Director remuneration planning with {client}. Reviewed salary vs dividend split for the current year and impact on NI and tax. We agreed the current mix is optimal; discussed retaining profits in company for future extraction. {client} will take a further dividend before year end once accounts are signed.",
+        "summary": (
+            "Director remuneration planning with {client}. Reviewed salary vs dividend split for "
+            "the current year and impact on NI and tax. We agreed the current mix is optimal; "
+            "discussed retaining profits in company for future extraction. {client} will take "
+            "a further dividend before year end once accounts are signed."
+        ),
         "action_items": [
             "Confirm final dividend amount once management accounts available",
             "Update tax summary with actual dividend for the year",
@@ -543,7 +672,12 @@ DEMO_MEETING_NOTES: list[dict] = [
     {
         "subject": "Post-meeting actions follow-up",
         "attendees": "Client, Adviser",
-        "summary": "Short follow-up call with {client} to tick off actions from last meeting. P60 received and filed. Pension contribution confirmed and paid. ISA subscription completed. One item outstanding: gift aid declaration — {client} will send by email this week.",
+        "summary": (
+            "Short follow-up call with {client} to tick off actions from last meeting. P60 "
+            "received and filed. Pension contribution confirmed and paid. ISA subscription "
+            "completed. One item outstanding: gift aid declaration — {client} will send by "
+            "email this week."
+        ),
         "action_items": [
             "Chase gift aid declaration if not received by Friday",
             "Close off annual review in file",
@@ -559,7 +693,13 @@ HIGH_EARNER_MEETING_NOTES: list[dict] = [
     {
         "subject": "High earner tax review – PA taper and HICBC",
         "attendees": "Client, Adviser",
-        "summary": "Full review with {client}. ANI is in the personal allowance taper zone (£100k–£125k effective) and HICBC applies due to child benefit. Current pension contributions are low relative to income — we flagged that increasing salary sacrifice or SIPP contributions would reduce ANI, restore PA and avoid HICBC. {client} asked for a modelled scenario.",
+        "summary": (
+            "Full review with {client}. ANI is in the personal allowance taper zone "
+            "(£100k–£125k effective) and HICBC applies due to child benefit. Current pension "
+            "contributions are low relative to income — we flagged that increasing salary "
+            "sacrifice or SIPP contributions would reduce ANI, restore PA and avoid HICBC. "
+            "{client} asked for a modelled scenario."
+        ),
         "action_items": [
             "Model salary sacrifice to bring ANI below £100k",
             "Model SIPP contribution to eliminate HICBC",
@@ -570,7 +710,12 @@ HIGH_EARNER_MEETING_NOTES: list[dict] = [
     {
         "subject": "Salary sacrifice and pension efficiency",
         "attendees": "Client, Adviser",
-        "summary": "Discussed tax inefficiency with {client}: current pension input is minimal versus income. Salary sacrifice would save income tax, NI and HICBC. We ran rough numbers — significant annual saving possible. {client} to confirm with employer whether sacrifice is available and to revisit before year end.",
+        "summary": (
+            "Discussed tax inefficiency with {client}: current pension input is minimal versus "
+            "income. Salary sacrifice would save income tax, NI and HICBC. We ran rough numbers "
+            "— significant annual saving possible. {client} to confirm with employer whether "
+            "sacrifice is available and to revisit before year end."
+        ),
         "action_items": [
             "Confirm employer salary sacrifice availability",
             "Prepare formal salary sacrifice comparison",
@@ -581,7 +726,12 @@ HIGH_EARNER_MEETING_NOTES: list[dict] = [
     {
         "subject": "HICBC and child benefit – planning options",
         "attendees": "Client, Adviser",
-        "summary": "HICBC review with {client}. Charge applies on adjusted net income over £60k. Options discussed: increase pension contributions to bring ANI below threshold, or accept charge. {client} prefers to reduce charge; we agreed to model exact contribution needed and to look at spreading contributions across tax years.",
+        "summary": (
+            "HICBC review with {client}. Charge applies on adjusted net income over £60k. "
+            "Options discussed: increase pension contributions to bring ANI below threshold, or "
+            "accept charge. {client} prefers to reduce charge; we agreed to model exact "
+            "contribution needed and to look at spreading contributions across tax years."
+        ),
         "action_items": [
             "Model pension contribution to get ANI below £60k",
             "Check child benefit claim status with HMRC",
@@ -592,7 +742,13 @@ HIGH_EARNER_MEETING_NOTES: list[dict] = [
     {
         "subject": "Annual review – higher and additional rate planning",
         "attendees": "Client, Adviser",
-        "summary": "Annual review with {client}. Income spans higher and additional rate bands; PA fully tapered. We identified under-use of pension annual allowance and no gift aid to offset. Agreed to prioritise pension increase and to run scenarios for salary sacrifice vs personal contribution. Dividend and rental income noted for full picture.",
+        "summary": (
+            "Annual review with {client}. Income spans higher and additional rate bands; PA "
+            "fully tapered. We identified under-use of pension annual allowance and no gift aid "
+            "to offset. Agreed to prioritise pension increase and to run scenarios for salary "
+            "sacrifice vs personal contribution. Dividend and rental income noted for full "
+            "picture."
+        ),
         "action_items": [
             "Run salary sacrifice vs SIPP comparison",
             "Update allowance tracker with current pension usage",
@@ -614,7 +770,10 @@ def _add_demo_meeting_notes(
     client_first_name: str,
     client_email: str | None = None,
 ) -> None:
-    """Create 2–3 meeting notes per client. High-earner client gets notes that reference tax inefficiencies."""
+    """Create 2–3 meeting notes per client.
+
+    High-earner client gets notes that reference tax inefficiencies.
+    """
     pool = (
         HIGH_EARNER_MEETING_NOTES
         if (client_email and client_email.lower() == HIGH_EARNER_CLIENT_EMAIL)
@@ -710,7 +869,10 @@ async def sync_integration(
     if key not in INTEGRATION_CLIENTS:
         raise HTTPException(
             status_code=404,
-            detail=f"Unknown integration: {integration_id}. Valid: {list(INTEGRATION_CLIENTS.keys())}",
+            detail=(
+                f"Unknown integration: {integration_id}. "
+                f"Valid: {list(INTEGRATION_CLIENTS.keys())}"
+            ),
         )
 
     tax_year = get_default_tax_year()
@@ -803,7 +965,8 @@ async def sync_integration(
 
     if key == "hmrc_apis":
         message = (
-            f"Tax data synced for {tax_profiles_updated or 0} profile{'s' if (tax_profiles_updated or 0) != 1 else ''}."
+            f"Tax data synced for {tax_profiles_updated or 0} "
+            f"profile{'s' if (tax_profiles_updated or 0) != 1 else ''}."
             if (tax_profiles_updated or 0) > 0
             else "No tax profiles to update."
         )
@@ -812,7 +975,10 @@ async def sync_integration(
         if skipped:
             message += f", {skipped} already present"
         if tax_profiles_updated is not None and tax_profiles_updated > 0:
-            message += f"; tax data updated for {tax_profiles_updated} profile{'s' if tax_profiles_updated != 1 else ''}"
+            message += (
+                f"; tax data updated for {tax_profiles_updated} "
+                f"profile{'s' if tax_profiles_updated != 1 else ''}"
+            )
         message += "."
 
     return SyncResponse(

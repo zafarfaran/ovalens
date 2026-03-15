@@ -133,14 +133,24 @@ class RecallClient:
                     content=json.dumps(body),
                 )
         except httpx.TimeoutException as e:
-            logger.error("recall_create_transcript_timeout", recording_id=recording_id, error=str(e))
+            logger.error(
+                "recall_create_transcript_timeout",
+                recording_id=recording_id,
+                error=str(e),
+            )
             raise HTTPException(
                 status_code=502,
                 detail="Recall AI create transcript request timed out.",
             ) from e
         except httpx.RequestError as e:
-            logger.error("recall_create_transcript_network_error", recording_id=recording_id, error=str(e))
-            raise HTTPException(status_code=502, detail=f"Cannot reach Recall AI: {str(e)}") from e
+            logger.error(
+                "recall_create_transcript_network_error",
+                recording_id=recording_id,
+                error=str(e),
+            )
+            raise HTTPException(
+                status_code=502, detail=f"Cannot reach Recall AI: {str(e)}"
+            ) from e
         if response.status_code >= 400:
             _raise_recall_error(response, "create_transcript")
         data = response.json()
@@ -150,7 +160,10 @@ class RecallClient:
         return transcript_id
 
     async def get_transcript_by_id(self, transcript_id: str) -> list[dict[str, Any]]:
-        """Fetch transcript by artifact id (GET transcript/{id}/ then download_url). Returns list of chunks."""
+        """Fetch transcript by artifact id (GET transcript/{id}/ then download_url).
+
+        Returns list of chunks.
+        """
         headers = {"Authorization": f"Token {self.api_key}"}
         try:
             async with httpx.AsyncClient(timeout=30) as client:
@@ -163,17 +176,31 @@ class RecallClient:
                 if art_resp.status_code >= 400:
                     _raise_recall_error(art_resp, "transcript retrieve")
                 artifact = art_resp.json()
-                download_url = (artifact.get("data") or {}).get("download_url") if isinstance(artifact, dict) else None
+                download_url = (
+                    (artifact.get("data") or {}).get("download_url")
+                    if isinstance(artifact, dict)
+                    else None
+                )
                 if not download_url:
-                    raise HTTPException(status_code=502, detail="Transcript artifact has no download_url")
+                    raise HTTPException(
+                        status_code=502,
+                        detail="Transcript artifact has no download_url",
+                    )
                 down_resp = await client.get(download_url, headers=headers)
                 if down_resp.status_code >= 400:
-                    raise HTTPException(status_code=502, detail="Failed to download transcript content")
+                    raise HTTPException(
+                        status_code=502,
+                        detail="Failed to download transcript content",
+                    )
                 data = down_resp.json()
         except HTTPException:
             raise
         except httpx.RequestError as e:
-            logger.error("recall_get_transcript_by_id_error", transcript_id=transcript_id, error=str(e))
+            logger.error(
+                "recall_get_transcript_by_id_error",
+                transcript_id=transcript_id,
+                error=str(e),
+            )
             raise HTTPException(status_code=502, detail=f"Cannot reach Recall AI: {str(e)}") from e
         return _parse_transcript_to_chunks(data)
 
@@ -195,7 +222,10 @@ class RecallClient:
                 if not transcript_id:
                     raise HTTPException(
                         status_code=404,
-                        detail="Transcript not ready yet. Wait a few minutes after the meeting ends.",
+                        detail=(
+                            "Transcript not ready yet. Wait a few minutes after "
+                            "the meeting ends."
+                        ),
                     )
         except HTTPException:
             raise
@@ -235,7 +265,8 @@ def _parse_transcript_to_chunks(data: Any) -> list[dict[str, Any]]:
     """Normalize Recall transcript JSON to list of {speaker, text, ts_start, ts_end}."""
     chunks: list[dict[str, Any]] = []
 
-    # Recall async transcript: list of { participant: { name }, words: [ { text, start_timestamp: { relative }, end_timestamp: { relative } } ] }
+    # Recall async transcript: list of { participant: { name }, words: [ { text,
+    # start_timestamp: { relative }, end_timestamp: { relative } } ] }
     if isinstance(data, list):
         for item in data:
             if not isinstance(item, dict):
