@@ -137,20 +137,21 @@ async def run_processing_for_session_id(
     *,
     session_id: str,
     auto_publish: bool,
-) -> MeetingNote | None:
-    """Lookup a meeting session by id and process it."""
+) -> tuple[MeetingNote | None, str | None]:
+    """Lookup a meeting session by id and process it. Returns (note, client_id) for SSE notify."""
     row = await session.execute(select(MeetingSession).where(MeetingSession.id == session_id))
     meeting_session = row.scalar_one_or_none()
     if meeting_session is None:
-        return None
+        return None, None
     processor = NoraProcessingService()
     try:
-        return await processor.process_session(
+        note = await processor.process_session(
             session=session,
             meeting_session=meeting_session,
             auto_publish=auto_publish,
         )
+        return note, meeting_session.client_id
     except ValueError as exc:
         meeting_session.status = "failed"
         meeting_session.error_message = str(exc)
-        return None
+        return None, None

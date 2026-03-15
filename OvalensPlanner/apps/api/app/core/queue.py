@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from typing import Literal
+
 CONTEXT_INGEST_QUEUE = "context_ingest_queue"
 NORA_PROCESSING_QUEUE = "nora_processing_queue"
+
+# Channel for notifying clients when a Nora webhook has updated session/notes for a client.
+NORA_UPDATES_CHANNEL_PREFIX = "nora:updates:"
 
 
 def _get_redis():
@@ -115,3 +121,55 @@ async def clear_nora_processing_queue_for_tests() -> None:
         await client.delete(NORA_PROCESSING_QUEUE)
     except Exception:
         pass
+
+
+async def publish_nora_client_update(client_id: str) -> bool:
+    """Publish a message so SSE subscribers for this client refetch sessions/notes.
+    Call after processing a Recall webhook so the UI updates without polling.
+    Returns True if Redis published, False if Redis unavailable.
+    """
+    client = _get_redis()
+    if client is None:
+        return False
+    try:
+        channel = f"{NORA_UPDATES_CHANNEL_PREFIX}{client_id}"
+        await client.publish(channel, "1")
+        return True
+    except Exception:
+        return False
+
+
+async def stream_nora_updates(
+    client_id: str,
+    *,
+    keepalive_seconds: int = 15,
+) -> AsyncIterator[Literal["session_updated", "keepalive"]]:
+    """Async generator for SSE: yields 'session_updated' when a webhook was processed for this client,
+    or 'keepalive' on timeout so the connection stays open. Caller should close the stream when done.
+    """
+    client = _get_redis()
+    if client is None:
+        return
+    channel = f"{NORA_UPDATES_CHANNEL_PREFIX}{client_id}"
+    pubsub = client.pubsub()
+    try:
+        await pubsub.subscribe(channel)
+        while True:
+            msg = await pubsub.get_message(
+                ignore_subscribe_messages=True,
+                timeout=keepalive_seconds,
+            )
+            if msg and msg.get("type") == "message":
+                yield "session_updated"
+            else:
+                yield "keepalive"
+    finally:
+        try:
+            await pubsub.unsubscribe(channel)
+            await pubsub.close()
+        except Exception:
+            pass
+        try:
+            await client.aclose()
+        except Exception:
+            pass

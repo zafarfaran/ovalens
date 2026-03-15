@@ -22,7 +22,11 @@ def _log(msg: str, *, err: bool = False) -> None:
 
 async def run_worker() -> None:
     from app.config import get_settings
-    from app.core.queue import NORA_PROCESSING_QUEUE, pop_nora_processing_job
+    from app.core.queue import (
+        NORA_PROCESSING_QUEUE,
+        pop_nora_processing_job,
+        publish_nora_client_update,
+    )
     from app.db.engine import get_session_factory
     from app.services.nora_processing import run_processing_for_session_id
 
@@ -40,14 +44,16 @@ async def run_worker() -> None:
             continue
         try:
             async with session_factory() as session:
-                result = await run_processing_for_session_id(
+                note, client_id = await run_processing_for_session_id(
                     session,
                     session_id=session_id,
                     auto_publish=settings.nora_auto_publish_notes,
                 )
                 await session.commit()
-                if result:
+                if note:
                     _log(f"Nora worker processed session {session_id} (note created).")
+                    if client_id:
+                        await publish_nora_client_update(client_id)
                 else:
                     _log(f"Nora worker skipped session {session_id} (no session or no chunks).")
         except Exception as e:

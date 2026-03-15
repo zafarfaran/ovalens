@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconClock, IconMic } from "@/components/icons";
 import { NoraSession, useApi } from "@/hooks/use-api";
 
@@ -30,6 +30,7 @@ export function NoraAIPanel({
   } | null) => void;
 }) {
   const {
+    api,
     startNoraSession,
     listNoraSessions,
     createNoraMeeting,
@@ -45,18 +46,21 @@ export function NoraAIPanel({
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
   const [creating, setCreating] = useState(false);
+  const sseAbortRef = useRef<AbortController | null>(null);
 
-  const loadSessions = useCallback(async () => {
+  const loadSessions = useCallback(async (silent = false) => {
     if (!noraEnabled || !clientId) return;
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const rows = await listNoraSessions(clientId);
       setSessions(rows);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load sessions");
+      if (!silent) setError(err instanceof Error ? err.message : "Failed to load sessions");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [clientId, listNoraSessions, noraEnabled]);
 
@@ -71,6 +75,56 @@ export function NoraAIPanel({
       ),
     [sessions]
   );
+
+  // Subscribe to SSE so we refetch only when the server has processed a webhook (no polling, no full-page refresh).
+  useEffect(() => {
+    if (!noraEnabled || !clientId || !api) return;
+    const abort = new AbortController();
+    sseAbortRef.current = abort;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    const reconnectDelayMs = 3000;
+
+    async function runStream() {
+      while (abort.signal.aborted === false) {
+        try {
+          const res = await api(
+            `/api/nora/events?client_id=${encodeURIComponent(clientId)}`,
+            { signal: abort.signal }
+          );
+          if (!res.ok || !res.body) break;
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          while (abort.signal.aborted === false) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() ?? "";
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6).trim();
+                if (data === "session_updated") {
+                  void loadSessions(true);
+                  onNoteRefresh?.();
+                }
+              }
+            }
+          }
+        } catch (err) {
+          if (err instanceof Error && err.name === "AbortError") break;
+        }
+        if (abort.signal.aborted) break;
+        reconnectTimeout = setTimeout(runStream, reconnectDelayMs);
+      }
+    }
+    void runStream();
+    return () => {
+      abort.abort();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      sseAbortRef.current = null;
+    };
+  }, [noraEnabled, clientId, api, loadSessions, onNoteRefresh]);
 
   useEffect(() => {
     onActiveChange?.(hasActiveSession);
@@ -159,7 +213,7 @@ export function NoraAIPanel({
               Meeting Assistant
             </h3>
             <p className="text-[11px] text-[var(--muted)]">
-            Start meetings and refresh manually when you want updated status.
+            Start meetings; status updates when the bot sends events (no refresh needed).
             </p>
           </div>
         </div>

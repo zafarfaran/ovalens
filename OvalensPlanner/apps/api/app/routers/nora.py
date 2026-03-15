@@ -6,14 +6,20 @@ import hashlib
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from structlog.stdlib import BoundLogger
 
 from app.config import get_settings
-from app.core.queue import nora_processing_queue_length, push_nora_processing_job
+from app.core.queue import (
+    nora_processing_queue_length,
+    publish_nora_client_update,
+    push_nora_processing_job,
+    stream_nora_updates,
+)
 from app.db.engine import get_db_session
 from app.db.models import Client, MeetingSession, TranscriptChunk
 from app.dependencies import get_current_user, get_request_logger
@@ -244,6 +250,36 @@ async def create_nora_session(
         provider_bot_id=nora_session.provider_bot_id,
     )
     return _serialize_session(nora_session)
+
+
+@router.get("/nora/events")
+async def nora_events_stream(
+    client_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    user_id: str = Depends(get_current_user),
+):
+    """SSE stream: emits 'session_updated' when a Recall webhook has been processed for this client.
+    UI should refetch sessions/notes only on that event (no polling). Requires auth and client ownership.
+    """
+    _assert_nora_enabled()
+    await _ensure_client_owned(session, client_id=client_id, user_id=user_id)
+
+    async def event_stream():
+        async for event in stream_nora_updates(client_id):
+            if event == "session_updated":
+                yield "data: session_updated\n\n"
+            else:
+                yield ": keepalive\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/clients/{client_id}/nora/sessions")
@@ -502,6 +538,7 @@ async def fetch_transcript_and_process(
 @router.post("/nora/webhooks/recall")
 async def recall_webhook(
     request: Request,
+    background: BackgroundTasks,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
 ):
@@ -652,4 +689,8 @@ async def recall_webhook(
         session_id=result.get("session_id"),
         should_process=result.get("should_process", False),
     )
+    # Notify SSE subscribers so the UI refetches only when we have an update (no polling).
+    client_id = result.get("client_id")
+    if client_id:
+        background.add_task(publish_nora_client_update, client_id)
     return {"ok": True, "received_at": datetime.now(UTC).isoformat()}
