@@ -8,7 +8,10 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logging import get_logger
 from app.db.models import MeetingSession, TranscriptChunk
+
+logger = get_logger(__name__)
 
 
 def _parse_dt(value: str | None) -> datetime | None:
@@ -22,15 +25,22 @@ def _parse_dt(value: str | None) -> datetime | None:
 
 
 def _extract_bot_id(payload: dict[str, Any]) -> str | None:
+    """Extract Recall bot id from webhook payload. Recall sends data.bot.id; Svix may wrap."""
+    data = payload.get("data") or {}
+    inner = data.get("payload") or data.get("event_payload") or data
+    if not isinstance(inner, dict):
+        inner = {}
     candidates = [
         payload.get("bot_id"),
         payload.get("botId"),
-        (payload.get("data") or {}).get("bot_id"),
-        ((payload.get("data") or {}).get("bot") or {}).get("id"),
+        data.get("bot_id"),
+        (data.get("bot") or {}).get("id"),
+        (inner.get("bot") or {}).get("id"),
+        inner.get("bot_id"),
     ]
     for candidate in candidates:
-        if candidate:
-            return str(candidate)
+        if candidate is not None and str(candidate).strip():
+            return str(candidate).strip()
     return None
 
 
@@ -65,10 +75,18 @@ class NoraIngestionService:
 
     STATUS_MAP = {
         "bot_joined": "recording",
+        "bot.joining_call": "joining",
+        "bot.in_waiting_room": "joining",
+        "bot.in_call_not_recording": "recording",
+        "bot.recording_permission_allowed": "recording",
+        "bot.recording_permission_denied": "recording",
         "bot.recording_started": "recording",
+        "bot.in_call_recording": "recording",
         "recording.started": "recording",
         "recording.done": "processing",  # async: ready for create_transcript
         "bot_left": "processing",
+        "bot.call_ended": "processing",
+        "bot.done": "processing",
         "bot.recording_stopped": "processing",
         "recording.stopped": "processing",
         "transcript_ready": "processing",
@@ -76,6 +94,7 @@ class NoraIngestionService:
         "transcript.done": "processing",  # async: transcript ready, fetch and process
         "transcript.failed": "failed",
         "bot_failed": "failed",
+        "bot.fatal": "failed",
         "bot.error": "failed",
     }
 
@@ -96,6 +115,17 @@ class NoraIngestionService:
         result = await session.execute(stmt)
         meeting_session = result.scalar_one_or_none()
         if meeting_session is None:
+            # Log a short prefix for debugging (match against provider_bot_id in DB)
+            prefix = (bot_id[:12] + "…") if len(bot_id) > 12 else bot_id
+            logger.warning(
+                "nora_unknown_bot",
+                bot_id_prefix=prefix,
+                bot_id_length=len(bot_id),
+                hint=(
+                    "Session must have provider_bot_id from create_bot; "
+                    "webhook uses data.bot.id"
+                ),
+            )
             return {"ok": False, "reason": "unknown_bot"}
 
         event_type = _extract_event_type(payload)

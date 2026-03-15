@@ -91,6 +91,17 @@ async def pop_nora_processing_job(timeout: int = 5) -> str | None:
         return None
 
 
+async def nora_processing_queue_length() -> int | None:
+    """Return current length of Nora processing queue, or None if Redis unavailable."""
+    client = _get_redis()
+    if client is None:
+        return None
+    try:
+        return await client.llen(NORA_PROCESSING_QUEUE)
+    except Exception:
+        return None
+
+
 async def clear_nora_processing_queue_for_tests() -> None:
     """Delete Nora queue in tests only."""
     import os

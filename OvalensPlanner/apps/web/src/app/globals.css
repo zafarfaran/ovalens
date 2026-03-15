@@ -526,6 +526,16 @@
   }
 }
 
+/* ── Nora AI progress bar (indeterminate) ── */
+@keyframes nora-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
 /* ── Theme transition ── */
 
 .theme-transition,
