@@ -81,8 +81,15 @@ Rate limiting will use in-memory counters; context ingest will be synchronous. I
 3. **Build:** Same Dockerfile (same image).
 4. **Start command (override):**  
    `python scripts/nora_processing_worker.py`  
-   (No uvicorn; worker only consumes the Nora queue.)
-5. **Variables:** Same as API (at least **DATABASE_URL**, **REDIS_URL**; **NORA_AUTO_PUBLISH_NOTES** if you use it). No need to expose a public URL.
+   (No uvicorn; worker only consumes the Nora queue.)  
+   If you don’t set this, the container runs the default image CMD (migrations + uvicorn), so you’d be running the API twice instead of the worker.
+5. **Variables:** Same as API (at least **DATABASE_URL**, **REDIS_URL**; **NORA_AUTO_PUBLISH_NOTES** if you use it). No need to expose a public URL.  
+   Optional: **PYTHONUNBUFFERED=1** so worker logs appear immediately in Railway.
+
+**If you only see "Starting Container" and no worker logs:**  
+- Confirm **Start Command** is set to `python scripts/nora_processing_worker.py` (worker service → Settings → Deploy → Start Command).  
+- Add variable **PYTHONUNBUFFERED=1** and redeploy.  
+- After deploy you should see: `Nora worker process starting...` then `Nora worker started. Consuming from nora_processing_queue.`
 
 The API enqueues Nora jobs when it receives `transcript.done` webhooks; the worker pops jobs and creates meeting notes.
 
