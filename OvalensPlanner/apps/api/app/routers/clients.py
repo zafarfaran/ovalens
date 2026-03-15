@@ -987,8 +987,14 @@ async def list_meeting_notes(
                 "subject": note.subject,
                 "attendees": note.attendees,
                 "summary": note.summary,
-                "action_items": note.action_items,
-                "tags": note.tags,
+                "action_items": note.action_items or [],
+                "tags": note.tags or [],
+                "source": note.source,
+                "source_id": note.source_id,
+                "session_id": note.session_id,
+                "is_draft": note.is_draft,
+                "processing_confidence": note.processing_confidence,
+                "processing_duration_ms": note.processing_duration_ms,
                 "created_at": note.created_at.isoformat() if note.created_at else None,
             }
             for note in notes

@@ -11,7 +11,18 @@ from app.core.errors import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.middleware import RequestContextMiddleware
 from app.core.observability import init_sentry
-from app.routers import chat, clients, context, documents, exports, health, integrations, metrics_router, ready
+from app.routers import (
+    chat,
+    clients,
+    context,
+    documents,
+    exports,
+    health,
+    integrations,
+    metrics_router,
+    nora,
+    ready,
+)
 
 
 @asynccontextmanager
@@ -89,3 +100,4 @@ app.include_router(documents.router, prefix="/api")
 app.include_router(context.router, prefix="/api")
 app.include_router(exports.router, prefix="/api")
 app.include_router(integrations.router, prefix="/api")
+app.include_router(nora.router, prefix="/api")

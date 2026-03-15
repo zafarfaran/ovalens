@@ -18,6 +18,7 @@ import { NIDonutChart } from "@/components/charts/ni-donut-chart";
 import { AllowancesRadialChart } from "@/components/charts/allowances-radial-chart";
 import { SavingsBanner } from "@/components/charts/savings-banner";
 import { MeetingNotesTimeline } from "@/components/charts/meeting-notes-timeline";
+import { NoraAIPanel } from "@/components/charts/nora-ai-panel";
 import {
   OvalensLogo,
   IconUser,
@@ -894,6 +895,7 @@ export default function ClientsPage() {
   const [selectedHouseholdId, setSelectedHouseholdId] = useState<string | null>(null);
   const [householdsLoading, setHouseholdsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notesRefreshKey, setNotesRefreshKey] = useState(0);
 
   const handleClientAdded = (newClient: ClientSummary) => {
     setClients((prev) => [newClient, ...prev]);
@@ -1667,7 +1669,16 @@ export default function ClientsPage() {
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.15 }}
                           >
-                            <MeetingNotesTimeline clientId={detail.id} />
+                            <div className="space-y-4">
+                              <NoraAIPanel
+                                clientId={detail.id}
+                                onNoteRefresh={() => setNotesRefreshKey((k) => k + 1)}
+                              />
+                              <MeetingNotesTimeline
+                                clientId={detail.id}
+                                refreshKey={notesRefreshKey}
+                              />
+                            </div>
                           </motion.div>
                         )}
                       </AnimatePresence>

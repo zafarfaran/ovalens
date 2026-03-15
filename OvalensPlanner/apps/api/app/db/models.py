@@ -128,6 +128,9 @@ class Client(Base):
     meeting_notes = relationship(
         "MeetingNote", back_populates="client", order_by="MeetingNote.meeting_date.desc()"
     )
+    meeting_sessions = relationship(
+        "MeetingSession", back_populates="client", order_by="MeetingSession.created_at.desc()"
+    )
     spouse = relationship(
         "Client",
         foreign_keys=[spouse_id],
@@ -313,21 +316,79 @@ class Observation(Base):
 # ─── 10. MeetingNote ──────────────────────────────────────────────────────
 
 
+class MeetingSession(Base):
+    __tablename__ = "meeting_sessions"
+    __table_args__ = (UniqueConstraint("provider", "provider_bot_id"),)
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    client_id: Mapped[str] = mapped_column(ForeignKey("clients.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    provider: Mapped[str] = mapped_column(String, nullable=False, default="recall")
+    provider_bot_id: Mapped[str | None] = mapped_column(String)
+    meeting_url_hash: Mapped[str | None] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="scheduled")
+    meeting_url: Mapped[str | None] = mapped_column(Text)
+    agenda: Mapped[str | None] = mapped_column(Text)
+    scheduled_for: Mapped[datetime | None] = mapped_column(DateTimeTZ)
+    started_at: Mapped[datetime | None] = mapped_column(DateTimeTZ)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTimeTZ)
+    processing_started_at: Mapped[datetime | None] = mapped_column(DateTimeTZ)
+    processing_completed_at: Mapped[datetime | None] = mapped_column(DateTimeTZ)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow, onupdate=_utcnow)
+
+    # relationships
+    client = relationship("Client", back_populates="meeting_sessions")
+    user = relationship("User", foreign_keys=[user_id])
+    transcript_chunks = relationship(
+        "TranscriptChunk",
+        back_populates="session",
+        order_by="TranscriptChunk.ts_start",
+        cascade="all, delete-orphan",
+    )
+    meeting_notes = relationship("MeetingNote", back_populates="session")
+
+
+class TranscriptChunk(Base):
+    __tablename__ = "transcript_chunks"
+    __table_args__ = (UniqueConstraint("provider_event_id"),)
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(ForeignKey("meeting_sessions.id"), nullable=False)
+    speaker: Mapped[str | None] = mapped_column(String)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    ts_start: Mapped[datetime | None] = mapped_column(DateTimeTZ)
+    ts_end: Mapped[datetime | None] = mapped_column(DateTimeTZ)
+    provider_event_id: Mapped[str | None] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
+
+    # relationships
+    session = relationship("MeetingSession", back_populates="transcript_chunks")
+
+
 class MeetingNote(Base):
     __tablename__ = "meeting_notes"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     client_id: Mapped[str] = mapped_column(ForeignKey("clients.id"), nullable=False)
     author_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    session_id: Mapped[str | None] = mapped_column(ForeignKey("meeting_sessions.id"))
     meeting_date: Mapped[datetime] = mapped_column(DateTimeTZ, nullable=False)
     subject: Mapped[str] = mapped_column(String, nullable=False)
     attendees: Mapped[str | None] = mapped_column(String)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     action_items: Mapped[list | None] = mapped_column(JSON, default=list)
     tags: Mapped[list | None] = mapped_column(JSON, default=list)
+    source: Mapped[str] = mapped_column(String, nullable=False, default="manual")
+    source_id: Mapped[str | None] = mapped_column(String)
+    is_draft: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    processing_confidence: Mapped[float | None] = mapped_column(Float)
+    processing_duration_ms: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTimeTZ, default=_utcnow, onupdate=_utcnow)
 
     # relationships
     client = relationship("Client", back_populates="meeting_notes")
     author = relationship("User", foreign_keys=[author_id])
+    session = relationship("MeetingSession", back_populates="meeting_notes")
