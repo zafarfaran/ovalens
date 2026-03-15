@@ -55,6 +55,7 @@ interface Message {
   timestamp: string;
   insights?: Insight[];
   computationData?: import("@/hooks/useChat").TaxComputationData;
+  activityEvents?: import("@/hooks/useChat").ChatActivityEvent[];
 }
 
 interface Insight {
@@ -454,8 +455,10 @@ function ChatPageInner() {
   const [meetingNotes, setMeetingNotes] = useState<MeetingNoteData[]>([]);
   const clientMenuRef = useRef<HTMLDivElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [micContainer, setMicContainer] = useState<HTMLElement | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const micContainerRef = useCallback((node: HTMLDivElement | null) => {
@@ -658,10 +661,26 @@ function ChatPageInner() {
     }
   }, [isStreaming, conversationId, loadConversations]);
 
-  /* ── Scroll to bottom when messages change ── */
+  /* ── Scroll to bottom when messages change (only if user is near bottom) ── */
   useEffect(() => {
+    if (!autoScrollEnabled) return;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, autoScrollEnabled]);
+
+  // Start each new response at the bottom, but allow manual scrolling during stream.
+  useEffect(() => {
+    if (isStreaming) {
+      setAutoScrollEnabled(true);
+    }
+  }, [isStreaming]);
+
+  const handleMessagesScroll = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // If user scrolls up more than this, stop forced auto-scroll.
+    setAutoScrollEnabled(distanceFromBottom < 120);
+  }, []);
 
   /* ── Close client menu on outside click ── */
   useEffect(() => {
@@ -1473,7 +1492,11 @@ function ChatPageInner() {
           </div>
 
           {/* ── Messages ── */}
-          <div className="flex-1 overflow-y-auto">
+          <div
+            ref={messagesContainerRef}
+            onScroll={handleMessagesScroll}
+            className="flex-1 overflow-y-auto"
+          >
             <div className="max-w-3xl mx-auto px-3 py-4 md:px-5 md:py-6 space-y-1">
               {messages.map((msg, i) => (
                 <motion.div
@@ -2159,6 +2182,11 @@ const ChatMessage = memo(function ChatMessage({ message }: { message: Message })
             <TaxComputationBreakdown data={message.computationData} />
           )}
 
+          {/* Structured activity updates */}
+          {message.activityEvents && message.activityEvents.length > 0 && (
+            <ChatActivityList events={message.activityEvents} />
+          )}
+
           {/* Message body — markdown rendered */}
           <MarkdownRenderer content={message.content} />
 
@@ -2194,6 +2222,60 @@ const ChatMessage = memo(function ChatMessage({ message }: { message: Message })
           )}
         </div>
       </div>
+    </div>
+  );
+});
+
+const ChatActivityList = memo(function ChatActivityList({
+  events,
+}: {
+  events: import("@/hooks/useChat").ChatActivityEvent[];
+}) {
+  return (
+    <div className="mb-3 space-y-2">
+      {events.map((event) => (
+        <div
+          key={event.id}
+          className="rounded-xl border border-slate-200/70 dark:border-zinc-800/70 bg-white/70 dark:bg-zinc-900/60 px-3 py-2.5"
+        >
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex h-5 w-5 items-center justify-center rounded-md ${
+              event.type === "scenario"
+                ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                : event.type === "observation"
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                  : "bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
+            }`}>
+              {event.type === "scenario" ? (
+                <IconChart className="w-3 h-3" />
+              ) : event.type === "observation" ? (
+                <IconLightbulb className="w-3 h-3" />
+              ) : (
+                <IconCalculator className="w-3 h-3" />
+              )}
+            </span>
+            <p className="text-[12px] font-medium text-slate-800 dark:text-zinc-100">
+              {event.title}
+            </p>
+            <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-light text-slate-500 dark:text-zinc-400">
+              {event.status === "done" ? (
+                <>
+                  <IconCheck className="w-3 h-3 text-emerald-500" />
+                  Complete
+                </>
+              ) : (
+                <>
+                  <IconClock className="w-3 h-3 text-brand-500" />
+                  In progress
+                </>
+              )}
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] font-light text-slate-600 dark:text-zinc-300">
+            {event.detail}
+          </p>
+        </div>
+      ))}
     </div>
   );
 });

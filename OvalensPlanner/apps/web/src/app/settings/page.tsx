@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-provider";
 import { useAuth } from "@/contexts/auth-context";
+import { useApi } from "@/hooks/use-api";
 import {
   OvalensLogo,
   IconUser,
@@ -50,7 +51,6 @@ const NAV_ITEMS: NavItem[] = [
     id: "integrations",
     label: "Integrations",
     icon: <IconDatabase className="w-4 h-4" />,
-    badge: "3",
   },
   {
     id: "meetings",
@@ -278,11 +278,10 @@ function AccountSection() {
             description="Default to Scottish income tax bands for new clients"
           />
         </div>
+        <div className="flex justify-end mt-5 pt-4 border-t border-slate-100 dark:border-zinc-800/50">
+          <SaveButton />
+        </div>
       </Card>
-
-      <div className="flex justify-end mt-6">
-        <SaveButton />
-      </div>
 
       <SignOutCard />
     </div>
@@ -402,54 +401,216 @@ function LogoGoogle() {
   );
 }
 
-const INTEGRATIONS = [
-  {
-    name: "Salesforce",
-    description: "Sync client records and financial data from your CRM",
-    logo: <LogoSalesforce />,
-    connected: true,
-    status: "Synced 2 min ago",
-  },
-  {
-    name: "Intelliflo",
-    description: "Import back-office portfolio data and valuations",
-    logo: <LogoIntelliflo />,
-    connected: true,
-    status: "24 clients synced",
-  },
-  {
-    name: "Xero",
-    description: "Pull tax return data and accounting records",
-    logo: <LogoXero />,
-    connected: true,
-    status: "Last sync today 08:12",
-  },
-  {
-    name: "HMRC APIs",
-    description: "Direct access to HMRC tax data and submissions",
-    logo: <LogoHMRC />,
-    connected: false,
-  },
-  {
-    name: "Microsoft 365",
-    description: "Calendar sync and Outlook meeting integration",
-    logo: <LogoMicrosoft />,
-    connected: false,
-  },
-  {
-    name: "Google Workspace",
-    description: "Calendar events and Google Meet transcription",
-    logo: <LogoGoogle />,
-    connected: false,
-  },
+type IntegrationItem = {
+  id: string;
+  name: string;
+  description: string;
+  logo: React.ReactNode;
+  connected: boolean;
+  status?: string;
+  loading?: boolean;
+};
+
+const INITIAL_INTEGRATIONS: IntegrationItem[] = [
+  { id: "salesforce", name: "Salesforce", description: "Sync client records and financial data from your CRM", logo: <LogoSalesforce />, connected: false },
+  { id: "intelliflo", name: "Intelliflo", description: "Import back-office portfolio data and valuations", logo: <LogoIntelliflo />, connected: false },
+  { id: "xero", name: "Xero", description: "Pull tax return data and accounting records", logo: <LogoXero />, connected: false },
+  { id: "hmrc_apis", name: "HMRC APIs", description: "Direct access to HMRC tax data and submissions", logo: <LogoHMRC />, connected: false },
+  { id: "microsoft_365", name: "Microsoft 365", description: "Calendar sync and Outlook meeting integration", logo: <LogoMicrosoft />, connected: false },
+  { id: "google_workspace", name: "Google Workspace", description: "Calendar events and Google Meet transcription", logo: <LogoGoogle />, connected: false },
 ];
 
+const LOADING_MESSAGES = [
+  "Connecting…",
+  "Authenticating with service…",
+  "Loading client list…",
+  "Syncing records…",
+  "Importing tax data…",
+  "Almost there…",
+];
+
+/** Minimum time to show the sync animation (ms), so it’s visible even when the API is fast. */
+const SYNC_MIN_DURATION_MS = 8000;
+
+const INTEGRATIONS_STORAGE_KEY = "ovalens-integrations-state";
+
+type PersistedIntegrationState = Record<string, { connected: boolean; status?: string }>;
+
+function getPersistedIntegrations(): PersistedIntegrationState {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as PersistedIntegrationState;
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistIntegrations(integrations: IntegrationItem[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const state: PersistedIntegrationState = {};
+    for (const i of integrations) {
+      state[i.id] = { connected: i.connected, status: i.status };
+    }
+    window.localStorage.setItem(INTEGRATIONS_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore
+  }
+}
+
 function IntegrationsSection() {
+  const { api } = useApi();
+  const [integrations, setIntegrations] = useState<IntegrationItem[]>(() => {
+    const saved = getPersistedIntegrations();
+    return INITIAL_INTEGRATIONS.map((i) => ({
+      ...i,
+      ...(saved[i.id] || {}),
+      loading: false,
+    }));
+  });
+  const loadingMessageIndexRef = useRef(0);
+
+  const handleConnect = useCallback(
+    async (item: IntegrationItem) => {
+      if (item.connected || item.loading) return;
+      loadingMessageIndexRef.current = 0;
+      const startedAt = Date.now();
+      setIntegrations((prev) =>
+        prev.map((i) =>
+          i.id === item.id ? { ...i, loading: true, status: LOADING_MESSAGES[0] } : i
+        )
+      );
+      const messageInterval = setInterval(() => {
+        loadingMessageIndexRef.current += 1;
+        const idx = loadingMessageIndexRef.current % LOADING_MESSAGES.length;
+        setIntegrations((p) =>
+          p.map((i) =>
+            i.loading ? { ...i, status: LOADING_MESSAGES[idx] } : i
+          )
+        );
+      }, 2200);
+      const finishLoading = (updates: (prev: IntegrationItem[]) => IntegrationItem[]) => {
+        clearInterval(messageInterval);
+        setIntegrations((prev) => {
+          const next = updates(prev);
+          persistIntegrations(next);
+          return next;
+        });
+      };
+      try {
+        const res = await api(`/api/integrations/${item.id}/sync`, { method: "POST" });
+        const elapsed = Date.now() - startedAt;
+        const waitMs = Math.max(0, SYNC_MIN_DURATION_MS - elapsed);
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          const errMessage = (err as { detail?: string }).detail ?? "Sync failed";
+          if (waitMs > 0) {
+            setTimeout(
+              () =>
+                finishLoading((prev) =>
+                  prev.map((i) =>
+                    i.id === item.id
+                      ? { ...i, loading: false, status: errMessage }
+                      : i
+                  )
+                ),
+              waitMs
+            );
+          } else {
+            finishLoading((prev) =>
+              prev.map((i) =>
+                i.id === item.id ? { ...i, loading: false, status: errMessage } : i
+              )
+            );
+          }
+          return;
+        }
+
+        const data = (await res.json()) as {
+          clients_created: number;
+          clients_skipped: number;
+          tax_profiles_updated?: number;
+          message: string;
+        };
+        const status =
+          data.message ||
+          (data.clients_created > 0
+            ? `${data.clients_created} client${data.clients_created !== 1 ? "s" : ""} synced`
+            : data.clients_skipped > 0
+              ? "Already synced"
+              : "Connected");
+
+        if (waitMs > 0) {
+          setTimeout(
+            () =>
+              finishLoading((prev) =>
+                prev.map((i) =>
+                  i.id === item.id
+                    ? { ...i, connected: true, status, loading: false }
+                    : i
+                )
+              ),
+            waitMs
+          );
+        } else {
+          finishLoading((prev) =>
+            prev.map((i) =>
+              i.id === item.id
+                ? { ...i, connected: true, status, loading: false }
+                : i
+            )
+          );
+        }
+      } catch (e) {
+        const elapsed = Date.now() - startedAt;
+        const waitMs = Math.max(0, SYNC_MIN_DURATION_MS - elapsed);
+        const errMessage = e instanceof Error ? e.message : "Connection failed";
+        if (waitMs > 0) {
+          setTimeout(
+            () =>
+              finishLoading((prev) =>
+                prev.map((i) =>
+                  i.id === item.id
+                    ? { ...i, loading: false, status: errMessage }
+                    : i
+                )
+              ),
+            waitMs
+          );
+        } else {
+          finishLoading((prev) =>
+            prev.map((i) =>
+              i.id === item.id
+                ? { ...i, loading: false, status: errMessage }
+                : i
+            )
+          );
+        }
+      }
+    },
+    [api]
+  );
+
+  const handleDisconnect = useCallback((item: IntegrationItem) => {
+    if (!item.connected) return;
+    setIntegrations((prev) => {
+      const next = prev.map((i) =>
+        i.id === item.id ? { ...i, connected: false, status: undefined } : i
+      );
+      persistIntegrations(next);
+      return next;
+    });
+  }, []);
+
   return (
     <div>
       <SectionHeader
         title="Integrations"
-        description="Connect your tools and data sources to Ovalens"
+        description="Connect your tools and data sources to Ovalens. Synced clients are added to your local database."
       />
 
       {/* Connected */}
@@ -458,9 +619,9 @@ function IntegrationsSection() {
           Connected
         </p>
         <div className="space-y-2">
-          {INTEGRATIONS.filter((i) => i.connected).map((integration, i) => (
+          {integrations.filter((i) => i.connected).map((integration, i) => (
             <motion.div
-              key={integration.name}
+              key={integration.id}
               initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{
@@ -487,7 +648,14 @@ function IntegrationsSection() {
                   {integration.status}
                 </p>
               </div>
-              <button className="text-[11px] font-light text-slate-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-all opacity-0 group-hover:opacity-100">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDisconnect(integration);
+                }}
+                className="text-[11px] font-light text-slate-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+              >
                 Disconnect
               </button>
               <IconChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-600" />
@@ -502,9 +670,9 @@ function IntegrationsSection() {
           Available
         </p>
         <div className="grid grid-cols-1 gap-2">
-          {INTEGRATIONS.filter((i) => !i.connected).map((integration, i) => (
+          {integrations.filter((i) => !i.connected).map((integration, i) => (
             <motion.div
-              key={integration.name}
+              key={integration.id}
               initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{
@@ -512,7 +680,11 @@ function IntegrationsSection() {
                 duration: 0.4,
                 ease: [0.16, 1, 0.3, 1],
               }}
-              className="group flex items-center gap-4 p-4 rounded-xl border border-dashed border-slate-200/70 dark:border-zinc-800/70 bg-white/50 dark:bg-zinc-900/30 hover:border-brand-400 dark:hover:border-brand-700 hover:bg-brand-50/30 dark:hover:bg-brand-950/10 transition-all cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => handleConnect(integration)}
+              onKeyDown={(e) => e.key === "Enter" && handleConnect(integration)}
+              className="group flex items-center gap-4 p-4 rounded-xl border border-dashed border-slate-200/70 dark:border-zinc-800/70 bg-white/50 dark:bg-zinc-900/30 hover:border-brand-400 dark:hover:border-brand-700 hover:bg-brand-50/30 dark:hover:bg-brand-950/10 transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <div className="flex-shrink-0 rounded-xl overflow-hidden shadow-sm">
                 {integration.logo}
@@ -522,12 +694,19 @@ function IntegrationsSection() {
                   {integration.name}
                 </span>
                 <p className="text-[11px] font-light text-slate-500 dark:text-zinc-400 mt-0.5">
-                  {integration.description}
+                  {integration.loading ? integration.status : integration.description}
                 </p>
               </div>
-              <span className="text-[11px] font-medium text-brand-500 dark:text-brand-400 px-3 py-1.5 rounded-lg border border-brand-200 dark:border-brand-800/40 group-hover:bg-brand-500 group-hover:text-white group-hover:border-brand-500 transition-all">
-                Connect
-              </span>
+              {integration.loading ? (
+                <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 border-2 border-brand-500 border-t-transparent rounded-full animate-[spin_1.8s_linear_infinite]" />
+                  Syncing…
+                </span>
+              ) : (
+                <span className="text-[11px] font-medium text-brand-500 dark:text-brand-400 px-3 py-1.5 rounded-lg border border-brand-200 dark:border-brand-800/40 group-hover:bg-brand-500 group-hover:text-white group-hover:border-brand-500 transition-all">
+                  Connect
+                </span>
+              )}
             </motion.div>
           ))}
         </div>

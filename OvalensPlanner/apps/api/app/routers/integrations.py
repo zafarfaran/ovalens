@@ -212,6 +212,38 @@ INTEGRATION_CLIENTS: dict[str, list[dict]] = {
                 "gift_aid": 1000.0,
             },
         },
+        {
+            "first_name": "Richard",
+            "last_name": "Harrison",
+            "email": "richard.harrison@outlook.com",
+            "date_of_birth": "1978-06-14",
+            "ni_number": "VW123456A",
+            "utr": "9876543210",
+            "region": "england",
+            "employment_status": "employed",
+            "phone": "07700 900128",
+            "address_line_1": "18 Knightsbridge Gardens",
+            "address_line_2": None,
+            "city": "London",
+            "postcode": "SW1X 7XL",
+            "marital_status": "married",
+            "number_of_children": 2,
+            "claims_child_benefit": True,
+            "employer_name": "Harrison Capital Partners",
+            "company_name": None,
+            "company_number": None,
+            "notes": "High earner, minimal pension to date. PA taper and HICBC. Interested in salary sacrifice and SIPP.",
+            "tax": {
+                "income_sources": [
+                    {"type": "employment", "gross_amount": 185000.0, "label": "Salary + bonus"},
+                    {"type": "dividends", "gross_amount": 42000.0, "label": "Investment portfolio"},
+                    {"type": "savings", "gross_amount": 15000.0, "label": "Interest"},
+                    {"type": "rental", "gross_amount": 28000.0, "label": "BTL property"},
+                ],
+                "pension_contributions": 5000.0,
+                "gift_aid": 2000.0,
+            },
+        },
     ],
     "xero": [
         _client("Rachel", "Green", "rachel.green@gmail.com", "1985-04-20", "JK678901H", "6789012345", 38000.0, 2000.0),
@@ -521,16 +553,75 @@ DEMO_MEETING_NOTES: list[dict] = [
     },
 ]
 
+# Meeting notes for high-income clients — reference PA taper, HICBC, salary sacrifice, pension gaps.
+# Used when client email matches so the AI can surface inefficiencies from notes.
+HIGH_EARNER_MEETING_NOTES: list[dict] = [
+    {
+        "subject": "High earner tax review – PA taper and HICBC",
+        "attendees": "Client, Adviser",
+        "summary": "Full review with {client}. ANI is in the personal allowance taper zone (£100k–£125k effective) and HICBC applies due to child benefit. Current pension contributions are low relative to income — we flagged that increasing salary sacrifice or SIPP contributions would reduce ANI, restore PA and avoid HICBC. {client} asked for a modelled scenario.",
+        "action_items": [
+            "Model salary sacrifice to bring ANI below £100k",
+            "Model SIPP contribution to eliminate HICBC",
+            "Send summary of marginal rates and taper impact",
+        ],
+        "tags": ["pa-taper", "hicbc", "pension", "salary-sacrifice"],
+    },
+    {
+        "subject": "Salary sacrifice and pension efficiency",
+        "attendees": "Client, Adviser",
+        "summary": "Discussed tax inefficiency with {client}: current pension input is minimal versus income. Salary sacrifice would save income tax, NI and HICBC. We ran rough numbers — significant annual saving possible. {client} to confirm with employer whether sacrifice is available and to revisit before year end.",
+        "action_items": [
+            "Confirm employer salary sacrifice availability",
+            "Prepare formal salary sacrifice comparison",
+            "Review bonus timing and pension lump sum before 5 April",
+        ],
+        "tags": ["salary-sacrifice", "pension", "tax-efficiency"],
+    },
+    {
+        "subject": "HICBC and child benefit – planning options",
+        "attendees": "Client, Adviser",
+        "summary": "HICBC review with {client}. Charge applies on adjusted net income over £60k. Options discussed: increase pension contributions to bring ANI below threshold, or accept charge. {client} prefers to reduce charge; we agreed to model exact contribution needed and to look at spreading contributions across tax years.",
+        "action_items": [
+            "Model pension contribution to get ANI below £60k",
+            "Check child benefit claim status with HMRC",
+            "Include HICBC in next year’s tax projection",
+        ],
+        "tags": ["hicbc", "child-benefit", "pension"],
+    },
+    {
+        "subject": "Annual review – higher and additional rate planning",
+        "attendees": "Client, Adviser",
+        "summary": "Annual review with {client}. Income spans higher and additional rate bands; PA fully tapered. We identified under-use of pension annual allowance and no gift aid to offset. Agreed to prioritise pension increase and to run scenarios for salary sacrifice vs personal contribution. Dividend and rental income noted for full picture.",
+        "action_items": [
+            "Run salary sacrifice vs SIPP comparison",
+            "Update allowance tracker with current pension usage",
+            "Schedule Q1 follow-up to lock in pension amount",
+        ],
+        "tags": ["annual-review", "pa-taper", "pension", "marginal-rate"],
+    },
+]
+
+
+# Email used to attach high-earner / inefficiency meeting notes (Richard Harrison).
+HIGH_EARNER_CLIENT_EMAIL = "richard.harrison@outlook.com"
+
 
 def _add_demo_meeting_notes(
     session: AsyncSession,
     client_id: str,
     author_id: str,
     client_first_name: str,
+    client_email: str | None = None,
 ) -> None:
-    """Create 2–3 demo meeting notes per client, picked at random, with varied dates."""
+    """Create 2–3 meeting notes per client. High-earner client gets notes that reference tax inefficiencies."""
+    pool = (
+        HIGH_EARNER_MEETING_NOTES
+        if (client_email and client_email.lower() == HIGH_EARNER_CLIENT_EMAIL)
+        else DEMO_MEETING_NOTES
+    )
     num_notes = random.randint(2, 3)
-    chosen = random.sample(DEMO_MEETING_NOTES, min(num_notes, len(DEMO_MEETING_NOTES)))
+    chosen = random.sample(pool, min(num_notes, len(pool)))
     base_date = datetime.now(UTC) - timedelta(days=random.randint(15, 45))
     for i, template in enumerate(chosen):
         # Spread notes over 10–50 days in the past with some randomness
@@ -689,6 +780,7 @@ async def sync_integration(
             client_id=client.id,
             author_id=user_id,
             client_first_name=client.first_name,
+            client_email=email,
         )
 
         existing_emails.add(email)
