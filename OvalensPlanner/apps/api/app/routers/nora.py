@@ -29,7 +29,7 @@ from app.services.nora_ingestion import (
     _extract_recording_id,
     _extract_transcript_id_from_payload,
 )
-from app.services.nora_processing import NoraProcessingService
+from app.services.nora_processing import ERROR_MESSAGE_MAX_LEN, NoraProcessingService
 
 router = APIRouter(tags=["nora"])
 
@@ -413,8 +413,17 @@ async def process_nora_session(
         await session.flush()
     except ValueError as exc:
         nora_session.status = "failed"
-        nora_session.error_message = str(exc)
+        nora_session.error_message = (str(exc))[:ERROR_MESSAGE_MAX_LEN]
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        nora_session.status = "failed"
+        nora_session.error_message = (str(exc))[:ERROR_MESSAGE_MAX_LEN]
+        await session.flush()
+        logger.exception("nora_session_process_error", session_id=nora_session.id)
+        raise HTTPException(
+            status_code=500,
+            detail="Meeting notes processing failed. Session marked as failed; you can retry.",
+        ) from exc
 
     logger.info(
         "nora_session_processed_sync",
@@ -470,13 +479,9 @@ async def fetch_transcript_and_process(
     base_ts = nora_session.started_at or datetime.now(UTC)
     for i, c in enumerate(chunks):
         ts_start = ts_end = None
-        if c.get("ts_start") is not None and isinstance(
-            c["ts_start"], (int, float)
-        ):
+        if c.get("ts_start") is not None and isinstance(c["ts_start"], int | float):
             ts_start = base_ts + timedelta(seconds=float(c["ts_start"]))
-        if c.get("ts_end") is not None and isinstance(
-            c["ts_end"], (int, float)
-        ):
+        if c.get("ts_end") is not None and isinstance(c["ts_end"], int | float):
             ts_end = base_ts + timedelta(seconds=float(c["ts_end"]))
         session.add(
             TranscriptChunk(
@@ -519,8 +524,17 @@ async def fetch_transcript_and_process(
         await session.flush()
     except ValueError as exc:
         nora_session.status = "failed"
-        nora_session.error_message = str(exc)
+        nora_session.error_message = (str(exc))[:ERROR_MESSAGE_MAX_LEN]
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        nora_session.status = "failed"
+        nora_session.error_message = (str(exc))[:ERROR_MESSAGE_MAX_LEN]
+        await session.flush()
+        logger.exception("nora_fetch_transcript_process_error", session_id=nora_session.id)
+        raise HTTPException(
+            status_code=500,
+            detail="Meeting notes processing failed. Session marked as failed; you can retry.",
+        ) from exc
 
     logger.info(
         "nora_fetch_transcript_processed",
@@ -606,11 +620,11 @@ async def recall_webhook(
                         for i, c in enumerate(chunks):
                             ts_start = ts_end = None
                             if c.get("ts_start") is not None and isinstance(
-                                c["ts_start"], (int, float)
+                                c["ts_start"], int | float
                             ):
                                 ts_start = base_ts + timedelta(seconds=float(c["ts_start"]))
                             if c.get("ts_end") is not None and isinstance(
-                                c["ts_end"], (int, float)
+                                c["ts_end"], int | float
                             ):
                                 ts_end = base_ts + timedelta(seconds=float(c["ts_end"]))
                             session.add(
@@ -634,18 +648,27 @@ async def recall_webhook(
                                 chunks=len(chunks),
                             )
                         else:
-                            processor = NoraProcessingService()
-                            await processor.process_session(
-                                session=session,
-                                meeting_session=nora_session,
-                                auto_publish=get_settings().nora_auto_publish_notes,
-                            )
-                            logger.info(
-                                "nora_transcript_done_processed",
-                                session_id=session_id,
-                                transcript_id=transcript_id,
-                                chunks=len(chunks),
-                            )
+                            try:
+                                processor = NoraProcessingService()
+                                await processor.process_session(
+                                    session=session,
+                                    meeting_session=nora_session,
+                                    auto_publish=get_settings().nora_auto_publish_notes,
+                                )
+                                logger.info(
+                                    "nora_transcript_done_processed",
+                                    session_id=session_id,
+                                    transcript_id=transcript_id,
+                                    chunks=len(chunks),
+                                )
+                            except Exception as proc_exc:
+                                nora_session.status = "failed"
+                                nora_session.error_message = (str(proc_exc))[:ERROR_MESSAGE_MAX_LEN]
+                                logger.exception(
+                                    "nora_transcript_done_process_error",
+                                    session_id=session_id,
+                                    transcript_id=transcript_id,
+                                )
                 except HTTPException as e:
                     logger.warning(
                         "nora_transcript_done_fetch_failed",
@@ -654,7 +677,7 @@ async def recall_webhook(
                         detail=str(e.detail),
                     )
                     nora_session.status = "failed"
-                    nora_session.error_message = str(e.detail)
+                    nora_session.error_message = (str(e.detail))[:ERROR_MESSAGE_MAX_LEN]
 
     if result.get("should_process") and event_type not in ("recording.done", "transcript.done"):
         queued = await push_nora_processing_job(result["session_id"])
@@ -681,10 +704,12 @@ async def recall_webhook(
                     )
                 except ValueError as exc:
                     nora_session.status = "failed"
-                    nora_session.error_message = str(exc)
-                except Exception:
+                    nora_session.error_message = (str(exc))[:ERROR_MESSAGE_MAX_LEN]
+                except Exception as exc:
                     nora_session.status = "failed"
-                    nora_session.error_message = "Unexpected processing error"
+                    nora_session.error_message = (
+                        (str(exc))[:ERROR_MESSAGE_MAX_LEN] or "Unexpected processing error"
+                    )
 
     await session.flush()
     logger.info(

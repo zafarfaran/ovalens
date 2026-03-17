@@ -20,6 +20,26 @@ export interface NoraSession {
   created_at: string | null;
 }
 
+export interface MeetingNoteApi {
+  id: string;
+  client_id: string;
+  meeting_date: string | null;
+  subject: string;
+  attendees: string | null;
+  summary: string;
+  action_items: string[];
+  completed_action_indices?: number[];
+  tags: string[];
+  source: string;
+  source_id: string | null;
+  session_id: string | null;
+  is_draft: boolean;
+  processing_confidence: number | null;
+  processing_duration_ms: number | null;
+  created_at: string | null;
+  updated_at?: string | null;
+}
+
 /**
  * Returns a fetch function that automatically adds the current session's Bearer token.
  * Use for all backend API calls so the API can authenticate and scope by user.
@@ -186,6 +206,48 @@ export function useApi() {
     [api]
   );
 
+  const getMeetingNote = useCallback(
+    async (clientId: string, noteId: string): Promise<MeetingNoteApi> => {
+      const res = await api(`/api/clients/${clientId}/meeting-notes/${noteId}`);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        const msg = errBody?.detail ?? `Failed to load meeting note (${res.status})`;
+        throw new Error(typeof msg === "string" ? msg : "Failed to load meeting note");
+      }
+      return res.json();
+    },
+    [api]
+  );
+
+  const updateMeetingNote = useCallback(
+    async (
+      clientId: string,
+      noteId: string,
+      body: {
+        subject?: string;
+        attendees?: string;
+        summary?: string;
+        action_items?: string[];
+        completed_action_indices?: number[];
+        tags?: string[];
+        is_draft?: boolean;
+      }
+    ): Promise<MeetingNoteApi> => {
+      const res = await api(`/api/clients/${clientId}/meeting-notes/${noteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        const msg = errBody?.detail ?? `Failed to update meeting note (${res.status})`;
+        throw new Error(typeof msg === "string" ? msg : "Failed to update meeting note");
+      }
+      return res.json();
+    },
+    [api]
+  );
+
   return {
     api,
     token: accessToken,
@@ -196,5 +258,7 @@ export function useApi() {
     getNoraDiagnostics,
     createNoraMeeting,
     startNoraMeeting,
+    getMeetingNote,
+    updateMeetingNote,
   };
 }

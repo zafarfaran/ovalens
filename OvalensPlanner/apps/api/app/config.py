@@ -85,6 +85,23 @@ class Settings(BaseSettings):
     ai_model: str = "claude-sonnet-4-20250514"
     nora_enabled: bool = False
     nora_auto_publish_notes: bool = False
+    # Nora meeting notes LLM extraction (production: timeout, retries, scale)
+    nora_llm_timeout_seconds: int = Field(
+        default=90, ge=10, le=300, description="Timeout for Nora notes LLM call (seconds)"
+    )
+    nora_llm_model: str | None = Field(
+        default=None,
+        description="Model for Nora notes extraction (default: ai_model). Use Haiku for scale.",
+    )
+    nora_llm_max_retries: int = Field(
+        default=2, ge=0, le=5, description="Retries for transient LLM failures (429, 5xx, timeout)"
+    )
+    nora_transcript_max_chars: int = Field(
+        default=14_000,
+        ge=1000,
+        le=100_000,
+        description="Max transcript chars sent to LLM (tail kept)",
+    )
     recall_api_key: str | None = None
     recall_api_base_url: str = "https://us-west-2.recall.ai/api/v1"
     recall_webhook_secret: str | None = None
