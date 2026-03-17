@@ -107,12 +107,33 @@ Staff-engineer-style review of the chat flow, API, and related paths. Items are 
 
 ---
 
+## 10. **Pagination for list endpoints (chat history implemented)**
+
+**Implemented:** Chat conversation list is now paginated so the app does not load all conversations at once.
+
+- **API:** `GET /api/chat/conversations` accepts `limit` (default 20, max 100) and `offset`, and returns `{ conversations, has_more }`.
+- **Frontend:** Chat page loads the first page when the client changes or after streaming; a “Load more” button appends the next page.
+- **Messages:** `GET /api/chat/conversations/{id}/messages` accepts `limit` (default 50, max 100) and `offset`, and returns `{ messages, has_more }`. The frontend still loads one page (e.g. 50) when opening a thread; “load older messages” can be added later if needed.
+
+**Other list endpoints that may benefit from pagination (not yet implemented):**
+
+| Endpoint / usage | Notes |
+|------------------|--------|
+| `GET /api/clients` | Clients list (clients page, chat client picker). Add `limit`/`offset` or cursor if user count grows. |
+| `GET /api/households` | Households list. Same as above. |
+| `GET /api/clients/{id}/meeting-notes` | Meeting notes for a client. Paginate if notes can be many. |
+| `GET /api/context/pending` | Pending context snippets. Usually small; paginate if needed. |
+| Nora sessions/meetings (`use-api.ts`) | Session and meeting lists; add pagination if lists grow. |
+
+---
+
 ## Summary of code changes in this pass
 
 | Area              | Change |
 |-------------------|--------|
 | SSE parsing       | Try/catch around `JSON.parse`; skip bad lines and non-object `data`. |
 | Load from history | Restore `computationData` (taxPosition + dashboardData) for assistant messages that have `dashboard_data`. |
-| Docs              | This file: bottlenecks, client-disconnect behavior, and optional next steps. |
+| Pagination        | Conversation list: API limit/offset + `has_more`; frontend “Load more”. Messages endpoint: limit/offset + `has_more` exposed. |
+| Docs              | This file: bottlenecks, client-disconnect behavior, pagination, and optional next steps. |
 
 No backend logic changes beyond the two frontend fixes above. Recommended follow-ups: optional client-disconnect handling in the stream endpoint, and a configurable history message/context limit.

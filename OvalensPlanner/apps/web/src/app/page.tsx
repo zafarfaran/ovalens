@@ -113,14 +113,16 @@ function Navbar() {
           >
             {user ? "View Dashboard" : "Sign in"}
           </Link>
-          <a
-            href={CALENDLY_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[13px] font-normal bg-slate-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 rounded-lg hover:bg-slate-800 dark:hover:bg-zinc-100 transition-colors"
-          >
-            Book a call
-          </a>
+          {!user && (
+            <a
+              href={CALENDLY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[13px] font-normal bg-slate-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 rounded-lg hover:bg-slate-800 dark:hover:bg-zinc-100 transition-colors"
+            >
+              Book a call
+            </a>
+          )}
         </div>
       </div>
     </motion.nav>
@@ -281,16 +283,18 @@ function Hero() {
                   <IconArrowRight className="relative w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                 </Link>
               ) : null}
-              <a
-                href={CALENDLY_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group relative inline-flex items-center gap-2.5 bg-slate-900 dark:bg-white text-white dark:text-zinc-900 text-[13px] font-normal px-6 py-3 rounded-lg transition-all duration-300 hover:bg-slate-800 dark:hover:bg-zinc-100 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-300/30 dark:hover:shadow-black/30 overflow-hidden"
-              >
-                <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 dark:via-black/10 to-transparent" />
-                <span className="relative">Book a call</span>
-                <IconArrowRight className="relative w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-              </a>
+              {!user && (
+                <a
+                  href={CALENDLY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative inline-flex items-center gap-2.5 bg-slate-900 dark:bg-white text-white dark:text-zinc-900 text-[13px] font-normal px-6 py-3 rounded-lg transition-all duration-300 hover:bg-slate-800 dark:hover:bg-zinc-100 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-300/30 dark:hover:shadow-black/30 overflow-hidden"
+                >
+                  <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 dark:via-black/10 to-transparent" />
+                  <span className="relative">Book a call</span>
+                  <IconArrowRight className="relative w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                </a>
+              )}
               <a
                 href="#how-it-works"
                 className="text-[13px] font-light text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors px-3 py-3"
@@ -1480,12 +1484,15 @@ const Testimonial = memo(function Testimonial() {
 
 const CTA = memo(function CTA() {
   const ref = useRef(null);
+  const { user } = useAuth();
   const { isMobile } = useLandingPerformance();
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start end", "end start"],
   });
   const gridY = useTransform(scrollYProgress, [0, 1], [-40, 40]);
+
+  if (user) return null;
 
   return (
     <section ref={ref} className="section-content-visibility relative py-24 md:py-32 bg-slate-950 dark:bg-black text-white overflow-hidden">

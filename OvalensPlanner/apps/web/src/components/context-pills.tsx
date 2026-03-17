@@ -186,13 +186,19 @@ const ContextCard = memo(function ContextCard({
 export const ContextPills = memo(function ContextPills({
   snippets,
   onDismiss,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: {
   snippets: ContextSnippet[];
   onDismiss: (id: string) => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  if (snippets.length === 0) return null;
+  if (snippets.length === 0 && !hasMore) return null;
 
   return (
     <div className="space-y-1.5 mb-2">
@@ -207,6 +213,16 @@ export const ContextPills = memo(function ContextPills({
           />
         ))}
       </AnimatePresence>
+      {hasMore && onLoadMore && (
+        <button
+          type="button"
+          onClick={onLoadMore}
+          disabled={loadingMore}
+          className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-brand-500 dark:hover:text-brand-400 disabled:opacity-50 transition-colors"
+        >
+          {loadingMore ? "Loading…" : "Load more"}
+        </button>
+      )}
     </div>
   );
 });
