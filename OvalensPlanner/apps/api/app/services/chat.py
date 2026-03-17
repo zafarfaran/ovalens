@@ -91,8 +91,12 @@ class ChatService:
         self,
         user_id: str,
         client_id: str | None = None,
-    ) -> list[Conversation]:
-        """List conversations for a user, excluding soft-deleted ones."""
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list[Conversation], bool]:
+        """List conversations for a user, excluding soft-deleted ones.
+        Returns (conversations, has_more).
+        """
         stmt = (
             select(Conversation)
             .where(Conversation.user_id == user_id)
@@ -104,14 +108,20 @@ class ChatService:
             desc(Conversation.last_message_at),
             desc(Conversation.created_at),
         )
+        # Fetch one extra to determine has_more without a separate count query
+        stmt = stmt.offset(offset).limit(limit + 1)
         result = await self.session.execute(stmt)
-        conversations = list(result.scalars().all())
+        rows = list(result.scalars().all())
+        has_more = len(rows) > limit
+        conversations = rows[:limit]
         logger.debug(
             "conversations_listed",
             client_id=client_id,
             count=len(conversations),
+            offset=offset,
+            has_more=has_more,
         )
-        return conversations
+        return conversations, has_more
 
     async def get_conversation(self, conversation_id: str) -> Conversation | None:
         """Fetch a single conversation by ID."""

@@ -404,7 +404,11 @@ function ChatPageInner() {
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [clientDetail, setClientDetail] = useState<ClientDetail | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversationsHasMore, setConversationsHasMore] = useState(false);
+  const [conversationsLoadingMore, setConversationsLoadingMore] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+
+  const CONVERSATIONS_PAGE_SIZE = 10;
   const [taxPlanMode, setTaxPlanMode] = useState(false);
 
   /* ── Callback to refresh client detail (e.g. after AI saves an observation) ── */
@@ -433,7 +437,7 @@ function ChatPageInner() {
     clearMessages,
   } = useChat(selectedClientId, taxPlanMode, refreshClientDetail);
 
-  const { snippets: contextSnippets, dismiss: dismissSnippet, consumeAll: consumeAllSnippets } = useContextSnippets();
+  const { snippets: contextSnippets, dismiss: dismissSnippet, consumeAll: consumeAllSnippets, hasMore: contextHasMore, loadingMore: contextLoadingMore, loadMore: loadMoreContext } = useContextSnippets();
 
   /* ── UI state ── */
   const [input, setInput] = useState("");
@@ -611,19 +615,44 @@ function ChatPageInner() {
       });
   }, [token, api]);
 
-  /* ── Load conversations helper ── */
+  /* ── Load conversations (first page, replace list) ── */
   const loadConversations = useCallback(async () => {
     if (!selectedClientId) return;
     try {
-      const res = await api(`/api/chat/conversations?client_id=${selectedClientId}`);
+      const res = await api(
+        `/api/chat/conversations?client_id=${selectedClientId}&limit=${CONVERSATIONS_PAGE_SIZE}&offset=0`
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setConversations(Array.isArray(data?.conversations) ? data.conversations : []);
+      setConversationsHasMore(Boolean(data?.has_more));
     } catch (err) {
       setConversations([]);
+      setConversationsHasMore(false);
       console.error("Failed to load conversations:", err);
     }
   }, [selectedClientId, api]);
+
+  /* ── Load more conversations (next page, append) ── */
+  const loadMoreConversations = useCallback(async () => {
+    if (!selectedClientId || conversationsLoadingMore || !conversationsHasMore) return;
+    const offset = conversations.length;
+    setConversationsLoadingMore(true);
+    try {
+      const res = await api(
+        `/api/chat/conversations?client_id=${selectedClientId}&limit=${CONVERSATIONS_PAGE_SIZE}&offset=${offset}`
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const next = Array.isArray(data?.conversations) ? data.conversations : [];
+      setConversations((prev) => [...prev, ...next]);
+      setConversationsHasMore(Boolean(data?.has_more));
+    } catch (err) {
+      console.error("Failed to load more conversations:", err);
+    } finally {
+      setConversationsLoadingMore(false);
+    }
+  }, [selectedClientId, api, conversations.length, conversationsHasMore, conversationsLoadingMore]);
 
   /* ── Load client detail + conversations + meeting notes when selectedClientId changes ── */
   useEffect(() => {
@@ -1426,7 +1455,19 @@ function ChatPageInner() {
                       </div>
                     </div>
                   ))}
-                  {filteredHistory.length === 0 && (
+                  {conversationsHasMore && (
+                    <div className="px-2 pt-2 pb-1">
+                      <button
+                        type="button"
+                        onClick={loadMoreConversations}
+                        disabled={conversationsLoadingMore}
+                        className="w-full py-2 rounded-lg text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/50 disabled:opacity-50 transition-colors"
+                      >
+                        {conversationsLoadingMore ? "Loading…" : "Load more"}
+                      </button>
+                    </div>
+                  )}
+                  {filteredHistory.length === 0 && !conversationsLoadingMore && (
                     <div className="text-center py-8">
                       <p className="text-[11px] font-light text-slate-400 dark:text-zinc-600">No conversations yet</p>
                     </div>
@@ -1551,7 +1592,7 @@ function ChatPageInner() {
               </AnimatePresence>
 
               {/* Context pills from web extension */}
-              <ContextPills snippets={contextSnippets} onDismiss={dismissSnippet} />
+              <ContextPills snippets={contextSnippets} onDismiss={dismissSnippet} hasMore={contextHasMore} loadingMore={contextLoadingMore} onLoadMore={loadMoreContext} />
 
               {/* Main input container */}
               <div className={`relative rounded-2xl transition-all duration-300 ${

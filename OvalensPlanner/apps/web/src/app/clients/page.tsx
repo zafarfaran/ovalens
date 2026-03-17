@@ -594,10 +594,16 @@ function IntelligenceTab({
   observations,
   totalSavings,
   onDelete,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: {
   observations: Observation[];
   totalSavings: number;
   onDelete: (id: string) => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }) {
   const [filter, setFilter] = useState<string>("all");
 
@@ -655,6 +661,18 @@ function IntelligenceTab({
           {filtered.map((o) => (
             <ObsItem key={o.id} obs={o} onDelete={onDelete} />
           ))}
+          {hasMore && onLoadMore && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+                className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-brand-500 dark:hover:text-brand-400 disabled:opacity-50 transition-colors"
+              >
+                {loadingMore ? "Loading…" : "Load more"}
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-200/40 dark:border-zinc-800/30 bg-white/30 dark:bg-zinc-900/20 backdrop-blur-sm p-10 text-center">
@@ -894,8 +912,15 @@ export default function ClientsPage() {
   const [households, setHouseholds] = useState<HouseholdSummary[]>([]);
   const [selectedHouseholdId, setSelectedHouseholdId] = useState<string | null>(null);
   const [householdsLoading, setHouseholdsLoading] = useState(true);
+  const [clientsHasMore, setClientsHasMore] = useState(false);
+  const [clientsLoadingMore, setClientsLoadingMore] = useState(false);
+  const [householdsHasMore, setHouseholdsHasMore] = useState(false);
+  const [householdsLoadingMore, setHouseholdsLoadingMore] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
+  const [observationsList, setObservationsList] = useState<Observation[]>([]);
+  const [observationsHasMore, setObservationsHasMore] = useState(false);
+  const [observationsLoadingMore, setObservationsLoadingMore] = useState(false);
   const [noraActive, setNoraActive] = useState(false);
   const [noraProgress, setNoraProgress] = useState<{
     status: string;
@@ -931,13 +956,16 @@ export default function ClientsPage() {
     })();
   }, [selectedId, api]);
 
-  /* Fetch lists */
+  const CLIENTS_PAGE_SIZE = 10;
+  const HOUSEHOLDS_PAGE_SIZE = 10;
+
+  /* Fetch lists (first page) */
   useEffect(() => {
     (async () => {
       try {
         const [clientsRes, householdsRes] = await Promise.all([
-          api("/api/clients"),
-          api("/api/households"),
+          api(`/api/clients?limit=${CLIENTS_PAGE_SIZE}&offset=0`),
+          api(`/api/households?limit=${HOUSEHOLDS_PAGE_SIZE}&offset=0`),
         ]);
         if (!clientsRes.ok) throw new Error(`Clients: ${clientsRes.status}`);
         if (!householdsRes.ok) throw new Error(`Households: ${householdsRes.status}`);
@@ -946,10 +974,12 @@ export default function ClientsPage() {
 
         const list: ClientSummary[] = clientsData.clients || [];
         setClients(list);
+        setClientsHasMore(Boolean(clientsData.has_more));
         if (list.length > 0) setSelectedId(list[0].id);
 
         const hhList: HouseholdSummary[] = householdsData.households || [];
         setHouseholds(hhList);
+        setHouseholdsHasMore(Boolean(householdsData.has_more));
         if (hhList.length > 0) setSelectedHouseholdId(hhList[0].id);
       } catch { /* noop */ }
       finally {
@@ -958,6 +988,34 @@ export default function ClientsPage() {
       }
     })();
   }, [api]);
+
+  const loadMoreClients = useCallback(async () => {
+    if (clientsLoadingMore || !clientsHasMore) return;
+    setClientsLoadingMore(true);
+    try {
+      const res = await api(`/api/clients?limit=${CLIENTS_PAGE_SIZE}&offset=${clients.length}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const next = (data.clients || []) as ClientSummary[];
+      setClients((prev) => [...prev, ...next]);
+      setClientsHasMore(Boolean(data.has_more));
+    } catch { /* noop */ }
+    finally { setClientsLoadingMore(false); }
+  }, [api, clients.length, clientsHasMore, clientsLoadingMore]);
+
+  const loadMoreHouseholds = useCallback(async () => {
+    if (householdsLoadingMore || !householdsHasMore) return;
+    setHouseholdsLoadingMore(true);
+    try {
+      const res = await api(`/api/households?limit=${HOUSEHOLDS_PAGE_SIZE}&offset=${households.length}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const next = (data.households || []) as HouseholdSummary[];
+      setHouseholds((prev) => [...prev, ...next]);
+      setHouseholdsHasMore(Boolean(data.has_more));
+    } catch { /* noop */ }
+    finally { setHouseholdsLoadingMore(false); }
+  }, [api, households.length, householdsHasMore, householdsLoadingMore]);
 
   /* Fetch detail */
   useEffect(() => {
@@ -977,6 +1035,14 @@ export default function ClientsPage() {
     })();
     return () => { cancelled = true; };
   }, [selectedId, api]);
+
+  /* Sync observations list from detail (e.g. after fetch or refetch) */
+  useEffect(() => {
+    if (!detail) return;
+    const list = detail.observations?.filter((o) => !o.is_dismissed) || [];
+    setObservationsList(list);
+    setObservationsHasMore((detail.observations?.length ?? 0) >= 30);
+  }, [detail]);
 
   /* Keyboard navigation */
   useEffect(() => {
@@ -1026,10 +1092,11 @@ export default function ClientsPage() {
 
   const refetchHouseholds = useCallback(async () => {
     try {
-      const res = await api("/api/households");
+      const res = await api(`/api/households?limit=${HOUSEHOLDS_PAGE_SIZE}&offset=0`);
       if (res.ok) {
         const data = await res.json();
         setHouseholds(data.households || []);
+        setHouseholdsHasMore(Boolean(data.has_more));
       }
     } catch { /* noop */ }
   }, [api]);
@@ -1045,9 +1112,24 @@ export default function ClientsPage() {
     }
   }, [selectedId, refetchDetail, api]);
 
+  const OBS_PAGE_SIZE = 10;
+  const loadMoreObservations = useCallback(async () => {
+    if (!selectedId || observationsLoadingMore || !observationsHasMore) return;
+    setObservationsLoadingMore(true);
+    try {
+      const res = await api(`/api/clients/${selectedId}/observations?limit=${OBS_PAGE_SIZE}&offset=${observationsList.length}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const next = (data.observations || []).filter((o: Observation) => !o.is_dismissed);
+      setObservationsList((prev) => [...prev, ...next]);
+      setObservationsHasMore(Boolean(data.has_more));
+    } catch { /* noop */ }
+    finally { setObservationsLoadingMore(false); }
+  }, [selectedId, api, observationsLoadingMore, observationsHasMore, observationsList.length]);
+
   /* Derived */
   const tp = detail?.tax_profile;
-  const obs = detail?.observations?.filter((o) => !o.is_dismissed) || [];
+  const obs = observationsList;
   const bands = tp?.tax_breakdown || [];
   const maxBandAmt = Math.max(...bands.map((b) => b.amount), 1);
   const sources = tp?.income_sources || [];
@@ -1170,9 +1252,23 @@ export default function ClientsPage() {
               ) : filtered.length === 0 ? (
                 <p className="text-center text-[12px] text-slate-400 dark:text-zinc-500 font-light py-8">No clients found</p>
               ) : (
-                filtered.map((c) => (
-                  <ClientRow key={c.id} client={c} active={c.id === selectedId} onSelect={() => { setSelectedId(c.id); setSidebarOpen(false); }} />
-                ))
+                <>
+                  {filtered.map((c) => (
+                    <ClientRow key={c.id} client={c} active={c.id === selectedId} onSelect={() => { setSelectedId(c.id); setSidebarOpen(false); }} />
+                  ))}
+                  {clientsHasMore && (
+                    <div className="px-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={loadMoreClients}
+                        disabled={clientsLoadingMore}
+                        className="w-full py-2 rounded-lg text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-brand-500 dark:hover:text-brand-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 disabled:opacity-50 transition-colors"
+                      >
+                        {clientsLoadingMore ? "Loading…" : "Load more"}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </>
           ) : (
@@ -1184,9 +1280,23 @@ export default function ClientsPage() {
               ) : filteredHouseholds.length === 0 ? (
                 <p className="text-center text-[12px] text-slate-400 dark:text-zinc-500 font-light py-8">No households found</p>
               ) : (
-                filteredHouseholds.map((h) => (
-                  <HouseholdRow key={h.id} household={h} active={h.id === selectedHouseholdId} onSelect={() => { setSelectedHouseholdId(h.id); setSidebarOpen(false); }} />
-                ))
+                <>
+                  {filteredHouseholds.map((h) => (
+                    <HouseholdRow key={h.id} household={h} active={h.id === selectedHouseholdId} onSelect={() => { setSelectedHouseholdId(h.id); setSidebarOpen(false); }} />
+                  ))}
+                  {householdsHasMore && (
+                    <div className="px-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={loadMoreHouseholds}
+                        disabled={householdsLoadingMore}
+                        className="w-full py-2 rounded-lg text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-brand-500 dark:hover:text-brand-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 disabled:opacity-50 transition-colors"
+                      >
+                        {householdsLoadingMore ? "Loading…" : "Load more"}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -1669,6 +1779,9 @@ export default function ClientsPage() {
                               observations={obs}
                               totalSavings={totalSavings}
                               onDelete={handleDeleteObservation}
+                              hasMore={observationsHasMore}
+                              loadingMore={observationsLoadingMore}
+                              onLoadMore={loadMoreObservations}
                             />
                           </motion.div>
                         )}
