@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApi } from "@/hooks/use-api";
@@ -958,14 +958,50 @@ export default function ClientsPage() {
 
   const CLIENTS_PAGE_SIZE = 10;
   const HOUSEHOLDS_PAGE_SIZE = 10;
+  const SEARCH_LIMIT = 50;
 
-  /* Fetch lists (first page) */
+  /* Debounced search for server-side filtering */
+  const [searchDebounced, setSearchDebounced] = useState("");
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setSearchDebounced(search.trim());
+      searchDebounceRef.current = null;
+    }, 300);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [search]);
+
+  const clientsQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("limit", searchDebounced ? String(SEARCH_LIMIT) : String(CLIENTS_PAGE_SIZE));
+    params.set("offset", "0");
+    if (searchDebounced) params.set("q", searchDebounced);
+    return params.toString();
+  }, [searchDebounced]);
+
+  const householdsQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("limit", searchDebounced ? String(SEARCH_LIMIT) : String(HOUSEHOLDS_PAGE_SIZE));
+    params.set("offset", "0");
+    if (searchDebounced) params.set("q", searchDebounced);
+    return params.toString();
+  }, [searchDebounced]);
+
+  const selectedIdRef = useRef(selectedId);
+  const selectedHouseholdIdRef = useRef(selectedHouseholdId);
+  selectedIdRef.current = selectedId;
+  selectedHouseholdIdRef.current = selectedHouseholdId;
+
+  /* Fetch lists (first page); refetch when debounced search changes */
   useEffect(() => {
     (async () => {
       try {
         const [clientsRes, householdsRes] = await Promise.all([
-          api(`/api/clients?limit=${CLIENTS_PAGE_SIZE}&offset=0`),
-          api(`/api/households?limit=${HOUSEHOLDS_PAGE_SIZE}&offset=0`),
+          api(`/api/clients?${clientsQuery}`),
+          api(`/api/households?${householdsQuery}`),
         ]);
         if (!clientsRes.ok) throw new Error(`Clients: ${clientsRes.status}`);
         if (!householdsRes.ok) throw new Error(`Households: ${householdsRes.status}`);
@@ -975,25 +1011,29 @@ export default function ClientsPage() {
         const list: ClientSummary[] = clientsData.clients || [];
         setClients(list);
         setClientsHasMore(Boolean(clientsData.has_more));
-        if (list.length > 0) setSelectedId(list[0].id);
+        if (list.length > 0 && !list.some((c) => c.id === selectedIdRef.current)) setSelectedId(list[0].id);
 
         const hhList: HouseholdSummary[] = householdsData.households || [];
         setHouseholds(hhList);
         setHouseholdsHasMore(Boolean(householdsData.has_more));
-        if (hhList.length > 0) setSelectedHouseholdId(hhList[0].id);
+        if (hhList.length > 0 && !hhList.some((h) => h.id === selectedHouseholdIdRef.current)) setSelectedHouseholdId(hhList[0].id);
       } catch { /* noop */ }
       finally {
         setLoading(false);
         setHouseholdsLoading(false);
       }
     })();
-  }, [api]);
+  }, [api, clientsQuery, householdsQuery]);
 
   const loadMoreClients = useCallback(async () => {
     if (clientsLoadingMore || !clientsHasMore) return;
     setClientsLoadingMore(true);
     try {
-      const res = await api(`/api/clients?limit=${CLIENTS_PAGE_SIZE}&offset=${clients.length}`);
+      const params = new URLSearchParams();
+      params.set("limit", searchDebounced ? String(SEARCH_LIMIT) : String(CLIENTS_PAGE_SIZE));
+      params.set("offset", String(clients.length));
+      if (searchDebounced) params.set("q", searchDebounced);
+      const res = await api(`/api/clients?${params.toString()}`);
       if (!res.ok) return;
       const data = await res.json();
       const next = (data.clients || []) as ClientSummary[];
@@ -1001,13 +1041,17 @@ export default function ClientsPage() {
       setClientsHasMore(Boolean(data.has_more));
     } catch { /* noop */ }
     finally { setClientsLoadingMore(false); }
-  }, [api, clients.length, clientsHasMore, clientsLoadingMore]);
+  }, [api, clients.length, clientsHasMore, clientsLoadingMore, searchDebounced]);
 
   const loadMoreHouseholds = useCallback(async () => {
     if (householdsLoadingMore || !householdsHasMore) return;
     setHouseholdsLoadingMore(true);
     try {
-      const res = await api(`/api/households?limit=${HOUSEHOLDS_PAGE_SIZE}&offset=${households.length}`);
+      const params = new URLSearchParams();
+      params.set("limit", searchDebounced ? String(SEARCH_LIMIT) : String(HOUSEHOLDS_PAGE_SIZE));
+      params.set("offset", String(households.length));
+      if (searchDebounced) params.set("q", searchDebounced);
+      const res = await api(`/api/households?${params.toString()}`);
       if (!res.ok) return;
       const data = await res.json();
       const next = (data.households || []) as HouseholdSummary[];
@@ -1015,7 +1059,7 @@ export default function ClientsPage() {
       setHouseholdsHasMore(Boolean(data.has_more));
     } catch { /* noop */ }
     finally { setHouseholdsLoadingMore(false); }
-  }, [api, households.length, householdsHasMore, householdsLoadingMore]);
+  }, [api, households.length, householdsHasMore, householdsLoadingMore, searchDebounced]);
 
   /* Fetch detail */
   useEffect(() => {
@@ -1065,20 +1109,9 @@ export default function ClientsPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [clients, selectedId, sidebarMode, households, selectedHouseholdId]);
 
-  /* Search filter */
-  const filtered = useMemo(() => {
-    if (!search.trim()) return clients;
-    const q = search.toLowerCase();
-    return clients.filter((c) =>
-      `${c.first_name} ${c.last_name} ${c.email}`.toLowerCase().includes(q)
-    );
-  }, [clients, search]);
-
-  const filteredHouseholds = useMemo(() => {
-    if (!search.trim()) return households;
-    const q = search.toLowerCase();
-    return households.filter((h) => h.name.toLowerCase().includes(q));
-  }, [households, search]);
+  /* Lists are from API (server-side search when q is set); no client-side filter */
+  const filtered = clients;
+  const filteredHouseholds = households;
 
   const selectedHousehold = useMemo(
     () => households.find((h) => h.id === selectedHouseholdId) || null,
@@ -1092,14 +1125,18 @@ export default function ClientsPage() {
 
   const refetchHouseholds = useCallback(async () => {
     try {
-      const res = await api(`/api/households?limit=${HOUSEHOLDS_PAGE_SIZE}&offset=0`);
+      const params = new URLSearchParams();
+      params.set("limit", searchDebounced ? String(SEARCH_LIMIT) : String(HOUSEHOLDS_PAGE_SIZE));
+      params.set("offset", "0");
+      if (searchDebounced) params.set("q", searchDebounced);
+      const res = await api(`/api/households?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setHouseholds(data.households || []);
         setHouseholdsHasMore(Boolean(data.has_more));
       }
     } catch { /* noop */ }
-  }, [api]);
+  }, [api, searchDebounced]);
 
   /* Delete observation handler */
   const handleDeleteObservation = useCallback(async (obsId: string) => {

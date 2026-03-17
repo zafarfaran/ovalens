@@ -5,7 +5,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
-from sqlalchemy import desc, select
+from sqlalchemy import desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from structlog.stdlib import BoundLogger
 
@@ -100,22 +100,30 @@ class ComputeTaxProfileRequest(BaseModel):
 async def list_clients(
     limit: int = 10,
     offset: int = 0,
+    q: str | None = None,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
     user_id: str = Depends(get_current_user),
 ):
-    """List clients with their latest tax profile summary. Paginated."""
+    """List clients with latest tax profile summary. Paginated. Optional q= search (name, email)."""
     limit = min(max(1, limit), 100)
     offset = max(0, offset)
-    logger.info("Listing clients", user_id=user_id, limit=limit, offset=offset)
+    logger.info("Listing clients", user_id=user_id, limit=limit, offset=offset, q=q)
 
     stmt = (
         select(Client)
         .where(Client.user_id == user_id)
-        .order_by(Client.created_at.desc())
-        .offset(offset)
-        .limit(limit + 1)
     )
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Client.first_name.ilike(term),
+                Client.last_name.ilike(term),
+                (Client.email.isnot(None) & Client.email.ilike(term)),
+            )
+        )
+    stmt = stmt.order_by(Client.created_at.desc()).offset(offset).limit(limit + 1)
     result = await session.execute(stmt)
     rows = list(result.scalars().all())
     has_more = len(rows) > limit
@@ -157,19 +165,21 @@ async def list_clients(
 async def list_households(
     limit: int = 10,
     offset: int = 0,
+    q: str | None = None,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
     user_id: str = Depends(get_current_user),
 ):
-    """List households with members and aggregated tax data. Paginated."""
+    """List households with members and tax data. Paginated. Optional q= search by name."""
     limit = min(max(1, limit), 100)
     offset = max(0, offset)
-    logger.info("Listing households", user_id=user_id, limit=limit, offset=offset)
+    logger.info("Listing households", user_id=user_id, limit=limit, offset=offset, q=q)
 
+    stmt = select(Household).where(Household.user_id == user_id)
+    if q and q.strip():
+        stmt = stmt.where(Household.name.ilike(f"%{q.strip()}%"))
     stmt = (
-        select(Household)
-        .where(Household.user_id == user_id)
-        .order_by(Household.created_at.desc())
+        stmt.order_by(Household.created_at.desc())
         .offset(offset)
         .limit(limit + 1)
     )
@@ -1064,6 +1074,7 @@ async def list_meeting_notes(
                 "attendees": note.attendees,
                 "summary": note.summary,
                 "action_items": note.action_items or [],
+                "completed_action_indices": note.completed_action_indices or [],
                 "tags": note.tags or [],
                 "source": note.source,
                 "source_id": note.source_id,
@@ -1077,6 +1088,120 @@ async def list_meeting_notes(
         ],
         "has_more": has_more,
     }
+
+
+def _meeting_note_to_json(note: MeetingNote) -> dict:
+    """Serialize a single MeetingNote for API responses."""
+    return {
+        "id": note.id,
+        "client_id": note.client_id,
+        "meeting_date": note.meeting_date.isoformat() if note.meeting_date else None,
+        "subject": note.subject,
+        "attendees": note.attendees,
+        "summary": note.summary,
+        "action_items": note.action_items or [],
+        "completed_action_indices": note.completed_action_indices or [],
+        "tags": note.tags or [],
+        "source": note.source,
+        "source_id": note.source_id,
+        "session_id": note.session_id,
+        "is_draft": note.is_draft,
+        "processing_confidence": note.processing_confidence,
+        "processing_duration_ms": note.processing_duration_ms,
+        "created_at": note.created_at.isoformat() if note.created_at else None,
+        "updated_at": note.updated_at.isoformat() if note.updated_at else None,
+    }
+
+
+@router.get("/clients/{client_id}/meeting-notes/{note_id}")
+async def get_meeting_note(
+    client_id: str,
+    note_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
+):
+    """Get a single meeting note for review/edit. Requires client ownership."""
+    result = await session.execute(
+        select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Client not found")
+    result = await session.execute(
+        select(MeetingNote)
+        .where(MeetingNote.id == note_id)
+        .where(MeetingNote.client_id == client_id)
+    )
+    note = result.scalar_one_or_none()
+    if note is None:
+        raise HTTPException(status_code=404, detail="Meeting note not found")
+    logger.info("Meeting note retrieved", client_id=client_id, note_id=note_id)
+    return _meeting_note_to_json(note)
+
+
+class UpdateMeetingNoteRequest(BaseModel):
+    """Editable fields for meeting note review. All optional."""
+
+    subject: str | None = None
+    attendees: str | None = None
+    summary: str | None = None
+    action_items: list[str] | None = None
+    completed_action_indices: list[int] | None = None
+    tags: list[str] | None = None
+    is_draft: bool | None = None
+
+
+@router.patch("/clients/{client_id}/meeting-notes/{note_id}")
+async def update_meeting_note(
+    client_id: str,
+    note_id: str,
+    body: UpdateMeetingNoteRequest,
+    session: AsyncSession = Depends(get_db_session),
+    logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
+):
+    """Update a meeting note (review/edit). Use to edit summary, action items, tags, or publish."""
+    result = await session.execute(
+        select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Client not found")
+    result = await session.execute(
+        select(MeetingNote)
+        .where(MeetingNote.id == note_id)
+        .where(MeetingNote.client_id == client_id)
+    )
+    note = result.scalar_one_or_none()
+    if note is None:
+        raise HTTPException(status_code=404, detail="Meeting note not found")
+
+    if body.subject is not None:
+        note.subject = body.subject.strip() or note.subject
+    if body.attendees is not None:
+        note.attendees = body.attendees.strip() or None
+    if body.summary is not None:
+        note.summary = body.summary
+    if body.action_items is not None:
+        note.action_items = [s.strip() for s in body.action_items if s.strip()]
+    if body.completed_action_indices is not None:
+        n = len(note.action_items or [])
+        note.completed_action_indices = [
+            i for i in body.completed_action_indices
+            if isinstance(i, int) and 0 <= i < n
+        ]
+    if body.tags is not None:
+        note.tags = [s.strip() for s in body.tags if s.strip()]
+    if body.is_draft is not None:
+        note.is_draft = body.is_draft
+
+    await session.flush()
+    logger.info(
+        "Meeting note updated",
+        client_id=client_id,
+        note_id=note_id,
+        is_draft=note.is_draft,
+    )
+    return _meeting_note_to_json(note)
 
 
 # ── Pension History (carry-forward) ──────────────────────────────────

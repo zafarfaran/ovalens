@@ -1484,15 +1484,12 @@ const Testimonial = memo(function Testimonial() {
 
 const CTA = memo(function CTA() {
   const ref = useRef(null);
-  const { user } = useAuth();
   const { isMobile } = useLandingPerformance();
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start end", "end start"],
   });
   const gridY = useTransform(scrollYProgress, [0, 1], [-40, 40]);
-
-  if (user) return null;
 
   return (
     <section ref={ref} className="section-content-visibility relative py-24 md:py-32 bg-slate-950 dark:bg-black text-white overflow-hidden">
@@ -1598,6 +1595,7 @@ const Footer = memo(function Footer() {
    ═══════════════════════════════════════════════════ */
 
 export default function Home() {
+  const { user } = useAuth();
   return (
     <main>
       <Navbar />
@@ -1608,7 +1606,7 @@ export default function Home() {
       <HowItWorks />
       <Stats />
       <Testimonial />
-      <CTA />
+      {!user && <CTA />}
       <Footer />
     </main>
   );

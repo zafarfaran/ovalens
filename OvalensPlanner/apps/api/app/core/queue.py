@@ -146,11 +146,17 @@ async def stream_nora_updates(
 ) -> AsyncIterator[Literal["session_updated", "keepalive"]]:
     """Async generator for SSE: yields 'session_updated' when a webhook was processed for this
     client, or 'keepalive' on timeout so the connection stays open.
-    Caller should close the stream when done.
+    When Redis is unavailable, yields keepalives only (avoids reconnect spam).
     """
+    import asyncio
+
     client = _get_redis()
     if client is None:
-        return
+        # No Redis: keep stream open with keepalives to avoid client reconnect spam
+        while True:
+            yield "keepalive"
+            await asyncio.sleep(keepalive_seconds)
+
     channel = f"{NORA_UPDATES_CHANNEL_PREFIX}{client_id}"
     pubsub = client.pubsub()
     try:

@@ -42,22 +42,32 @@ async def run_worker() -> None:
         session_id = await pop_nora_processing_job(timeout=5)
         if session_id is None:
             continue
-        try:
-            async with session_factory() as session:
+        async with session_factory() as session:
+            try:
                 note, client_id = await run_processing_for_session_id(
                     session,
                     session_id=session_id,
                     auto_publish=settings.nora_auto_publish_notes,
                 )
+            except Exception as e:
+                _log(f"Nora worker unexpected error for {session_id}: {e}", err=True)
+                # Still commit so any partial state is persisted; run_processing sets failed
+                client_id = None
+                note = None
+            try:
                 await session.commit()
-                if note:
-                    _log(f"Nora worker processed session {session_id} (note created).")
-                    if client_id:
-                        await publish_nora_client_update(client_id)
-                else:
-                    _log(f"Nora worker skipped session {session_id} (no session or no chunks).")
-        except Exception as e:
-            _log(f"Nora worker error for {session_id}: {e}", err=True)
+            except Exception as commit_err:
+                _log(f"Nora worker commit failed for {session_id}: {commit_err}", err=True)
+                continue
+            if client_id:
+                try:
+                    await publish_nora_client_update(client_id)
+                except Exception as pub_err:
+                    _log(f"Nora worker publish failed for {client_id}: {pub_err}", err=True)
+            if note:
+                _log(f"Nora worker processed session {session_id} (note created).")
+            elif session_id:
+                _log(f"Nora worker finished session {session_id} (no note or failed).")
 
 
 if __name__ == "__main__":
