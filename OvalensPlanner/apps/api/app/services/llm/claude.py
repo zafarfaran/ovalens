@@ -29,6 +29,16 @@ logger = get_logger(__name__)
 
 MAX_TOOL_ROUNDS = 20
 
+# Anthropic native web search (API executes searches; we do not call execute_tool for it).
+# Uses basic version (ZDR-eligible). For dynamic filtering use "web_search_20260209" on Sonnet 4.6+.
+WEB_SEARCH_TOOL = [
+    {
+        "type": "web_search_20250305",
+        "name": "web_search",
+        "max_uses": 5,
+    }
+]
+
 BASE_TOOLS = [
     {
         "name": "search_meeting_notes",
@@ -374,7 +384,7 @@ class ClaudeProvider:
                     async for event in stream:
                         if event.type == "content_block_start":
                             if event.content_block.type == "tool_use":
-                                # Starting a tool_use block
+                                # Starting a tool_use block (our custom tools — we execute these)
                                 current_tool_id = event.content_block.id
                                 current_tool_name = event.content_block.name
                                 input_json_parts = []
@@ -391,6 +401,13 @@ class ClaudeProvider:
                                         current_tool_name, StatusPhase.CALCULATING
                                     ),
                                 )
+                            elif getattr(
+                                event.content_block, "type", None
+                            ) == "server_tool_use" and getattr(
+                                event.content_block, "name", None
+                            ) == "web_search":
+                                # Web search is executed by the API; we only show status.
+                                yield StatusEvent(phase=StatusPhase.SEARCHING_WEB)
                             elif event.content_block.type == "text":
                                 current_text_block = ""
 

@@ -13,6 +13,7 @@ class StatusPhase(StrEnum):
     MODELLING_SCENARIO = "modelling_scenario"
     BUILDING_DASHBOARD = "building_dashboard"
     SEARCHING_NOTES = "searching_notes"
+    SEARCHING_WEB = "searching_web"
     SAVING_OBSERVATION = "saving_observation"
     GENERATING_RESPONSE = "generating_response"
     COMPLETE = "complete"
@@ -27,6 +28,7 @@ STATUS_MESSAGES: dict[StatusPhase, str] = {
     StatusPhase.MODELLING_SCENARIO: "Modelling salary sacrifice scenario...",
     StatusPhase.BUILDING_DASHBOARD: "Building dashboard...",
     StatusPhase.SEARCHING_NOTES: "Searching meeting notes...",
+    StatusPhase.SEARCHING_WEB: "Searching the web...",
     StatusPhase.SAVING_OBSERVATION: "Generating observations...",
     StatusPhase.GENERATING_RESPONSE: "Generating response...",
     StatusPhase.COMPLETE: "",

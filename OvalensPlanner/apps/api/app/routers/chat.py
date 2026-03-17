@@ -90,6 +90,9 @@ async def chat_stream(
     service = ChatService(session)
 
     async def event_generator():
+        # Note: Client disconnect does not automatically cancel this generator
+        # in all ASGI setups; backend may complete the turn.
+        # See docs/BOTTLENECKS_AND_IMPROVEMENTS.md.
         async for event in service.stream_message(
             conversation_id=body.conversation_id,
             user_id=user_id,

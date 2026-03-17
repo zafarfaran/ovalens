@@ -69,6 +69,7 @@ export type StatusPhase =
   | "modelling_scenario"
   | "building_dashboard"
   | "searching_notes"
+  | "searching_web"
   | "saving_observation"
   | "generating_response"
   | "complete";
@@ -83,6 +84,7 @@ const STATUS_MESSAGES: Record<StatusPhase, string> = {
   modelling_scenario: "Modelling scenario...",
   building_dashboard: "Building dashboard...",
   searching_notes: "Searching meeting notes...",
+  searching_web: "Searching the web...",
   saving_observation: "Generating observations...",
   generating_response: "Generating response...",
   complete: "",
@@ -306,7 +308,13 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
             if (line.startsWith("event: ")) {
               eventType = line.slice(7).trim();
             } else if (line.startsWith("data: ")) {
-              const data = JSON.parse(line.slice(6));
+              let data: any;
+              try {
+                data = JSON.parse(line.slice(6));
+              } catch {
+                continue;
+              }
+              if (!data || typeof data !== "object") continue;
 
               if (eventType === "token") {
                 const token = String(data.content || "");
@@ -583,6 +591,13 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
                 })
               : "",
             insights: m.insights,
+            ...(m.role === "assistant" &&
+              m.dashboard_data && {
+                computationData: {
+                  taxPosition: (m.dashboard_data as any)?.tax_position ?? {},
+                  dashboardData: m.dashboard_data as any,
+                },
+              }),
           }))
         );
         // Restore dashboard_data from the last assistant message that has it
