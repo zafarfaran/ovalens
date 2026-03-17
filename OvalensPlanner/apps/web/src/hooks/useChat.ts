@@ -198,7 +198,7 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
       setMessages((prev) => [...prev, assistantMsg]);
       const latestActivityByTool: Record<string, string> = {};
       let pendingTokenText = "";
-      let tokenFlushTimer: ReturnType<typeof setTimeout> | null = null;
+      let tokenFlushRAF: number | null = null;
 
       const flushPendingTokens = () => {
         if (!pendingTokenText) return;
@@ -213,18 +213,27 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
 
       const scheduleTokenFlush = (forceNow: boolean = false) => {
         if (forceNow) {
-          if (tokenFlushTimer) {
-            clearTimeout(tokenFlushTimer);
-            tokenFlushTimer = null;
+          if (tokenFlushRAF != null) {
+            cancelAnimationFrame(tokenFlushRAF);
+            tokenFlushRAF = null;
           }
           flushPendingTokens();
           return;
         }
-        if (tokenFlushTimer) return;
-        tokenFlushTimer = setTimeout(() => {
-          tokenFlushTimer = null;
+        if (tokenFlushRAF != null) return;
+        tokenFlushRAF = requestAnimationFrame(() => {
+          tokenFlushRAF = null;
           flushPendingTokens();
-        }, 40);
+        });
+      };
+
+      /** Flush current token buffer immediately (used for true token-by-token streaming). */
+      const flushTokenNow = () => {
+        if (tokenFlushRAF != null) {
+          cancelAnimationFrame(tokenFlushRAF);
+          tokenFlushRAF = null;
+        }
+        flushPendingTokens();
       };
 
       const appendActivityEvent = (activity: ChatActivityEvent) => {
@@ -302,14 +311,8 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
               if (eventType === "token") {
                 const token = String(data.content || "");
                 pendingTokenText += token;
-                // Flush early at natural boundaries for smoother "word by word" feel.
-                const endsAtBoundary = /[\s,.!?;:\n]$/.test(token);
-                if (endsAtBoundary || pendingTokenText.length >= 140) {
-                  scheduleTokenFlush();
-                } else {
-                  // Still schedule periodic flushes so short chunks don't stall.
-                  scheduleTokenFlush();
-                }
+                // Flush every token immediately so output streams smoothly (no batching).
+                flushTokenNow();
               } else if (eventType === "status") {
                 scheduleTokenFlush(true);
                 const phase = data.phase as StatusPhase;
