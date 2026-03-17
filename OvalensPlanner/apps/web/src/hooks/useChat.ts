@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 
+import { useAuth } from "@/contexts/auth-context";
 import { useApi } from "@/hooks/use-api";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -88,10 +89,10 @@ const STATUS_MESSAGES: Record<StatusPhase, string> = {
 };
 
 /* ── localStorage helpers for auto-persist ── */
-const STORAGE_PREFIX = "helio:chat:";
+import { CHAT_STORAGE_PREFIX } from "@/lib/chat-storage";
 
 function persistKey(clientId: string, key: string): string {
-  return `${STORAGE_PREFIX}${clientId}:${key}`;
+  return `${CHAT_STORAGE_PREFIX}${clientId}:${key}`;
 }
 
 function saveToStorage(key: string, value: unknown): void {
@@ -112,6 +113,7 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function useChat(clientId: string, taxPlanMode: boolean = false, onObservationSaved?: () => void) {
+  const { user } = useAuth();
   const { api } = useApi();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<StatusPhase>("idle");
@@ -125,6 +127,20 @@ export function useChat(clientId: string, taxPlanMode: boolean = false, onObserv
   const abortRef = useRef<AbortController | null>(null);
   const dashboardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredRef = useRef(false);
+  const prevUserRef = useRef(user);
+
+  /* ── Reset in-memory chat when user signs out (this tab or another) ── */
+  useEffect(() => {
+    const hadUser = !!prevUserRef.current;
+    const hasUser = !!user;
+    prevUserRef.current = user;
+    if (hadUser && !hasUser) {
+      setMessages([]);
+      setConversationId(null);
+      setDashboardData(null);
+      setScenarios([]);
+    }
+  }, [user]);
 
   /* ── Restore persisted state on mount / client change ── */
   useEffect(() => {
