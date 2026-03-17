@@ -118,22 +118,30 @@ async def chat_stream(
 @router.get("/chat/conversations")
 async def list_conversations(
     client_id: str | None = None,
+    limit: int = 10,
+    offset: int = 0,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
     user_id: str = Depends(get_current_user),
 ):
-    """List conversations, optionally filtered by client_id."""
+    """List conversations, optionally filtered by client_id. Paginated."""
     client_id = (client_id or "").strip() or None
+    limit = min(max(1, limit), 100)
+    offset = max(0, offset)
     logger.info(
         "Listing conversations",
         user_id=user_id,
         client_id=client_id,
+        limit=limit,
+        offset=offset,
     )
 
     service = ChatService(session)
-    conversations = await service.list_conversations(
+    conversations, has_more = await service.list_conversations(
         user_id=user_id,
         client_id=client_id,
+        limit=limit,
+        offset=offset,
     )
 
     return {
@@ -150,7 +158,8 @@ async def list_conversations(
                 "created_at": c.created_at.isoformat() if c.created_at else None,
             }
             for c in conversations
-        ]
+        ],
+        "has_more": has_more,
     }
 
 
@@ -187,17 +196,30 @@ async def create_conversation(
 @router.get("/chat/conversations/{conversation_id}/messages")
 async def get_messages(
     conversation_id: str,
+    limit: int = 10,
+    offset: int = 0,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
     user_id: str = Depends(get_current_user),
 ):
-    """Get messages for a conversation."""
+    """Get messages for a conversation. Paginated (default limit=10, offset=0)."""
     service = ChatService(session)
     conv = await service.get_conversation(conversation_id)
     if conv is None or conv.user_id != user_id:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    logger.info("Fetching messages", conversation_id=conversation_id)
-    messages = await service.get_messages(conversation_id)
+    limit = min(max(1, limit), 100)
+    offset = max(0, offset)
+    logger.info(
+        "Fetching messages",
+        conversation_id=conversation_id,
+        limit=limit,
+        offset=offset,
+    )
+    messages = await service.get_messages(
+        conversation_id, limit=limit + 1, offset=offset
+    )
+    has_more = len(messages) > limit
+    messages = messages[:limit]
 
     return {
         "messages": [
@@ -210,7 +232,8 @@ async def get_messages(
                 "created_at": m.created_at.isoformat() if m.created_at else None,
             }
             for m in messages
-        ]
+        ],
+        "has_more": has_more,
     }
 
 

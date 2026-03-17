@@ -14,21 +14,39 @@ export interface ContextSnippet {
   created_at: string | null;
 }
 
+const CONTEXT_PAGE_SIZE = 20;
+
 export function useContextSnippets() {
   const { api, token } = useApi();
   const [snippets, setSnippets] = useState<ContextSnippet[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchPending = useCallback(async () => {
+  const fetchPending = useCallback(async (offset = 0, append = false) => {
     if (!token) return;
+    if (append) setLoadingMore(true);
     try {
-      const res = await api("/api/context/pending");
+      const res = await api(`/api/context/pending?limit=${CONTEXT_PAGE_SIZE}&offset=${offset}`);
       if (!res.ok) return;
       const data = await res.json();
-      setSnippets(data.snippets || []);
+      const list = data.snippets || [];
+      if (append) {
+        setSnippets((prev) => [...prev, ...list]);
+      } else {
+        setSnippets(list);
+      }
+      setHasMore(Boolean(data.has_more));
     } catch {
       // Silently fail — polling
+    } finally {
+      setLoadingMore(false);
     }
   }, [api, token]);
+
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    void fetchPending(snippets.length, true);
+  }, [loadingMore, hasMore, snippets.length, fetchPending]);
 
   const dismiss = useCallback(async (snippetId: string) => {
     if (!token) return;
@@ -61,5 +79,5 @@ export function useContextSnippets() {
     return () => window.removeEventListener("helio-context-updated", handler);
   }, [fetchPending]);
 
-  return { snippets, dismiss, consumeAll };
+  return { snippets, dismiss, consumeAll, hasMore, loadingMore, loadMore };
 }

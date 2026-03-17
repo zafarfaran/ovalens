@@ -42,8 +42,11 @@ export function MeetingNotesTimeline({
   } | null;
 }) {
   const { api } = useApi();
+  const PAGE_SIZE = 10;
   const [notes, setNotes] = useState<MeetingNote[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const sortedNotes = useMemo(
     () =>
@@ -55,17 +58,30 @@ export function MeetingNotesTimeline({
     [notes]
   );
 
-  const fetchNotes = useCallback(async () => {
+  const fetchNotes = useCallback(async (offset = 0, append = false) => {
+    if (append) setLoadingMore(true);
     try {
-      const res = await api(`/api/clients/${clientId}/meeting-notes`);
+      const res = await api(`/api/clients/${clientId}/meeting-notes?limit=${PAGE_SIZE}&offset=${offset}`);
       const data = await res.json();
-      setNotes(Array.isArray(data?.meeting_notes) ? data.meeting_notes : []);
+      const list = Array.isArray(data?.meeting_notes) ? data.meeting_notes : [];
+      if (append) {
+        setNotes((prev) => [...prev, ...list]);
+      } else {
+        setNotes(list);
+      }
+      setHasMore(Boolean(data?.has_more));
     } catch {
       /* noop */
     } finally {
-      setLoading(false);
+      if (!append) setLoading(false);
+      setLoadingMore(false);
     }
   }, [clientId, api]);
+
+  const loadMoreNotes = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    void fetchNotes(notes.length, true);
+  }, [loadingMore, hasMore, notes.length, fetchNotes]);
 
   useEffect(() => {
     setLoading(true);
@@ -256,6 +272,18 @@ export function MeetingNotesTimeline({
           );
         })}
 
+        {hasMore && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={loadMoreNotes}
+              disabled={loadingMore}
+              className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-brand-500 dark:hover:text-brand-400 disabled:opacity-50 transition-colors"
+            >
+              {loadingMore ? "Loading…" : "Load more"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

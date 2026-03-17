@@ -98,15 +98,28 @@ class ComputeTaxProfileRequest(BaseModel):
 
 @router.get("/clients")
 async def list_clients(
+    limit: int = 10,
+    offset: int = 0,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
     user_id: str = Depends(get_current_user),
 ):
-    """List all clients with their latest tax profile summary."""
-    logger.info("Listing clients", user_id=user_id)
+    """List clients with their latest tax profile summary. Paginated."""
+    limit = min(max(1, limit), 100)
+    offset = max(0, offset)
+    logger.info("Listing clients", user_id=user_id, limit=limit, offset=offset)
 
-    result = await session.execute(select(Client).where(Client.user_id == user_id))
-    clients = list(result.scalars().all())
+    stmt = (
+        select(Client)
+        .where(Client.user_id == user_id)
+        .order_by(Client.created_at.desc())
+        .offset(offset)
+        .limit(limit + 1)
+    )
+    result = await session.execute(stmt)
+    rows = list(result.scalars().all())
+    has_more = len(rows) > limit
+    clients = rows[:limit]
 
     clients_out = []
     for client in clients:
@@ -135,26 +148,35 @@ async def list_clients(
             }
         )
 
-    logger.info("Clients listed", count=len(clients_out))
+    logger.info("Clients listed", count=len(clients_out), has_more=has_more)
 
-    return {"clients": clients_out}
+    return {"clients": clients_out, "has_more": has_more}
 
 
 @router.get("/households")
 async def list_households(
+    limit: int = 10,
+    offset: int = 0,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
     user_id: str = Depends(get_current_user),
 ):
-    """List all households with members and aggregated tax data.
+    """List households with members and aggregated tax data. Paginated."""
+    limit = min(max(1, limit), 100)
+    offset = max(0, offset)
+    logger.info("Listing households", user_id=user_id, limit=limit, offset=offset)
 
-    NOTE: Uses N+1 query pattern (1 + H + C queries) consistent with list_clients.
-    Acceptable for demo dataset; use eager loading / subqueries at scale.
-    """
-    logger.info("Listing households", user_id=user_id)
-
-    result = await session.execute(select(Household).where(Household.user_id == user_id))
-    households = list(result.scalars().all())
+    stmt = (
+        select(Household)
+        .where(Household.user_id == user_id)
+        .order_by(Household.created_at.desc())
+        .offset(offset)
+        .limit(limit + 1)
+    )
+    result = await session.execute(stmt)
+    rows = list(result.scalars().all())
+    has_more = len(rows) > limit
+    households = rows[:limit]
 
     households_out = []
     for hh in households:
@@ -227,9 +249,9 @@ async def list_households(
             }
         )
 
-    logger.info("Households listed", count=len(households_out))
+    logger.info("Households listed", count=len(households_out), has_more=has_more)
 
-    return {"households": households_out}
+    return {"households": households_out, "has_more": has_more}
 
 
 async def _get_client_detail(
@@ -302,11 +324,12 @@ async def _get_client_detail(
     )
     tax_profile = tp_result.scalar_one_or_none()
 
-    # Load observations
+    # Load observations (capped for detail response; use GET /clients/{id}/observations for more)
     obs_result = await session.execute(
         select(Observation)
         .where(Observation.client_id == client_id)
         .order_by(desc(Observation.created_at))
+        .limit(30)
     )
     observations = list(obs_result.scalars().all())
 
@@ -872,6 +895,54 @@ class CreateObservationRequest(BaseModel):
     source: Literal["engine", "ai"] = "ai"
 
 
+@router.get("/clients/{client_id}/observations")
+async def list_observations(
+    client_id: str,
+    limit: int = 10,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_db_session),
+    logger: BoundLogger = Depends(get_request_logger),
+    user_id: str = Depends(get_current_user),
+):
+    """List observations for a client. Paginated."""
+    result = await session.execute(
+        select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Client not found")
+    limit = min(max(1, limit), 100)
+    offset = max(0, offset)
+    stmt = (
+        select(Observation)
+        .where(Observation.client_id == client_id)
+        .order_by(desc(Observation.created_at))
+        .offset(offset)
+        .limit(limit + 1)
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    has_more = len(rows) > limit
+    observations = rows[:limit]
+    observations_out = [
+        {
+            "id": obs.id,
+            "tax_year": obs.tax_year,
+            "title": obs.title,
+            "description": obs.description,
+            "severity": obs.severity,
+            "priority": obs.priority,
+            "category": obs.category,
+            "potential_saving": obs.potential_saving,
+            "deadline": obs.deadline,
+            "action_required": obs.action_required,
+            "is_dismissed": obs.is_dismissed,
+            "source": obs.source,
+            "created_at": obs.created_at.isoformat() if obs.created_at else None,
+        }
+        for obs in observations
+    ]
+    return {"observations": observations_out, "has_more": has_more}
+
+
 @router.post("/clients/{client_id}/observations", status_code=201)
 async def create_observation(
     client_id: str,
@@ -956,27 +1027,32 @@ async def delete_observation(
 @router.get("/clients/{client_id}/meeting-notes")
 async def list_meeting_notes(
     client_id: str,
+    limit: int = 10,
+    offset: int = 0,
     session: AsyncSession = Depends(get_db_session),
     logger: BoundLogger = Depends(get_request_logger),
     user_id: str = Depends(get_current_user),
 ):
-    """List all meeting notes for a client, newest first."""
+    """List meeting notes for a client, newest first. Paginated."""
     result = await session.execute(
         select(Client).where(Client.id == client_id).where(Client.user_id == user_id)
     )
-    client = result.scalar_one_or_none()
-    if client is None:
+    if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Client not found")
-
-    # Fetch meeting notes ordered by meeting_date DESC
-    notes_result = await session.execute(
+    limit = min(max(1, limit), 100)
+    offset = max(0, offset)
+    stmt = (
         select(MeetingNote)
         .where(MeetingNote.client_id == client_id)
         .order_by(desc(MeetingNote.meeting_date))
+        .offset(offset)
+        .limit(limit + 1)
     )
-    notes = list(notes_result.scalars().all())
+    rows = list((await session.execute(stmt)).scalars().all())
+    has_more = len(rows) > limit
+    notes = rows[:limit]
 
-    logger.info("Meeting notes listed", client_id=client_id, count=len(notes))
+    logger.info("Meeting notes listed", client_id=client_id, count=len(notes), has_more=has_more)
 
     return {
         "meeting_notes": [
@@ -998,7 +1074,8 @@ async def list_meeting_notes(
                 "created_at": note.created_at.isoformat() if note.created_at else None,
             }
             for note in notes
-        ]
+        ],
+        "has_more": has_more,
     }
 
 

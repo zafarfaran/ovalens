@@ -164,22 +164,30 @@ async def get_context_job_status(
 
 @router.get("/context/pending")
 async def get_pending_context(
+    limit: int = 50,
+    offset: int = 0,
     session: AsyncSession = Depends(get_db_session),
     log: BoundLogger = Depends(get_request_logger),
     user_id: str = Depends(get_current_user),
 ):
-    """Return unconsumed context snippets for the current user."""
-
-    result = await session.execute(
+    """Return unconsumed context snippets for the current user. Paginated."""
+    limit = min(max(1, limit), 100)
+    offset = max(0, offset)
+    stmt = (
         select(ContextSnippet)
         .where(ContextSnippet.user_id == user_id)
         .where(ContextSnippet.is_consumed == False)  # noqa: E712
         .where(ContextSnippet.status == "ready")
         .order_by(ContextSnippet.created_at.desc())
+        .offset(offset)
+        .limit(limit + 1)
     )
-    snippets = list(result.scalars().all())
+    result = await session.execute(stmt)
+    rows = list(result.scalars().all())
+    has_more = len(rows) > limit
+    snippets = rows[:limit]
 
-    log.debug("Pending context fetched", count=len(snippets))
+    log.debug("Pending context fetched", count=len(snippets), has_more=has_more)
 
     return {
         "snippets": [
@@ -193,7 +201,8 @@ async def get_pending_context(
                 "created_at": s.created_at.isoformat() if s.created_at else None,
             }
             for s in snippets
-        ]
+        ],
+        "has_more": has_more,
     }
 
 
