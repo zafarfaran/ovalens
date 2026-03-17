@@ -328,12 +328,21 @@ class ChatService:
             DASHBOARD_TOOLS,
             ENGINE_TOOLS,
             OBSERVATION_TOOLS,
+            WEB_SEARCH_TOOL,
         )
 
         tools = list(BASE_TOOLS)
         tools.extend(ENGINE_TOOLS)
         tools.extend(DASHBOARD_TOOLS)
         tools.extend(OBSERVATION_TOOLS)
+        tools.extend(WEB_SEARCH_TOOL)
+        tool_names = [t.get("name") for t in tools]
+        logger.info(
+            "chat_tools_configured",
+            tool_count=len(tools),
+            tool_names=tool_names,
+            has_web_search=any(t.get("type", "").startswith("web_search") for t in tools),
+        )
 
         async for event in provider.stream_chat(
             llm_messages, system_prompt, tools=tools, tool_context=tool_context

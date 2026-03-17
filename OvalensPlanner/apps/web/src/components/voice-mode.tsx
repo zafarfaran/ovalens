@@ -69,6 +69,7 @@ const STATUS_LABELS: Partial<Record<StatusPhase, string>> = {
   modelling_scenario: "Modelling scenario...",
   building_dashboard: "Building dashboard...",
   searching_notes: "Searching notes...",
+  searching_web: "Searching the web...",
   saving_observation: "Generating observations...",
   generating_response: "Responding...",
 };
