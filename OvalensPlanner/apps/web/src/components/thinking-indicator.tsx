@@ -51,6 +51,10 @@ const PHASE_CONFIG: Record<
     icon: <IconSearch className="w-3.5 h-3.5" />,
     label: "Searching meeting notes...",
   },
+  searching_web: {
+    icon: <IconSearch className="w-3.5 h-3.5" />,
+    label: "Searching the web...",
+  },
   saving_observation: {
     icon: <IconLightbulb className="w-3.5 h-3.5" />,
     label: "Generating observations...",
