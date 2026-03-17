@@ -219,11 +219,8 @@ export function NoraAIPanel({
           </span>
           <div>
             <h3 className="text-[13px] font-semibold tracking-wide text-[var(--foreground)]">
-              Meeting Assistant
+              Nora
             </h3>
-            <p className="text-[11px] text-[var(--muted)]">
-            Start meetings; status updates when the bot sends events (no refresh needed).
-            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">

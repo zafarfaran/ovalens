@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
+import { clearAllChatStorage } from "@/lib/chat-storage";
 
 type AuthContextValue = {
   user: User | null;
@@ -40,6 +41,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = client.auth.onAuthStateChange((_event: AuthChangeEvent, s: Session | null) => {
       setSession(s);
       setUser(s?.user ?? null);
+      // Clear chat storage whenever session is null so next login gets a fresh chat.
+      // Also ensures other tabs clear when user signs out in one tab.
+      if (s === null) clearAllChatStorage();
     });
 
     return () => subscription.unsubscribe();
@@ -81,7 +85,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      // Always clear local chat so next login is fresh, even if signOut fails (e.g. offline).
+      clearAllChatStorage();
+    }
   }, []);
 
   const value: AuthContextValue = {
