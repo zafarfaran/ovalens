@@ -379,6 +379,7 @@ class MeetingNote(Base):
     attendees: Mapped[str | None] = mapped_column(String)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     action_items: Mapped[list | None] = mapped_column(JSON, default=list)
+    completed_action_indices: Mapped[list | None] = mapped_column(JSON, default=list)
     tags: Mapped[list | None] = mapped_column(JSON, default=list)
     source: Mapped[str] = mapped_column(String, nullable=False, default="manual")
     source_id: Mapped[str | None] = mapped_column(String)

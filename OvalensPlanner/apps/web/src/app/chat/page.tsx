@@ -44,6 +44,8 @@ import {
   IconFileText,
   IconBell,
   IconSettings,
+  IconPencil,
+  IconX,
 } from "@/components/icons";
 
 /* ─── Types ─── */
@@ -270,7 +272,11 @@ interface MeetingNoteData {
   attendees?: string | null;
   summary: string;
   action_items?: string[] | null;
+  completed_action_indices?: number[];
   tags?: string[] | null;
+  is_draft?: boolean;
+  session_id?: string | null;
+  source?: string;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -402,6 +408,8 @@ function ChatPageInner() {
   /* ── Live data state (restored from localStorage where available) ── */
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [clients, setClients] = useState<ClientSummary[]>([]);
+  const [clientsHasMore, setClientsHasMore] = useState(false);
+  const [clientsLoadingMore, setClientsLoadingMore] = useState(false);
   const [clientDetail, setClientDetail] = useState<ClientDetail | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [conversationsHasMore, setConversationsHasMore] = useState(false);
@@ -595,25 +603,67 @@ function ChatPageInner() {
     }
   }, [api, isExporting, dashboardData, clientDetail, scenariosList, messages, meetingNotes]);
 
-  /* ── Load clients when token is ready ── */
+  /* ── Debounced client search for server-side filtering ── */
+  const [clientSearchDebounced, setClientSearchDebounced] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setClientSearchDebounced(clientSearchQuery.trim()), 300);
+    return () => clearTimeout(t);
+  }, [clientSearchQuery]);
+
+  const selectedClientIdRef = useRef(selectedClientId);
+  selectedClientIdRef.current = selectedClientId;
+
+  const CLIENTS_LIST_PAGE_SIZE = 10;
+  const CLIENTS_SEARCH_LIMIT = 50;
+
+  /* ── Load clients when token or search changes (first page only; summaries only, not full detail) ── */
   useEffect(() => {
     if (!token) return;
-    api("/api/clients")
+    const params = new URLSearchParams();
+    params.set("limit", clientSearchDebounced ? String(CLIENTS_SEARCH_LIMIT) : String(CLIENTS_LIST_PAGE_SIZE));
+    params.set("offset", "0");
+    if (clientSearchDebounced) params.set("q", clientSearchDebounced);
+    api(`/api/clients?${params.toString()}`)
       .then(async (r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const data = await r.json();
-        const list = Array.isArray(data?.clients) ? data.clients : [];
+        const list: ClientSummary[] = Array.isArray(data?.clients) ? data.clients : [];
         setClients(list);
-        if (list.length > 0) {
+        setClientsHasMore(Boolean(data?.has_more));
+        // Only auto-select first client when there is no selection yet (e.g. initial load), not when search results change
+        if (list.length > 0 && !selectedClientIdRef.current) {
           setSelectedClientId(list[0].id);
         }
       })
       .catch((err) => {
         setClients([]);
+        setClientsHasMore(false);
         setSelectedClientId("");
         console.error("Failed to load clients:", err);
       });
-  }, [token, api]);
+  }, [token, api, clientSearchDebounced]);
+
+  /* ── Load more clients (append next page in picker) ── */
+  const loadMoreClients = useCallback(async () => {
+    if (clientsLoadingMore || !clientsHasMore) return;
+    setClientsLoadingMore(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("limit", clientSearchDebounced ? String(CLIENTS_SEARCH_LIMIT) : String(CLIENTS_LIST_PAGE_SIZE));
+      params.set("offset", String(clients.length));
+      if (clientSearchDebounced) params.set("q", clientSearchDebounced);
+      const r = await api(`/api/clients?${params.toString()}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      const next: ClientSummary[] = Array.isArray(data?.clients) ? data.clients : [];
+      setClients((prev) => [...prev, ...next]);
+      setClientsHasMore(Boolean(data?.has_more));
+    } catch (err) {
+      console.error("Failed to load more clients:", err);
+    } finally {
+      setClientsLoadingMore(false);
+    }
+  }, [api, clients.length, clientsHasMore, clientsLoadingMore, clientSearchDebounced]);
 
   /* ── Load conversations (first page, replace list) ── */
   const loadConversations = useCallback(async () => {
@@ -654,6 +704,20 @@ function ChatPageInner() {
     }
   }, [selectedClientId, api, conversations.length, conversationsHasMore, conversationsLoadingMore]);
 
+  const refreshMeetingNotes = useCallback(() => {
+    if (!selectedClientId || !api) return;
+    api(`/api/clients/${selectedClientId}/meeting-notes`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        setMeetingNotes(Array.isArray(data?.meeting_notes) ? data.meeting_notes : []);
+      })
+      .catch((err) => {
+        setMeetingNotes([]);
+        console.error("Failed to load meeting notes:", err);
+      });
+  }, [selectedClientId, api]);
+
   /* ── Load client detail + conversations + meeting notes when selectedClientId changes ── */
   useEffect(() => {
     if (!token || !selectedClientId) return;
@@ -669,19 +733,10 @@ function ChatPageInner() {
         console.error("Failed to load client detail:", err);
       });
     // Fetch meeting notes
-    api(`/api/clients/${selectedClientId}/meeting-notes`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
-        setMeetingNotes(Array.isArray(data?.meeting_notes) ? data.meeting_notes : []);
-      })
-      .catch((err) => {
-        setMeetingNotes([]);
-        console.error("Failed to load meeting notes:", err);
-      });
+    refreshMeetingNotes();
     // Fetch conversations
     loadConversations();
-  }, [token, selectedClientId, api, loadConversations]);
+  }, [token, selectedClientId, api, loadConversations, refreshMeetingNotes]);
 
   /* ── Refresh conversations after streaming completes ── */
   useEffect(() => {
@@ -1134,13 +1189,7 @@ function ChatPageInner() {
 
                       {/* Client list */}
                       <div className="max-h-[280px] overflow-y-auto py-1 px-1.5 scrollbar-thin">
-                        {clients
-                          .filter((c) => {
-                            if (!clientSearchQuery.trim()) return true;
-                            const q = clientSearchQuery.toLowerCase();
-                            return `${c.first_name} ${c.last_name} ${c.email}`.toLowerCase().includes(q);
-                          })
-                          .map((c, idx) => {
+                        {clients.map((c, idx) => {
                             const isActive = c.id === selectedClientId;
                             const initials = `${c.first_name?.[0] ?? ""}${c.last_name?.[0] ?? ""}`.toUpperCase();
                             const grad = getGradient(idx);
@@ -1191,11 +1240,19 @@ function ChatPageInner() {
                               </button>
                             );
                           })}
-                        {clients.filter((c) => {
-                          if (!clientSearchQuery.trim()) return true;
-                          const q = clientSearchQuery.toLowerCase();
-                          return `${c.first_name} ${c.last_name} ${c.email}`.toLowerCase().includes(q);
-                        }).length === 0 && (
+                        {clientsHasMore && (
+                          <div className="px-2 py-2 border-t border-slate-100 dark:border-zinc-800/70">
+                            <button
+                              type="button"
+                              onClick={loadMoreClients}
+                              disabled={clientsLoadingMore}
+                              className="w-full py-2 rounded-lg text-[11px] font-medium text-slate-500 dark:text-zinc-400 hover:text-brand-500 dark:hover:text-brand-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 disabled:opacity-50 transition-colors"
+                            >
+                              {clientsLoadingMore ? "Loading…" : "Load more"}
+                            </button>
+                          </div>
+                        )}
+                        {clients.length === 0 && !clientsLoadingMore && (
                           <p className="text-center text-[11px] text-slate-300 dark:text-zinc-600 py-6">No clients found</p>
                         )}
                       </div>
@@ -1982,7 +2039,13 @@ function ChatPageInner() {
                           {activeTab === "allowances" && <AllowancesPanel allowances={allowancesData} isGenerating={isDashboardGenerating} />}
                           {activeTab === "scenarios" && <ScenariosPanel scenarios={scenariosList} activeScenarioId={activeScenarioId} onSelectScenario={setActiveScenarioId} onQuickModel={handleModelScenario} isGenerating={isDashboardGenerating} isScenarioGenerating={isScenarioGenerating} />}
                           {activeTab === "observations" && <ObservationsPanel observations={observations} isGenerating={isDashboardGenerating} onModelScenario={handleModelScenario} />}
-                          {activeTab === "notes" && <MeetingNotesPanel meetingNotes={meetingNotes} />}
+                          {activeTab === "notes" && (
+                            <MeetingNotesPanel
+                              meetingNotes={meetingNotes}
+                              clientId={selectedClientId}
+                              onRefreshNotes={refreshMeetingNotes}
+                            />
+                          )}
                         </motion.div>
                       </AnimatePresence>
 
@@ -3116,7 +3179,17 @@ function ObservationsPanel({ observations, isGenerating, onModelScenario }: { ob
 
 /* ─── Meeting Notes Panel ─── */
 
-function MeetingNotesPanel({ meetingNotes }: { meetingNotes: MeetingNoteData[] }) {
+function MeetingNotesPanel({
+  meetingNotes,
+  clientId,
+  onRefreshNotes,
+}: {
+  meetingNotes: MeetingNoteData[];
+  clientId: string;
+  onRefreshNotes: () => void;
+}) {
+  const [reviewNoteId, setReviewNoteId] = useState<string | null>(null);
+
   if (meetingNotes.length === 0) {
     return (
       <div className="text-center py-8">
@@ -3131,9 +3204,29 @@ function MeetingNotesPanel({ meetingNotes }: { meetingNotes: MeetingNoteData[] }
 
   const totalActions = meetingNotes.reduce((sum, n) => sum + (n.action_items?.length || 0), 0);
   const allTags = Array.from(new Set(meetingNotes.flatMap((n) => n.tags || [])));
+  const draftCount = meetingNotes.filter((n) => n.is_draft).length;
 
   return (
     <div className="space-y-4">
+      {/* ── Unverified notice ── */}
+      {draftCount > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-amber-200/60 dark:border-amber-800/50 bg-amber-50/80 dark:bg-amber-950/30 backdrop-blur-sm px-3 py-2.5 flex items-center gap-2"
+        >
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-200/80 dark:bg-amber-800/50 flex items-center justify-center text-amber-700 dark:text-amber-300">
+            <IconAlertCircle className="w-3.5 h-3.5" />
+          </span>
+          <p className="text-[11px] font-medium text-amber-800 dark:text-amber-200">
+            {draftCount} meeting note{draftCount !== 1 ? "s" : ""} need{draftCount === 1 ? "s" : ""} review
+          </p>
+          <span className="text-[10px] text-amber-600/90 dark:text-amber-300/80">
+            — Open and use <strong>Publish</strong> to verify.
+          </span>
+        </motion.div>
+      )}
+
       {/* ── Summary header ── */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -3145,6 +3238,9 @@ function MeetingNotesPanel({ meetingNotes }: { meetingNotes: MeetingNoteData[] }
           <div className="text-center">
             <p className="text-[20px] font-mono font-medium text-slate-900 dark:text-white tabular-nums">{meetingNotes.length}</p>
             <p className="text-[9px] font-light text-slate-400 dark:text-zinc-500 mt-0.5">Notes</p>
+            {draftCount > 0 && (
+              <p className="text-[9px] font-medium text-amber-600 dark:text-amber-400 mt-0.5">{draftCount} unverified</p>
+            )}
           </div>
           <div className="text-center border-x border-slate-200/30 dark:border-zinc-800/20">
             <p className="text-[20px] font-mono font-medium text-sky-600 dark:text-sky-400 tabular-nums">{totalActions}</p>
@@ -3169,21 +3265,330 @@ function MeetingNotesPanel({ meetingNotes }: { meetingNotes: MeetingNoteData[] }
 
       {/* ── Timeline ── */}
       <div>
-        <p className="text-[9px] uppercase tracking-widest font-medium text-slate-400 dark:text-zinc-600 mb-2 pl-1">Meeting History</p>
+        <div className="flex items-center gap-2 mb-2 pl-1">
+          <p className="text-[9px] uppercase tracking-widest font-medium text-slate-400 dark:text-zinc-600">Meeting History</p>
+          {draftCount > 0 && (
+            <span className="text-[9px] font-medium text-amber-600 dark:text-amber-400">({draftCount} unverified)</span>
+          )}
+        </div>
         <div className="space-y-2">
           {meetingNotes.map((note, i) => (
-            <MeetingNoteCard key={note.id} note={note} index={i} />
+            <MeetingNoteCard
+              key={note.id}
+              note={note}
+              index={i}
+              clientId={clientId}
+              onReview={() => setReviewNoteId(note.id)}
+            />
           ))}
         </div>
       </div>
+
+      {reviewNoteId && clientId && (
+        <MeetingNoteReviewModal
+          clientId={clientId}
+          noteId={reviewNoteId}
+          onClose={() => setReviewNoteId(null)}
+          onSaved={() => {
+            onRefreshNotes();
+            setReviewNoteId(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─── Meeting Note Review Modal ─── */
+
+function MeetingNoteReviewModal({
+  clientId,
+  noteId,
+  onClose,
+  onSaved,
+}: {
+  clientId: string;
+  noteId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { getMeetingNote, updateMeetingNote } = useApi();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [subject, setSubject] = useState("");
+  const [attendees, setAttendees] = useState("");
+  const [summary, setSummary] = useState("");
+  const [actionItems, setActionItems] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [isDraft, setIsDraft] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getMeetingNote(clientId, noteId)
+      .then((n) => {
+        if (cancelled) return;
+        setSubject(n.subject);
+        setAttendees(n.attendees ?? "");
+        setSummary(n.summary);
+        setActionItems(n.action_items ?? []);
+        setTags(n.tags ?? []);
+        setIsDraft(n.is_draft);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load note");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, noteId, getMeetingNote]);
+
+  const handleSave = useCallback(
+    (publish: boolean) => {
+      setSaving(true);
+      setError(null);
+      updateMeetingNote(clientId, noteId, {
+        subject: subject.trim() || undefined,
+        attendees: attendees.trim() || undefined,
+        summary: summary.trim() || undefined,
+        action_items: actionItems.filter(Boolean),
+        tags: tags.filter(Boolean),
+        ...(publish ? { is_draft: false } : {}),
+      })
+        .then(() => {
+          onSaved();
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : "Failed to save");
+        })
+        .finally(() => {
+          setSaving(false);
+        });
+    },
+    [clientId, noteId, subject, attendees, summary, actionItems, tags, updateMeetingNote, onSaved]
+  );
+
+  const addActionItem = () => setActionItems((prev) => [...prev, ""]);
+  const setActionItem = (i: number, v: string) =>
+    setActionItems((prev) => {
+      const next = [...prev];
+      next[i] = v;
+      return next;
+    });
+  const removeActionItem = (i: number) =>
+    setActionItems((prev) => prev.filter((_, j) => j !== i));
+
+  const [newTag, setNewTag] = useState("");
+  const addTag = () => {
+    const t = newTag.trim();
+    if (t && !tags.includes(t)) {
+      setTags((prev) => [...prev, t]);
+      setNewTag("");
+    }
+  };
+  const removeTag = (t: string) => setTags((prev) => prev.filter((x) => x !== t));
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        onClick={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.98 }}
+        className="w-full max-w-lg max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200/60 dark:border-zinc-700/50 bg-white dark:bg-zinc-900 shadow-xl flex flex-col"
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 dark:border-zinc-700/50">
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-zinc-100">Review meeting note</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 dark:hover:bg-zinc-800"
+            aria-label="Close"
+          >
+            <IconX className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          {loading ? (
+            <p className="text-sm text-slate-500 dark:text-zinc-400">Loading…</p>
+          ) : error ? (
+            <p className="text-sm text-amber-600 dark:text-amber-400">{error}</p>
+          ) : (
+            <>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider font-medium text-slate-400 dark:text-zinc-500 mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider font-medium text-slate-400 dark:text-zinc-500 mb-1">Attendees</label>
+                <input
+                  type="text"
+                  value={attendees}
+                  onChange={(e) => setAttendees(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider font-medium text-slate-400 dark:text-zinc-500 mb-1">Summary</label>
+                <textarea
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 text-sm resize-y"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] uppercase tracking-wider font-medium text-slate-400 dark:text-zinc-500">Action items</label>
+                  <button
+                    type="button"
+                    onClick={addActionItem}
+                    className="text-[10px] font-medium text-sky-600 dark:text-sky-400 hover:underline"
+                  >
+                    + Add
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {actionItems.map((item, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={item}
+                        onChange={(e) => setActionItem(i, e.target.value)}
+                        placeholder="Action item"
+                        className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeActionItem(i)}
+                        className="p-2 rounded-lg text-slate-400 hover:text-red-500 dark:hover:text-red-400"
+                        aria-label="Remove"
+                      >
+                        <IconTrash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider font-medium text-slate-400 dark:text-zinc-500 mb-1">Tags</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {tags.map((t) => (
+                    <span
+                      key={t}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-300 border border-sky-200/50 dark:border-sky-800/50"
+                    >
+                      {t}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(t)}
+                        className="rounded-full p-0.5 hover:bg-sky-200/50 dark:hover:bg-sky-800/50"
+                        aria-label={`Remove ${t}`}
+                      >
+                        <IconX className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+                    placeholder="Add tag"
+                    className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={addTag}
+                    className="px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-zinc-800"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+        {!loading && !error && (
+          <div className="flex items-center gap-2 px-4 py-3 border-t border-slate-200/60 dark:border-zinc-700/50">
+            <button
+              type="button"
+              onClick={() => handleSave(false)}
+              disabled={saving}
+              className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-sm font-medium hover:bg-slate-200 dark:hover:bg-zinc-700 disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSave(true)}
+              disabled={saving}
+              className="px-4 py-2 rounded-lg bg-sky-600 dark:bg-sky-500 text-white text-sm font-medium hover:bg-sky-700 dark:hover:bg-sky-600 disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Publish"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="ml-auto px-4 py-2 rounded-lg text-slate-500 dark:text-zinc-400 text-sm hover:bg-slate-100 dark:hover:bg-zinc-800"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 }
 
 /* ─── Single Meeting Note Card ─── */
 
-function MeetingNoteCard({ note, index }: { note: MeetingNoteData; index: number }) {
+function MeetingNoteCard({
+  note,
+  index,
+  clientId,
+  onReview,
+}: {
+  note: MeetingNoteData;
+  index: number;
+  clientId: string;
+  onReview: () => void;
+}) {
+  const { updateMeetingNote } = useApi();
   const [expanded, setExpanded] = useState(false);
+  const [checkedActions, setCheckedActions] = useState<Set<number>>(
+    () => new Set(note.completed_action_indices ?? [])
+  );
+
+  // Sync from server when note is refetched (e.g. different client or manual refresh)
+  const serverIndicesKey = `${note.id}:${(note.completed_action_indices ?? []).join(",")}`;
+  useEffect(() => {
+    setCheckedActions(new Set(note.completed_action_indices ?? []));
+  }, [serverIndicesKey]);
+
+  const toggleAction = (j: number) => {
+    const next = new Set(checkedActions);
+    if (next.has(j)) next.delete(j);
+    else next.add(j);
+    setCheckedActions(next);
+    const indices = [...next].sort((a, b) => a - b);
+    updateMeetingNote(clientId, note.id, { completed_action_indices: indices }).catch(() => {});
+  };
 
   const dateStr = (() => {
     try {
@@ -3194,15 +3599,25 @@ function MeetingNoteCard({ note, index }: { note: MeetingNoteData; index: number
     }
   })();
 
+  const isUnverified = Boolean(note.is_draft);
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.06, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="group relative rounded-xl border border-slate-200/40 dark:border-zinc-800/30 bg-white/50 dark:bg-zinc-900/30 backdrop-blur-sm overflow-hidden hover:border-sky-200/40 dark:hover:border-sky-700/30 transition-all duration-200"
+      className={`group relative rounded-xl overflow-hidden transition-all duration-200 ${
+        isUnverified
+          ? "border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/40 dark:bg-amber-950/20 hover:border-amber-300/60 dark:hover:border-amber-700/50"
+          : "border border-slate-200/40 dark:border-zinc-800/30 bg-white/50 dark:bg-zinc-900/30 hover:border-sky-200/40 dark:hover:border-sky-700/30"
+      } backdrop-blur-sm`}
     >
-      {/* Accent bar */}
-      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-sky-400 to-blue-500" />
+      {/* Accent bar: amber for unverified, sky for verified */}
+      <div
+        className={`absolute left-0 top-0 bottom-0 w-[3px] ${
+          isUnverified ? "bg-gradient-to-b from-amber-400 to-amber-500" : "bg-gradient-to-b from-sky-400 to-blue-500"
+        }`}
+      />
 
       <button onClick={() => setExpanded(!expanded)} className="w-full text-left p-3.5 pl-4">
         {/* Top row */}
@@ -3214,8 +3629,13 @@ function MeetingNoteCard({ note, index }: { note: MeetingNoteData; index: number
             <div className="flex items-center gap-2">
               <h4 className="text-[12px] font-semibold text-slate-800 dark:text-zinc-100 truncate">{note.subject}</h4>
             </div>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="text-[10px] font-mono text-slate-400 dark:text-zinc-500">{dateStr}</span>
+              {note.is_draft && (
+                <span className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-200/80 dark:bg-amber-800/50 text-amber-800 dark:text-amber-200 border border-amber-300/50 dark:border-amber-700/50">
+                  Unverified
+                </span>
+              )}
               {note.attendees && (
                 <span className="text-[10px] text-slate-400/60 dark:text-zinc-600/60 truncate">
                   &middot; {note.attendees}
@@ -3264,19 +3684,36 @@ function MeetingNoteCard({ note, index }: { note: MeetingNoteData; index: number
                 <p className="text-[11px] font-light text-slate-600 dark:text-zinc-300 leading-relaxed whitespace-pre-line">{note.summary}</p>
               </div>
 
-              {/* Action items */}
+              {/* Action items checklist */}
               {note.action_items && note.action_items.length > 0 && (
                 <div>
                   <p className="text-[9px] uppercase tracking-widest font-medium text-slate-400 dark:text-zinc-600 mb-1.5">Action Items</p>
-                  <div className="space-y-1">
-                    {note.action_items.map((item, j) => (
-                      <div key={j} className="flex items-start gap-2">
-                        <div className="w-4 h-4 rounded border border-slate-200/60 dark:border-zinc-700/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <IconCheck className="w-2.5 h-2.5 text-slate-300 dark:text-zinc-600" />
-                        </div>
-                        <span className="text-[11px] font-light text-slate-600 dark:text-zinc-300 leading-relaxed">{item}</span>
-                      </div>
-                    ))}
+                  <div className="space-y-1.5">
+                    {note.action_items.map((item, j) => {
+                      const checked = checkedActions.has(j);
+                      return (
+                        <label
+                          key={j}
+                          className="flex items-start gap-2.5 cursor-pointer group"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleAction(j)}
+                            className="mt-1 w-4 h-4 rounded border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-sky-600 focus:ring-sky-500/40 cursor-pointer flex-shrink-0"
+                          />
+                          <span
+                            className={`text-[11px] font-light leading-relaxed select-none ${
+                              checked
+                                ? "text-slate-400 dark:text-zinc-500 line-through"
+                                : "text-slate-600 dark:text-zinc-300"
+                            }`}
+                          >
+                            {item}
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -3291,6 +3728,21 @@ function MeetingNoteCard({ note, index }: { note: MeetingNoteData; index: number
                   ))}
                 </div>
               )}
+
+              {/* Review & edit */}
+              <div className="pt-2 border-t border-slate-200/30 dark:border-zinc-700/30">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReview();
+                  }}
+                  className="inline-flex items-center gap-1.5 text-[10px] font-medium text-sky-600 dark:text-sky-400 hover:underline"
+                >
+                  <IconPencil className="w-3.5 h-3.5" />
+                  Review & edit
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
